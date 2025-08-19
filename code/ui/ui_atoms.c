@@ -26,8 +26,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 	User interface building blocks and support functions.
 **********************************************************************/
 #include "ui_local.h"
+#include "../vr/vr_clientinfo.h"
 
 qboolean		m_entersound;		// after a frame, so caching won't disrupt the sound
+extern vr_clientinfo_t *vr;
 
 void QDECL Com_Error( int level, const char *error, ... ) {
 	va_list		argptr;
@@ -53,6 +55,42 @@ void QDECL Com_Printf( const char *msg, ... ) {
 
 qboolean newUI = qfalse;
 
+
+float UI_GetXScale()
+{
+	if (vr == NULL || vr->virtual_screen) {
+		return uiInfo.uiDC.xscale;
+	} else {
+		return uiInfo.uiDC.xscale / 2.75f;
+	}
+}
+
+float UI_GetYScale()
+{
+	if (vr == NULL || vr->virtual_screen) {
+		return uiInfo.uiDC.yscale;
+	} else {
+		return uiInfo.uiDC.yscale / 3.25f;
+	}
+}
+
+float UI_GetXOffset()
+{
+	if (vr == NULL || vr->virtual_screen) {
+		return 0;
+	} else {
+		return (uiInfo.uiDC.glconfig.vidWidth - (640 * UI_GetXScale())) / 2.0f;
+	}
+}
+
+float UI_GetYOffset()
+{
+	if (vr == NULL || vr->virtual_screen) {
+		return 0;
+	} else {
+		return (uiInfo.uiDC.glconfig.vidHeight - (480 * UI_GetYScale())) / 2.0f;
+	}
+}
 
 /*
 =================
@@ -420,10 +458,10 @@ Adjusted for resolution and screen aspect ratio
 */
 void UI_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 	// expect valid pointers
-	*x = *x * uiInfo.uiDC.xscale + uiInfo.uiDC.bias;
-	*y *= uiInfo.uiDC.yscale;
-	*w *= uiInfo.uiDC.xscale;
-	*h *= uiInfo.uiDC.yscale;
+	*x = *x * UI_GetXScale() + uiInfo.uiDC.bias + UI_GetXOffset();
+	*y = *y * UI_GetYScale() + UI_GetYOffset();
+	*w *= UI_GetXScale();
+	*h *= UI_GetYScale();
 }
 
 void UI_DrawNamedPic( float x, float y, float width, float height, const char *picname ) {

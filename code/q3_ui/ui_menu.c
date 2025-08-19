@@ -190,7 +190,7 @@ static void Main_MenuDraw( void ) {
 
 	origin[0] = 300;
 	origin[1] = 0;
-	origin[2] = -32;
+	origin[2] = -128;
 
 	trap_R_ClearScene();
 
@@ -198,9 +198,14 @@ static void Main_MenuDraw( void ) {
 
 	memset( &ent, 0, sizeof(ent) );
 
+#if 0
 	adjust = 5.0 * sin( (float)uis.realtime / 5000 );
-	VectorSet( angles, 0, 180 + adjust, 0 );
+#endif
+	VectorSet( angles, 5.0 * sin( (float)uis.realtime / 3000 ), 180 + 5.0 * sin( (float)uis.realtime / 4000 ), 0 );
 	AnglesToAxis( angles, ent.axis );
+	VectorScale(ent.axis[1], 1.6f, ent.axis[1]);
+	VectorScale(ent.axis[2], 6.0f, ent.axis[2]);
+	ent.nonNormalizedAxes = qtrue;
 	ent.hModel = s_main.bannerModel;
 	VectorCopy( origin, ent.origin );
 	VectorCopy( origin, ent.lightingOrigin );
@@ -221,12 +226,28 @@ static void Main_MenuDraw( void ) {
 		Menu_Draw( &s_main.menu );		
 	}
 
+	int yPos = 416;
 	if (uis.demoversion) {
-		UI_DrawProportionalString( 320, 372, "DEMO      FOR MATURE AUDIENCES      DEMO", UI_CENTER|UI_SMALLFONT, color );
-		UI_DrawString( 320, 400, "Quake III Arena(c) 1999-2000, Id Software, Inc.  All Rights Reserved", UI_CENTER|UI_SMALLFONT, color );
+		yPos = 372;
+		UI_DrawString( 320, yPos, "DEMO: You can only play on Demo-Servers and play first part of SP!", UI_CENTER|UI_SMALLFONT, color_white );
+		yPos += SMALLCHAR_HEIGHT;
+		UI_DrawString( 320, yPos, "Install full game for more!", UI_CENTER|UI_SMALLFONT, color_white );
+		yPos += SMALLCHAR_HEIGHT;
+		UI_DrawString( 320, yPos, "Quake III Arena(c) 1999-2000, Id Software, Inc.  All Rights Reserved", UI_CENTER|UI_SMALLFONT, color );
 	} else {
-		UI_DrawString( 320, 450, "Quake III Arena(c) 1999-2000, Id Software, Inc.  All Rights Reserved", UI_CENTER|UI_SMALLFONT, color );
+		UI_DrawString( 320, yPos, "Quake III Arena(c) 1999-2000, Id Software, Inc.  All Rights Reserved", UI_CENTER|UI_SMALLFONT, color );
 	}
+
+	vec4_t color_grey = {0.3f, 0.3f, 0.3f, 1.0f};
+
+	yPos += SMALLCHAR_HEIGHT + 12;
+	UI_DrawString( 320, yPos, "Quake 3 VR", UI_CENTER|UI_SMALLFONT, color_white );
+	yPos += SMALLCHAR_HEIGHT + 2;
+	UI_DrawString( 320, yPos, "by RippeR37", UI_CENTER|UI_SMALLFONT, color_grey );
+
+	// Version
+	vec4_t color_red = {0.65f, 0.0f, 0.0f, 1.0f};
+	UI_DrawString( 610, 455, "BETA", UI_CENTER|UI_SMALLFONT|UI_PULSE|UI_LEFT, color_red );
 }
 
 

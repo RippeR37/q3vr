@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../sys/sys_local.h"
 #include "../sys/sys_loadlib.h"
 
+#include "../vr/vr_cvars.h"
+
 #ifdef USE_MUMBLE
 #include "libmumblelink.h"
 #endif
@@ -3554,6 +3556,8 @@ void CL_Init( void ) {
 
 	CL_InitInput ();
 
+	VR_InitCvars();
+
 	//
 	// register our variables
 	//
@@ -3585,11 +3589,11 @@ void CL_Init( void ) {
 	cl_pitchspeed = Cvar_Get ("cl_pitchspeed", "140", CVAR_ARCHIVE);
 	cl_anglespeedkey = Cvar_Get ("cl_anglespeedkey", "1.5", 0);
 
-	cl_maxpackets = Cvar_Get ("cl_maxpackets", "30", CVAR_ARCHIVE );
+	cl_maxpackets = Cvar_Get ("cl_maxpackets", "144", CVAR_ARCHIVE ); // NOW UNUSED
 	cl_packetdup = Cvar_Get ("cl_packetdup", "1", CVAR_ARCHIVE );
 
 	cl_run = Cvar_Get ("cl_run", "1", CVAR_ARCHIVE);
-	cl_sensitivity = Cvar_Get ("sensitivity", "5", CVAR_ARCHIVE);
+	cl_sensitivity = Cvar_Get ("sensitivity", "100", CVAR_ARCHIVE);
 	cl_mouseAccel = Cvar_Get ("cl_mouseAccel", "0", CVAR_ARCHIVE);
 	cl_freelook = Cvar_Get( "cl_freelook", "1", CVAR_ARCHIVE );
 
@@ -3603,7 +3607,7 @@ void CL_Init( void ) {
 
 	cl_showMouseRate = Cvar_Get ("cl_showmouserate", "0", 0);
 
-	cl_allowDownload = Cvar_Get ("cl_allowDownload", "0", CVAR_ARCHIVE);
+	cl_allowDownload = Cvar_Get ("cl_allowDownload", "1", CVAR_ARCHIVE);
 
 	cl_conXOffset = Cvar_Get ("cl_conXOffset", "0", 0);
 #ifdef __APPLE__
@@ -3632,8 +3636,8 @@ void CL_Init( void ) {
 
 	j_pitch =        Cvar_Get ("j_pitch",        "0.022", CVAR_ARCHIVE);
 	j_yaw =          Cvar_Get ("j_yaw",          "-0.022", CVAR_ARCHIVE);
-	j_forward =      Cvar_Get ("j_forward",      "-0.25", CVAR_ARCHIVE);
-	j_side =         Cvar_Get ("j_side",         "0.25", CVAR_ARCHIVE);
+	j_forward =      Cvar_Get ("j_forward",      "1.0", CVAR_ARCHIVE);
+	j_side =         Cvar_Get ("j_side",         "1.0", CVAR_ARCHIVE);
 	j_up =           Cvar_Get ("j_up",           "0", CVAR_ARCHIVE);
 
 	j_pitch_axis =   Cvar_Get ("j_pitch_axis",   "3", CVAR_ARCHIVE);
@@ -3660,9 +3664,14 @@ void CL_Init( void ) {
 	cl_consoleKeys = Cvar_Get( "cl_consoleKeys", "~ ` 0x7e 0x60", CVAR_ARCHIVE);
 
 	// userinfo
-	Cvar_Get ("name", "UnnamedPlayer", CVAR_USERINFO | CVAR_ARCHIVE );
+	char playerName[256];
+	Com_sprintf(playerName, 256, "[VR] Player #%i", ((rand() % 8999) + 1000));
+	Cvar_Get ("name", playerName, CVAR_USERINFO | CVAR_ARCHIVE );
+	if (strcmp(Cvar_VariableString("name"), "[VR] Player") == 0) {
+		Cvar_Set( "name", playerName);
+	}
 	cl_rate = Cvar_Get ("rate", "25000", CVAR_USERINFO | CVAR_ARCHIVE );
-	Cvar_Get ("snaps", "20", CVAR_USERINFO | CVAR_ARCHIVE );
+	Cvar_Get ("snaps", "40", CVAR_USERINFO | CVAR_ARCHIVE );
 	Cvar_Get ("model", "sarge", CVAR_USERINFO | CVAR_ARCHIVE );
 	Cvar_Get ("headmodel", "sarge", CVAR_USERINFO | CVAR_ARCHIVE );
 	Cvar_Get ("team_model", "james", CVAR_USERINFO | CVAR_ARCHIVE );
@@ -4240,7 +4249,7 @@ void CL_GlobalServers_f( void ) {
 		int numAddress = 0;
 
 		for ( i = 1; i <= MAX_MASTER_SERVERS; i++ ) {
-			sprintf(command, "sv_master%d", i);
+			sprintf(command, "vr_master%d", i);
 			masteraddress = Cvar_VariableString(command);
 
 			if(!*masteraddress)
@@ -4258,7 +4267,7 @@ void CL_GlobalServers_f( void ) {
 		return;
 	}
 
-	sprintf(command, "sv_master%d", masterNum);
+	sprintf(command, "vr_master%d", masterNum);
 	masteraddress = Cvar_VariableString(command);
 	
 	if(!*masteraddress)

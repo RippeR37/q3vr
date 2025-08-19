@@ -909,6 +909,27 @@ char *Q_strupr( char *s1 ) {
 }
 
 
+char* Q_strrchr( const char* string, int c ) {
+	char cc = c;
+	char *s;
+	char *sp = (char *)0;
+
+	s = (char*)string;
+
+	while ( *s )
+	{
+		if ( *s == cc ) {
+			sp = s;
+		}
+		s++;
+	}
+	if ( cc == 0 ) {
+		sp = s;
+	}
+
+	return sp;
+}
+
 // never goes past bounds or leaves without a terminating 0
 void Q_strcat( char *dest, int size, const char *src ) {
 	int		l1;

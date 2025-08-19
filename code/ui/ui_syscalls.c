@@ -402,3 +402,7 @@ qboolean trap_VerifyCDKey( const char *key, const char *chksum) {
 void trap_SetPbClStatus( int status ) {
 	syscall( UI_SET_PBCLSTATUS, status );
 }
+
+int trap_HapticEvent( char *description, int position, int channel, int intensity, float yaw, float height ) {
+	return syscall( UI_HAPTICEVENT, description, position, channel, intensity, PASSFLOAT(yaw), PASSFLOAT(height));
+}

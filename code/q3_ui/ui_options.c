@@ -75,9 +75,11 @@ static void Options_Event( void* ptr, int event ) {
 		UI_GraphicsOptionsMenu();
 		break;
 
+#if 0
 	case ID_DISPLAY:
 		UI_DisplayOptionsMenu();
 		break;
+#endif
 
 	case ID_SOUND:
 		UI_SoundOptionsMenu();
@@ -152,7 +154,7 @@ void Options_MenuInit( void ) {
 	s_options.framer.width  	   = 256;
 	s_options.framer.height  	   = 334;
 
-	y = 168;
+	y = 134;
 	s_options.graphics.generic.type		= MTYPE_PTEXT;
 	s_options.graphics.generic.flags	= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
 	s_options.graphics.generic.callback	= Options_Event;
@@ -163,6 +165,7 @@ void Options_MenuInit( void ) {
 	s_options.graphics.color			= color_red;
 	s_options.graphics.style			= UI_CENTER;
 
+#if 0
 	y += VERTICAL_SPACING;
 	s_options.display.generic.type		= MTYPE_PTEXT;
 	s_options.display.generic.flags		= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
@@ -173,6 +176,7 @@ void Options_MenuInit( void ) {
 	s_options.display.string			= "DISPLAY";
 	s_options.display.color				= color_red;
 	s_options.display.style				= UI_CENTER;
+#endif
 
 	y += VERTICAL_SPACING;
 	s_options.sound.generic.type		= MTYPE_PTEXT;

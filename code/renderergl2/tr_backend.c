@@ -270,14 +270,11 @@ void GL_State( unsigned long stateBits )
 void GL_SetProjectionMatrix(mat4_t matrix)
 {
 	Mat4Copy(matrix, glState.projection);
-	Mat4Multiply(glState.projection, glState.modelview, glState.modelviewProjection);	
 }
 
-
-void GL_SetModelviewMatrix(mat4_t matrix)
+void GL_SetModelMatrix(mat4_t matrix)
 {
-	Mat4Copy(matrix, glState.modelview);
-	Mat4Multiply(glState.projection, glState.modelview, glState.modelviewProjection);	
+	Mat4Copy(matrix, glState.modelMatrix);
 }
 
 
@@ -394,6 +391,7 @@ void RB_BeginDrawingView (void) {
 	// we will only draw a sun if there was sky rendered in this view
 	backEnd.skyRenderedThisView = qfalse;
 
+#if 0
 	// clip to the plane of the portal
 	if ( backEnd.viewParms.isPortal ) {
 #if 0
@@ -412,6 +410,7 @@ void RB_BeginDrawingView (void) {
 #endif
 		GL_SetModelviewMatrix( s_flipMatrix );
 	}
+#endif
 }
 
 
@@ -529,7 +528,8 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 				R_TransformDlights( backEnd.refdef.num_dlights, backEnd.refdef.dlights, &backEnd.or );
 			}
 
-			GL_SetModelviewMatrix( backEnd.or.modelMatrix );
+			GL_SetModelMatrix( backEnd.or.modelMatrix );
+      GL_SetProjectionMatrix( backEnd.viewParms.projectionMatrix );
 
 			//
 			// change depthrange. Also change projection matrix so first person weapon does not look like coming
@@ -539,6 +539,7 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 			{
 				if (depthRange)
 				{
+#if 0
 					if(backEnd.viewParms.stereoFrame != STEREO_CENTER)
 					{
 						if(isCrosshair)
@@ -558,16 +559,19 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 							GL_SetProjectionMatrix( temp.projectionMatrix );
 						}
 					}
+#endif
 
 					if(!oldDepthRange)
 						qglDepthRange (0, 0.3);
 				}
 				else
 				{
+#if 0
 					if(!wasCrosshair && backEnd.viewParms.stereoFrame != STEREO_CENTER)
 					{
 						GL_SetProjectionMatrix( backEnd.viewParms.projectionMatrix );
 					}
+#endif
 
 					qglDepthRange (0, 1);
 				}
@@ -593,9 +597,9 @@ void RB_RenderDrawSurfList( drawSurf_t *drawSurfs, int numDrawSurfs ) {
 	if (glRefConfig.framebufferObject)
 		FBO_Bind(fbo);
 
-	// go back to the world modelview matrix
+	// go back to the world model matrix
 
-	GL_SetModelviewMatrix( backEnd.viewParms.world.modelMatrix );
+	GL_SetModelMatrix( backEnd.viewParms.world.modelMatrix );
 
 	qglDepthRange (0, 1);
 }
@@ -619,11 +623,13 @@ void	RB_SetGL2D (void) {
 	mat4_t matrix;
 	int width, height;
 
+#if 0
 	if (backEnd.projection2D && backEnd.last2DFBO == glState.currentFBO)
 		return;
 
 	backEnd.projection2D = qtrue;
 	backEnd.last2DFBO = glState.currentFBO;
+#endif
 
 	if (glState.currentFBO)
 	{
@@ -637,13 +643,28 @@ void	RB_SetGL2D (void) {
 	}
 
 	// set 2D virtual screen size
-	qglViewport( 0, 0, width, height );
-	qglScissor( 0, 0, width, height );
+	if (glState.isDrawingHUD && vr_currentHudDrawStatus->integer != 2)
+	{
+		qglViewport(0, 0, tr.hudImage->width, tr.hudImage->height);
+		qglScissor(0, 0, tr.hudImage->width, tr.hudImage->height);
+	}
+	else
+	{
+		qglViewport(0, 0, width, height);
+		qglScissor(0, 0, width, height);
+	}
+
+	if (backEnd.projection2D && backEnd.last2DFBO == glState.currentFBO)
+		return;
+
+	backEnd.projection2D = qtrue;
+	backEnd.last2DFBO = glState.currentFBO;
+
 
 	Mat4Ortho(0, width, height, 0, 0, 1, matrix);
 	GL_SetProjectionMatrix(matrix);
 	Mat4Identity(matrix);
-	GL_SetModelviewMatrix(matrix);
+	GL_SetModelMatrix(matrix);
 
 	GL_State( GLS_DEPTHTEST_DISABLE |
 			  GLS_SRCBLEND_SRC_ALPHA |
@@ -725,7 +746,8 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 
 	GLSL_BindProgram(&tr.textureColorShader);
 	
-	GLSL_SetUniformMat4(&tr.textureColorShader, UNIFORM_MODELVIEWPROJECTIONMATRIX, glState.modelviewProjection);
+	GLSL_SetUniformMat4(&tr.textureColorShader, UNIFORM_MODELMATRIX, glState.modelMatrix);
+	GLSL_BindBuffers(&tr.textureColorShader);
 	GLSL_SetUniformVec4(&tr.textureColorShader, UNIFORM_COLOR, colorWhite);
 
 	RB_InstantQuad2(quadVerts, texCoords);
@@ -1397,6 +1419,7 @@ const void	*RB_SwapBuffers( const void *data ) {
 		ri.Hunk_FreeTempMemory( stencilReadback );
 	}
 
+#if 0
 	if (glRefConfig.framebufferObject)
 	{
 		if (tr.msaaResolveFbo && r_hdr->integer)
@@ -1410,14 +1433,17 @@ const void	*RB_SwapBuffers( const void *data ) {
 			FBO_FastBlit(tr.renderFbo, NULL, NULL, NULL, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 		}
 	}
+#endif
 
 	if ( !glState.finishCalled ) {
 		qglFinish();
 	}
 
+#if 0
 	GLimp_LogComment( "***************** RB_SwapBuffers *****************\n\n\n" );
 
 	GLimp_EndFrame();
+#endif
 
 	backEnd.projection2D = qfalse;
 
@@ -1477,7 +1503,8 @@ const void *RB_PostProcess(const void *data)
 	if(tess.numIndexes)
 		RB_EndSurface();
 
-	if (!glRefConfig.framebufferObject || !r_postProcess->integer)
+	qboolean enablePostProcessInVR = qfalse;
+	if (!enablePostProcessInVR || !glRefConfig.framebufferObject || !r_postProcess->integer)
 	{
 		// do nothing
 		return (const void *)(cmd + 1);
@@ -1748,6 +1775,98 @@ const void *RB_ExportCubemaps(const void *data)
 	return (const void *)(cmd + 1);
 }
 
+/*
+====================
+RB_SwitchEye
+====================
+*/
+const void* RB_SwitchEye( const void* data ) {
+	const switchEyeCommand_t *cmd = data;
+
+	tr.renderFbo->frameBuffer = cmd->eye;
+
+	// finish any 2D drawing if needed
+	if(tess.numIndexes)
+		RB_EndSurface();
+
+	if (r_useFlush->integer)
+	{
+		//FLush all open gl commands up to now
+		qglFlush();
+	}
+
+	// Not calling FBO_Bind explicitly, since we just update the frameBuffer
+	// within the struct.
+	if (tr.renderFbo == glState.currentFBO)
+	{
+		GL_BindFramebuffer(GL_FRAMEBUFFER, tr.renderFbo->frameBuffer);
+		glState.currentFBO = tr.renderFbo;
+	}
+
+	return (const void*)(cmd + 1);
+}
+
+
+/*
+====================
+RB_HUDBuffer
+====================
+*/
+const void* RB_HUDBuffer( const void* data ) {
+	const hudBufferCommand_t *cmd = data;
+
+	// finish any 2D drawing if needed
+	if(tess.numIndexes) {
+		RB_EndSurface();
+		// Ensure that next draw will call BeginSurface()
+		tess.shader = NULL;
+	}
+
+	if (cmd->start && !glState.isDrawingHUD)
+	{
+		glState.isDrawingHUD = qtrue;
+
+		if (vr_currentHudDrawStatus->integer != 2)
+		{
+			//keep record of current render fbo and switch to the hud buffer
+			tr.backupFrameBuffer = tr.renderFbo->frameBuffer;
+			tr.renderFbo->frameBuffer = tr.hudFbo->frameBuffer;
+
+			// Render to framebuffer
+			GL_BindFramebuffer(GL_FRAMEBUFFER, tr.hudFbo->frameBuffer);
+			qglBindRenderbuffer(GL_RENDERBUFFER, 0);
+			qglFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tr.hudImage->texnum, 0);
+			qglFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tr.hudDepthImage->texnum, 0);
+
+			GLenum result = qglCheckFramebufferStatus(GL_FRAMEBUFFER);
+			if (result != GL_FRAMEBUFFER_COMPLETE)
+			{
+				ri.Error(ERR_DROP, "Error binding Framebuffer: %d\n", result);
+			}
+
+			if (cmd->clear)
+			{
+				qglClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+				qglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			}
+		}
+	}
+	else if (glState.isDrawingHUD)
+	{
+		glState.isDrawingHUD = qfalse;
+
+		if (vr_currentHudDrawStatus->integer != 2)
+		{
+			//restore the true render fbo
+			tr.renderFbo->frameBuffer = tr.backupFrameBuffer;
+			GL_BindFramebuffer(GL_FRAMEBUFFER, tr.renderFbo->frameBuffer);
+		}
+	}
+
+	glState.currentFBO = tr.renderFbo;
+
+	return (const void*)(cmd + 1);
+}
 
 /*
 ====================
@@ -1798,6 +1917,12 @@ void RB_ExecuteRenderCommands( const void *data ) {
 			break;
 		case RC_EXPORT_CUBEMAPS:
 			data = RB_ExportCubemaps(data);
+			break;
+		case RC_SWITCH_EYE:
+			data = RB_SwitchEye(data);
+			break;
+		case RC_HUD_BUFFER:
+			data = RB_HUDBuffer(data);
 			break;
 		case RC_END_OF_LIST:
 		default:

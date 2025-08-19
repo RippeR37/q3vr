@@ -31,15 +31,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <winsock.h>
 #endif
 
+#include "../vr/vr_base.h"
+
 int demo_protocols[] =
 { 67, 66, 0 };
 
 #define MAX_NUM_ARGVS	50
 
 #define MIN_DEDICATED_COMHUNKMEGS 1
-#define MIN_COMHUNKMEGS		56
-#define DEF_COMHUNKMEGS 	128
-#define DEF_COMZONEMEGS		24
+#define MIN_COMHUNKMEGS		256
+#define DEF_COMHUNKMEGS 	512
+#define DEF_COMZONEMEGS		256
 #define DEF_COMHUNKMEGS_S	XSTRING(DEF_COMHUNKMEGS)
 #define DEF_COMZONEMEGS_S	XSTRING(DEF_COMZONEMEGS)
 
@@ -98,6 +100,8 @@ cvar_t	*com_busyWait;
 #ifndef DEDICATED
 cvar_t  *con_autochat;
 #endif
+
+extern cvar_t *vr_refreshrate;
 
 #if idx64
 	int (*Q_VMftol)(void);
@@ -382,6 +386,7 @@ void Com_Quit_f( void ) {
 		// Sys_Quit will kill this process anyways, so
 		// a corrupt call stack makes no difference
 		VM_Forced_Unload_Start();
+    VR_PrepareForShutdown();
 		SV_Shutdown(p[0] ? p : "Server quit");
 		CL_Shutdown(p[0] ? p : "Client quit", qtrue, qtrue);
 		VM_Forced_Unload_Done();
@@ -2751,7 +2756,7 @@ void Com_Init( char *commandLine ) {
 	// browser-driven event loop. So default throttling to off.
 	com_maxfps = Cvar_Get ("com_maxfps", "0", CVAR_ARCHIVE);
 #else
-	com_maxfps = Cvar_Get ("com_maxfps", "85", CVAR_ARCHIVE);
+	com_maxfps = Cvar_Get ("com_maxfps", "144", CVAR_ARCHIVE); // NOW UNUSED
 #endif
 	com_blood = Cvar_Get ("com_blood", "1", CVAR_ARCHIVE);
 
@@ -2774,16 +2779,16 @@ void Com_Init( char *commandLine ) {
 	com_ansiColor = Cvar_Get( "com_ansiColor", "0", CVAR_ARCHIVE );
 
 	com_unfocused = Cvar_Get( "com_unfocused", "0", CVAR_ROM );
-	com_maxfpsUnfocused = Cvar_Get( "com_maxfpsUnfocused", "0", CVAR_ARCHIVE );
+	com_maxfpsUnfocused = Cvar_Get( "com_maxfpsUnfocused", "0", CVAR_ARCHIVE ); // UNUSED
 	com_minimized = Cvar_Get( "com_minimized", "0", CVAR_ROM );
-	com_maxfpsMinimized = Cvar_Get( "com_maxfpsMinimized", "0", CVAR_ARCHIVE );
+	com_maxfpsMinimized = Cvar_Get( "com_maxfpsMinimized", "0", CVAR_ARCHIVE ); // UNUSED
 	com_abnormalExit = Cvar_Get( "com_abnormalExit", "0", CVAR_ROM );
 	com_busyWait = Cvar_Get("com_busyWait", "0", CVAR_ARCHIVE);
 	Cvar_Get("com_errorMessage", "", CVAR_ROM | CVAR_NORESTART);
 
-#ifdef CINEMATICS_INTRO
-	com_introPlayed = Cvar_Get( "com_introplayed", "0", CVAR_ARCHIVE);
-#endif
+//#ifdef CINEMATICS_INTRO
+	com_introPlayed = Cvar_Get( "com_introplayed", "1", CVAR_ARCHIVE);
+//#endif
 
 	s = va("%s %s %s", Q3_VERSION, PLATFORM_STRING, PRODUCT_DATE );
 	com_version = Cvar_Get ("version", s, CVAR_ROM | CVAR_SERVERINFO );
@@ -3115,12 +3120,15 @@ void Com_Frame( void ) {
 			minMsec = SV_FrameMsec();
 		else
 		{
+#if 0
 			if(com_minimized->integer && com_maxfpsMinimized->integer > 0)
 				minMsec = 1000 / com_maxfpsMinimized->integer;
 			else if(com_unfocused->integer && com_maxfpsUnfocused->integer > 0)
 				minMsec = 1000 / com_maxfpsUnfocused->integer;
-			else if(com_maxfps->integer > 0)
-				minMsec = 1000 / com_maxfps->integer;
+			else
+#endif
+			if(vr_refreshrate->integer > 0)
+				minMsec = 1000 / vr_refreshrate->integer;
 			else
 				minMsec = 1;
 			

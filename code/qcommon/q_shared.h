@@ -40,15 +40,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //  #define LEGACY_PROTOCOL	// You probably don't need this for your standalone game
 //  #define PROTOCOL_HANDLER		"foobar"
 #else
-  #define PRODUCT_NAME				"ioq3"
+  #define PRODUCT_NAME				"q3vr"
   #define BASEGAME					"baseq3"
-  #define CLIENT_WINDOW_TITLE		"ioquake3"
-  #define CLIENT_WINDOW_MIN_TITLE	"ioq3"
+  #define CLIENT_WINDOW_TITLE		"quake3vr"
+  #define CLIENT_WINDOW_MIN_TITLE	"q3vr"
   #define HOMEPATH_NAME_UNIX		".q3a"
   #define HOMEPATH_NAME_WIN			"Quake3"
   #define HOMEPATH_NAME_MACOSX		HOMEPATH_NAME_WIN
   #define GAMENAME_FOR_MASTER		"Quake3Arena"
+#if 0
   #define CINEMATICS_LOGO		"idlogo.RoQ"
+#endif
   #define CINEMATICS_INTRO		"intro.RoQ"
   #define LEGACY_PROTOCOL
   #define PROTOCOL_HANDLER		"quake3"
@@ -193,6 +195,10 @@ typedef unsigned char 		byte;
 
 typedef enum {qfalse, qtrue}	qboolean;
 
+static inline qboolean toQBoolean(int result) {
+  return (result != 0) ? qtrue : qfalse;
+}
+
 typedef union {
 	float f;
 	int i;
@@ -241,6 +247,14 @@ typedef int		clipHandle_t;
 #define	BIG_INFO_STRING		8192  // used for system info key only
 #define	BIG_INFO_KEY		  8192
 #define	BIG_INFO_VALUE		8192
+
+
+//#define	SND_NORMAL			0x000	// (default) Allow sound to be cut off only by the same sound on this channel
+#define     SND_OKTOCUT         0x001   // Allow sound to be cut off by any following sounds on this channel
+#define     SND_REQUESTCUT      0x002   // Allow sound to be cut off by following sounds on this channel only for sounds who request cutoff
+#define     SND_CUTOFF          0x004   // Cut off sounds on this channel that are marked 'SND_REQUESTCUT'
+#define     SND_CUTOFF_ALL      0x008   // Cut off all sounds on this channel
+#define     SND_NOCUT           0x010   // Don't cut off.  Always let finish (overridden by SND_CUTOFF_ALL)
 
 
 #define	MAX_QPATH			64		// max length of a quake game pathname
@@ -355,6 +369,8 @@ typedef vec_t vec3_t[3];
 typedef vec_t vec4_t[4];
 typedef vec_t vec5_t[5];
 
+typedef vec_t matrix4x4[4][4];
+
 typedef vec_t quat_t[4];
 
 typedef	int	fixed4_t;
@@ -408,7 +424,9 @@ qboolean Q_IsColorString(const char *p);  // ^[0-9a-zA-Z]
 #define COLOR_CYAN	'5'
 #define COLOR_MAGENTA	'6'
 #define COLOR_WHITE	'7'
-#define ColorIndexForNumber(c) ((c) & 0x07)
+#define COLOR_LIGHT_GREY	'8'
+#define COLOR_MID_GREY	'9'
+#define ColorIndexForNumber(c) ((c) & 0x0f)
 #define ColorIndex(c) (ColorIndexForNumber((c) - '0'))
 
 #define S_COLOR_BLACK	"^0"
@@ -419,8 +437,10 @@ qboolean Q_IsColorString(const char *p);  // ^[0-9a-zA-Z]
 #define S_COLOR_CYAN	"^5"
 #define S_COLOR_MAGENTA	"^6"
 #define S_COLOR_WHITE	"^7"
+#define S_COLOR_LIGHT_GREY	"^8"
+#define S_COLOR_MID_GREY	"^9"
 
-extern vec4_t	g_color_table[8];
+extern vec4_t	g_color_table[10];
 
 #define	MAKERGB( v, r, g, b ) v[0]=r;v[1]=g;v[2]=b
 #define	MAKERGBA( v, r, g, b, a ) v[0]=r;v[1]=g;v[2]=b;v[3]=a
@@ -810,6 +830,7 @@ int		Q_stricmpn (const char *s1, const char *s2, int n);
 char	*Q_strlwr( char *s1 );
 char	*Q_strupr( char *s1 );
 const char	*Q_stristr( const char *s, const char *find);
+char    *Q_strrchr( const char* string, int c );
 
 // buffer size safe library replacements
 void	Q_strncpyz( char *dest, const char *src, int destsize );

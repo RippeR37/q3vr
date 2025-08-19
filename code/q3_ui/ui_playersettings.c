@@ -40,8 +40,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ID_NAME			10
 #define ID_HANDICAP		11
 #define ID_EFFECTS		12
-#define ID_BACK			13
-#define ID_MODEL		14
+#define ID_BODYSCALE	13
+#define ID_BACK			14
+#define ID_MODEL		15
 
 #define MAX_NAMELENGTH	20
 
@@ -57,6 +58,7 @@ typedef struct {
 	menufield_s			name;
 	menulist_s			handicap;
 	menulist_s			effects;
+	menuslider_s		bodyscale;
 
 	menubitmap_s		back;
 	menubitmap_s		model;
@@ -265,6 +267,9 @@ static void PlayerSettings_SaveChanges( void ) {
 
 	// effects color
 	trap_Cvar_SetValue( "color1", uitogamecode[s_playersettings.effects.curvalue] );
+
+	// body scale
+	trap_Cvar_SetValue( "cg_firstPersonBodyScale", s_playersettings.bodyscale.curvalue);
 }
 
 
@@ -314,6 +319,9 @@ static void PlayerSettings_SetMenuItems( void ) {
 	// handicap
 	h = Com_Clamp( 5, 100, trap_Cvar_VariableValue("handicap") );
 	s_playersettings.handicap.curvalue = 20 - h / 5;
+
+	// body scale
+	s_playersettings.bodyscale.curvalue = trap_Cvar_VariableValue( "cg_firstPersonBodyScale" );
 }
 
 
@@ -335,6 +343,10 @@ static void PlayerSettings_MenuEvent( void* ptr, int event ) {
 	case ID_MODEL:
 		PlayerSettings_SaveChanges();
 		UI_PlayerModelMenu();
+		break;
+
+	case ID_BODYSCALE:
+		trap_Cvar_SetValue( "cg_firstPersonBodyScale", s_playersettings.bodyscale.curvalue);
 		break;
 
 	case ID_BACK:
@@ -384,7 +396,7 @@ static void PlayerSettings_MenuInit( void ) {
 	s_playersettings.framer.width         = 256;
 	s_playersettings.framer.height        = 334;
 
-	y = 144;
+	y = 112;
 	s_playersettings.name.generic.type			= MTYPE_FIELD;
 	s_playersettings.name.generic.flags			= QMF_NODEFAULTINIT;
 	s_playersettings.name.generic.ownerdraw		= PlayerSettings_DrawName;
@@ -422,6 +434,17 @@ static void PlayerSettings_MenuInit( void ) {
 	s_playersettings.effects.generic.right		= 192 + 200;
 	s_playersettings.effects.generic.bottom		= y + 2* PROP_HEIGHT;
 	s_playersettings.effects.numitems			= 7;
+
+	y += 3 * PROP_HEIGHT;
+	s_playersettings.bodyscale.generic.type       = MTYPE_SLIDER;
+	s_playersettings.bodyscale.generic.name	      = "1ST-PERSON BODY SCALE:";
+	s_playersettings.bodyscale.generic.flags	  = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_playersettings.bodyscale.generic.callback   = PlayerSettings_MenuEvent;
+	s_playersettings.bodyscale.generic.id         = ID_BODYSCALE;
+	s_playersettings.bodyscale.generic.x	      = 360;
+	s_playersettings.bodyscale.generic.y	      = y;
+	s_playersettings.bodyscale.minvalue		      = 0.0f;
+	s_playersettings.bodyscale.maxvalue		      = 1.0f;
 
 	s_playersettings.model.generic.type			= MTYPE_BITMAP;
 	s_playersettings.model.generic.name			= ART_MODEL0;
@@ -467,6 +490,7 @@ static void PlayerSettings_MenuInit( void ) {
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.name );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.handicap );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.effects );
+	Menu_AddItem( &s_playersettings.menu, &s_playersettings.bodyscale );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.model );
 	Menu_AddItem( &s_playersettings.menu, &s_playersettings.back );
 

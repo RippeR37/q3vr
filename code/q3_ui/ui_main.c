@@ -30,7 +30,9 @@ USER INTERFACE MAIN
 
 
 #include "ui_local.h"
+#include "../vr/vr_clientinfo.h"
 
+vr_clientinfo_t *vr = NULL;
 
 /*
 ================
@@ -45,11 +47,18 @@ Q_EXPORT intptr_t vmMain( int command, int arg0, int arg1, int arg2, int arg3, i
 	case UI_GETAPIVERSION:
 		return UI_API_VERSION;
 
-	case UI_INIT:
+	case UI_INIT: {
+		int ptr[2] = {arg1, arg2};
+		vr = (vr_clientinfo_t *) (*(long long *) (ptr));
 		UI_Init();
+		vr->menuCursorX = &uis.cursorx;
+		vr->menuCursorY = &uis.cursory;
 		return 0;
+	}
 
 	case UI_SHUTDOWN:
+		vr->menuCursorX = NULL;
+		vr->menuCursorY = NULL;
 		UI_Shutdown();
 		return 0;
 
@@ -131,6 +140,7 @@ vmCvar_t	ui_browserGameType;
 vmCvar_t	ui_browserSortKey;
 vmCvar_t	ui_browserShowFull;
 vmCvar_t	ui_browserShowEmpty;
+vmCvar_t	ui_browserExcludeBots;
 
 vmCvar_t	ui_brassTime;
 vmCvar_t	ui_drawCrosshair;
@@ -185,15 +195,16 @@ static cvarTable_t		cvarTable[] = {
 
 	{ &ui_spSelection, "ui_spSelection", "", CVAR_ROM },
 
-	{ &ui_browserMaster, "ui_browserMaster", "1", CVAR_ARCHIVE },
+	{ &ui_browserMaster, "ui_browserMaster", "2", CVAR_ARCHIVE },
 	{ &ui_browserGameType, "ui_browserGameType", "0", CVAR_ARCHIVE },
 	{ &ui_browserSortKey, "ui_browserSortKey", "4", CVAR_ARCHIVE },
 	{ &ui_browserShowFull, "ui_browserShowFull", "1", CVAR_ARCHIVE },
 	{ &ui_browserShowEmpty, "ui_browserShowEmpty", "1", CVAR_ARCHIVE },
+  { &ui_browserExcludeBots, "ui_browserExcludeBots", "0", CVAR_ARCHIVE },
 
 	{ &ui_brassTime, "cg_brassTime", "2500", CVAR_ARCHIVE },
 	{ &ui_drawCrosshair, "cg_drawCrosshair", "4", CVAR_ARCHIVE },
-	{ &ui_drawCrosshairNames, "cg_drawCrosshairNames", "1", CVAR_ARCHIVE },
+	{ &ui_drawCrosshairNames, "cg_drawCrosshairNames", "0", CVAR_ARCHIVE },
 	{ &ui_marks, "cg_marks", "1", CVAR_ARCHIVE },
 
 	{ &ui_server1, "server1", "", CVAR_ARCHIVE },
@@ -213,7 +224,7 @@ static cvarTable_t		cvarTable[] = {
 	{ &ui_server15, "server15", "", CVAR_ARCHIVE },
 	{ &ui_server16, "server16", "", CVAR_ARCHIVE },
 
-	{ &ui_cdkeychecked, "ui_cdkeychecked", "0", CVAR_ROM },
+	{ &ui_cdkeychecked, "ui_cdkeychecked", "1", CVAR_ROM },
 	{ &ui_ioq3, "ui_ioq3", "1", CVAR_ROM },
 	{ NULL, "g_localTeamPref", "", 0 }
 };

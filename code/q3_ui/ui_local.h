@@ -67,6 +67,7 @@ extern vmCvar_t	ui_browserGameType;
 extern vmCvar_t	ui_browserSortKey;
 extern vmCvar_t	ui_browserShowFull;
 extern vmCvar_t	ui_browserShowEmpty;
+extern vmCvar_t	ui_browserExcludeBots;
 
 extern vmCvar_t	ui_brassTime;
 extern vmCvar_t	ui_drawCrosshair;
@@ -406,6 +407,24 @@ extern void UI_PreferencesMenu( void );
 extern void Preferences_Cache( void );
 
 //
+// ui_controls3.c
+//
+extern void UI_Controls3Menu( void );
+extern void Controls3_Cache( void );
+
+//
+// ui_vr.c
+//
+extern void UI_VRMenu( void );
+extern void VR_Cache( void );
+
+//
+// ui_comfort.c
+//
+extern void UI_ComfortMenu( void );
+extern void Comfort_Cache( void );
+
+//
 // ui_specifyleague.c
 //
 extern void UI_SpecifyLeagueMenu( void );
@@ -420,7 +439,7 @@ extern void SpecifyServer_Cache( void );
 //
 // ui_servers2.c
 //
-#define MAX_FAVORITESERVERS 16
+#define MAX_FAVORITESERVERS 64
 
 extern void UI_ArenaServersMenu( void );
 extern void ArenaServers_Cache( void );
@@ -688,6 +707,9 @@ void			trap_SetCDKey( char *buf );
 qboolean               trap_VerifyCDKey( const char *key, const char *chksum);
 
 void			trap_SetPbClStatus( int status );
+
+//Haptics
+int			trap_HapticEvent( char *description, int position, int channel, int intensity, float yaw, float height);
 
 //
 // ui_addbots.c

@@ -47,7 +47,7 @@ vec4_t		colorLtGrey	= {0.75, 0.75, 0.75, 1};
 vec4_t		colorMdGrey	= {0.5, 0.5, 0.5, 1};
 vec4_t		colorDkGrey	= {0.25, 0.25, 0.25, 1};
 
-vec4_t	g_color_table[8] =
+vec4_t	g_color_table[10] =
 	{
 	{0.0, 0.0, 0.0, 1.0},
 	{1.0, 0.0, 0.0, 1.0},
@@ -57,6 +57,8 @@ vec4_t	g_color_table[8] =
 	{0.0, 1.0, 1.0, 1.0},
 	{1.0, 0.0, 1.0, 1.0},
 	{1.0, 1.0, 1.0, 1.0},
+	{0.75, 0.75, 0.75, 1.0},
+	{0.5, 0.5, 0.5, 1.0},
 	};
 
 
@@ -447,7 +449,9 @@ void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal )
 
 	inv_denom =  DotProduct( normal, normal );
 #ifndef Q3_VM
+#if 0
 	assert( Q_fabs(inv_denom) != 0.0f ); // zero vectors get here
+#endif
 #endif
 	inv_denom = 1.0f / inv_denom;
 

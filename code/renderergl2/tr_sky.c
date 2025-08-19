@@ -451,7 +451,8 @@ static void DrawSkySide( struct image_s *image, const int mins[2], const int max
 
 		GLSL_BindProgram(sp);
 		
-		GLSL_SetUniformMat4(sp, UNIFORM_MODELVIEWPROJECTIONMATRIX, glState.modelviewProjection);
+		GLSL_SetUniformMat4(sp, UNIFORM_MODELMATRIX, glState.modelMatrix);
+		GLSL_BindBuffers(sp);
 		
 		color[0] = 
 		color[1] = 
@@ -817,11 +818,11 @@ void RB_DrawSun( float scale, shader_t *shader ) {
 	//qglTranslatef (backEnd.viewParms.or.origin[0], backEnd.viewParms.or.origin[1], backEnd.viewParms.or.origin[2]);
 	{
 		// FIXME: this could be a lot cleaner
-		mat4_t translation, modelview;
+		mat4_t translation, modelmatrix;
 
 		Mat4Translation( backEnd.viewParms.or.origin, translation );
-		Mat4Multiply( backEnd.viewParms.world.modelMatrix, translation, modelview );
-		GL_SetModelviewMatrix( modelview );
+		Mat4Multiply( backEnd.viewParms.world.modelMatrix, translation, modelmatrix );
+		GL_SetModelMatrix( modelmatrix );
 	}
 
 	dist = 	backEnd.viewParms.zFar / 1.75;		// div sqrt(3)
@@ -860,7 +861,7 @@ Other things could be stuck in here, like birds in the sky, etc
 ================
 */
 void RB_StageIteratorSky( void ) {
-	if ( r_fastsky->integer ) {
+	if ( r_fastsky->integer || vr_thirdPersonSpectator->integer ) {
 		return;
 	}
 
@@ -890,16 +891,16 @@ void RB_StageIteratorSky( void ) {
 			// FIXME: this could be a lot cleaner
 			mat4_t trans, product;
 
-			Mat4Copy( glState.modelview, oldmodelview );
+			Mat4Copy( glState.modelMatrix, oldmodelview );
 			Mat4Translation( backEnd.viewParms.or.origin, trans );
-			Mat4Multiply( glState.modelview, trans, product );
-			GL_SetModelviewMatrix( product );
+			Mat4Multiply( glState.modelMatrix, trans, product );
+			GL_SetModelMatrix( product );
 
 		}
 
 		DrawSkyBox( tess.shader );
 
-		GL_SetModelviewMatrix( oldmodelview );
+		GL_SetModelMatrix( oldmodelview );
 	}
 
 	// generate the vertexes for all the clouds, which will be drawn

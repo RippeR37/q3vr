@@ -22,6 +22,297 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 // cg_weapons.c -- events and effects dealing with weapons
 #include "cg_local.h"
+#include "../vr/vr_clientinfo.h"
+#include "../vr/vr_safe_types.h"
+
+extern vr_clientinfo_t *vr;
+
+
+#define M_PI2		(float)6.28318530717958647692
+
+/*
+=================
+SinCos
+=================
+*/
+void SinCos( float radians, float *sine, float *cosine )
+{
+#if _MSC_VER == 1200
+    _asm
+	{
+		fld	dword ptr [radians]
+		fsincos
+
+		mov edx, dword ptr [cosine]
+		mov eax, dword ptr [sine]
+
+		fstp dword ptr [edx]
+		fstp dword ptr [eax]
+	}
+#else
+  // I think, better use math.h function, instead of ^
+#if defined (__linux__) && !defined (__ANDROID__)
+    sincosf(radians, sine, cosine);
+#else
+    *sine = sinf(radians);
+    *cosine = cosf(radians);
+#endif
+#endif
+}
+
+void Matrix4x4_Concat (matrix4x4 out, const matrix4x4 in1, const matrix4x4 in2)
+{
+    out[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] + in1[0][2] * in2[2][0] + in1[0][3] * in2[3][0];
+    out[0][1] = in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] + in1[0][2] * in2[2][1] + in1[0][3] * in2[3][1];
+    out[0][2] = in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] + in1[0][2] * in2[2][2] + in1[0][3] * in2[3][2];
+    out[0][3] = in1[0][0] * in2[0][3] + in1[0][1] * in2[1][3] + in1[0][2] * in2[2][3] + in1[0][3] * in2[3][3];
+    out[1][0] = in1[1][0] * in2[0][0] + in1[1][1] * in2[1][0] + in1[1][2] * in2[2][0] + in1[1][3] * in2[3][0];
+    out[1][1] = in1[1][0] * in2[0][1] + in1[1][1] * in2[1][1] + in1[1][2] * in2[2][1] + in1[1][3] * in2[3][1];
+    out[1][2] = in1[1][0] * in2[0][2] + in1[1][1] * in2[1][2] + in1[1][2] * in2[2][2] + in1[1][3] * in2[3][2];
+    out[1][3] = in1[1][0] * in2[0][3] + in1[1][1] * in2[1][3] + in1[1][2] * in2[2][3] + in1[1][3] * in2[3][3];
+    out[2][0] = in1[2][0] * in2[0][0] + in1[2][1] * in2[1][0] + in1[2][2] * in2[2][0] + in1[2][3] * in2[3][0];
+    out[2][1] = in1[2][0] * in2[0][1] + in1[2][1] * in2[1][1] + in1[2][2] * in2[2][1] + in1[2][3] * in2[3][1];
+    out[2][2] = in1[2][0] * in2[0][2] + in1[2][1] * in2[1][2] + in1[2][2] * in2[2][2] + in1[2][3] * in2[3][2];
+    out[2][3] = in1[2][0] * in2[0][3] + in1[2][1] * in2[1][3] + in1[2][2] * in2[2][3] + in1[2][3] * in2[3][3];
+    out[3][0] = in1[3][0] * in2[0][0] + in1[3][1] * in2[1][0] + in1[3][2] * in2[2][0] + in1[3][3] * in2[3][0];
+    out[3][1] = in1[3][0] * in2[0][1] + in1[3][1] * in2[1][1] + in1[3][2] * in2[2][1] + in1[3][3] * in2[3][1];
+    out[3][2] = in1[3][0] * in2[0][2] + in1[3][1] * in2[1][2] + in1[3][2] * in2[2][2] + in1[3][3] * in2[3][2];
+    out[3][3] = in1[3][0] * in2[0][3] + in1[3][1] * in2[1][3] + in1[3][2] * in2[2][3] + in1[3][3] * in2[3][3];
+}
+
+void Matrix4x4_CreateFromEntity( matrix4x4 out, const vec3_t angles, const vec3_t origin, float scale )
+{
+    float	angle, sr, sp, sy, cr, cp, cy;
+
+    if( angles[ROLL] )
+    {
+#ifdef XASH_VECTORIZE_SINCOS
+        SinCosFastVector3( DEG2RAD(angles[YAW]), DEG2RAD(angles[PITCH]), DEG2RAD(angles[ROLL]),
+			&sy, &sp, &sr,
+			&cy, &cp, &cr);
+#else
+        angle = angles[YAW] * (M_PI2 / 360.0f);
+        SinCos( angle, &sy, &cy );
+        angle = angles[PITCH] * (M_PI2 / 360.0f);
+        SinCos( angle, &sp, &cp );
+        angle = angles[ROLL] * (M_PI2 / 360.0f);
+        SinCos( angle, &sr, &cr );
+#endif
+
+        out[0][0] = (cp*cy) * scale;
+        out[0][1] = (sr*sp*cy+cr*-sy) * scale;
+        out[0][2] = (cr*sp*cy+-sr*-sy) * scale;
+        out[0][3] = origin[0];
+        out[1][0] = (cp*sy) * scale;
+        out[1][1] = (sr*sp*sy+cr*cy) * scale;
+        out[1][2] = (cr*sp*sy+-sr*cy) * scale;
+        out[1][3] = origin[1];
+        out[2][0] = (-sp) * scale;
+        out[2][1] = (sr*cp) * scale;
+        out[2][2] = (cr*cp) * scale;
+        out[2][3] = origin[2];
+        out[3][0] = 0.0f;
+        out[3][1] = 0.0f;
+        out[3][2] = 0.0f;
+        out[3][3] = 1.0f;
+    }
+    else if( angles[PITCH] )
+    {
+#ifdef XASH_VECTORIZE_SINCOS
+        SinCosFastVector2( DEG2RAD(angles[YAW]), DEG2RAD(angles[PITCH]),
+						  &sy, &sp,
+						  &cy, &cp);
+#else
+        angle = angles[YAW] * (M_PI2 / 360.0f);
+        SinCos( angle, &sy, &cy );
+        angle = angles[PITCH] * (M_PI2 / 360.0f);
+        SinCos( angle, &sp, &cp );
+#endif
+
+        out[0][0] = (cp*cy) * scale;
+        out[0][1] = (-sy) * scale;
+        out[0][2] = (sp*cy) * scale;
+        out[0][3] = origin[0];
+        out[1][0] = (cp*sy) * scale;
+        out[1][1] = (cy) * scale;
+        out[1][2] = (sp*sy) * scale;
+        out[1][3] = origin[1];
+        out[2][0] = (-sp) * scale;
+        out[2][1] = 0.0f;
+        out[2][2] = (cp) * scale;
+        out[2][3] = origin[2];
+        out[3][0] = 0.0f;
+        out[3][1] = 0.0f;
+        out[3][2] = 0.0f;
+        out[3][3] = 1.0f;
+    }
+    else if( angles[YAW] )
+    {
+        angle = angles[YAW] * (M_PI2 / 360.0f);
+        SinCos( angle, &sy, &cy );
+
+        out[0][0] = (cy) * scale;
+        out[0][1] = (-sy) * scale;
+        out[0][2] = 0.0f;
+        out[0][3] = origin[0];
+        out[1][0] = (sy) * scale;
+        out[1][1] = (cy) * scale;
+        out[1][2] = 0.0f;
+        out[1][3] = origin[1];
+        out[2][0] = 0.0f;
+        out[2][1] = 0.0f;
+        out[2][2] = scale;
+        out[2][3] = origin[2];
+        out[3][0] = 0.0f;
+        out[3][1] = 0.0f;
+        out[3][2] = 0.0f;
+        out[3][3] = 1.0f;
+    }
+    else
+    {
+        out[0][0] = scale;
+        out[0][1] = 0.0f;
+        out[0][2] = 0.0f;
+        out[0][3] = origin[0];
+        out[1][0] = 0.0f;
+        out[1][1] = scale;
+        out[1][2] = 0.0f;
+        out[1][3] = origin[1];
+        out[2][0] = 0.0f;
+        out[2][1] = 0.0f;
+        out[2][2] = scale;
+        out[2][3] = origin[2];
+        out[3][0] = 0.0f;
+        out[3][1] = 0.0f;
+        out[3][2] = 0.0f;
+        out[3][3] = 1.0f;
+    }
+}
+
+void Matrix4x4_ConvertToEntity( vec4_t *in, vec3_t angles, vec3_t origin )
+{
+  float xyDist = sqrt( in[0][0] * in[0][0] + in[1][0] * in[1][0] );
+
+  // enough here to get angles?
+  if( xyDist > 0.001f )
+  {
+    angles[0] = RAD2DEG( atan2( -in[2][0], xyDist ));
+    angles[1] = RAD2DEG( atan2( in[1][0], in[0][0] ));
+    angles[2] = RAD2DEG( atan2( in[2][1], in[2][2] ));
+  }
+  else	// forward is mostly Z, gimbal lock
+  {
+    angles[0] = RAD2DEG( atan2( -in[2][0], xyDist ));
+    angles[1] = RAD2DEG( atan2( -in[0][1], in[1][1] ));
+    angles[2] = 0.0f;
+  }
+
+  origin[0] = in[0][3];
+  origin[1] = in[1][3];
+  origin[2] = in[2][3];
+}
+
+void rotateAboutOrigin(float x, float y, float rotation, vec2_t out)
+{
+	out[0] = cosf(DEG2RAD(-rotation)) * x  +  sinf(DEG2RAD(-rotation)) * y;
+	out[1] = cosf(DEG2RAD(-rotation)) * y  -  sinf(DEG2RAD(-rotation)) * x;
+}
+
+
+float trap_Cvar_VariableValue( const char *var_name ) {
+	char buf[128];
+	trap_Cvar_VariableStringBuffer(var_name, buf, sizeof(buf));
+	return atof(buf);
+}
+
+void CG_ConvertFromVR(vec3_t in, vec3_t offset, vec3_t out)
+{
+	vec3_t vrSpace;
+	VectorSet(vrSpace, in[2], in[0], in[1] );
+
+	vec2_t r;
+	if (vr->use_fake_6dof)
+	{
+		//We are running multiplayer, so make the appropriate adjustment to the view
+		//angles as we send orientation to the server that includes the weapon angles
+		float deltaYaw = SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]);
+		if (cg.snap->ps.pm_flags & PMF_FOLLOW)
+		{
+			//Don't include delta if following another player
+			deltaYaw = 0.0f;
+		}
+		float angleYaw = deltaYaw + (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);
+		rotateAboutOrigin(vrSpace[0], vrSpace[1], angleYaw, r);
+	} else {
+		rotateAboutOrigin(vrSpace[0], vrSpace[1], cg.refdefViewAngles[YAW] - vr->hmdorientation[YAW], r);
+	}
+
+	vrSpace[0] = -r[0];
+	vrSpace[1] = -r[1];
+
+	vec3_t temp;
+	VectorScale(vrSpace, cg.worldscale, temp);
+
+	if (offset) {
+		VectorAdd(temp, offset, out);
+	} else {
+		VectorCopy(temp, out);
+	}
+}
+
+static void CG_CalculateVRPositionInWorld( vec3_t in_position,  vec3_t in_offset, vec3_t in_orientation, vec3_t origin, vec3_t angles )
+{
+	if (vr->use_fake_6dof)
+	{
+		//Use absolute position for the faked 6DoF for multiplayer
+		vec3_t offset;
+		VectorSubtract(in_position, vr->hmdorigin, offset);
+		offset[1] = 0; // up/down is index 1 in this case
+		CG_ConvertFromVR(offset, cg.refdef.vieworg, origin);
+		origin[2] -= PLAYER_HEIGHT;
+		origin[2] += in_position[1] * cg.worldscale;
+	}
+	else
+	{
+		//Singleplayer - true 6DoF offset from HMD
+		vec3_t offset;
+		VectorCopy(in_offset, offset);
+		offset[1] = 0; // up/down is index 1 in this case
+		CG_ConvertFromVR(offset, cg.refdef.vieworg, origin);
+		origin[2] -= PLAYER_HEIGHT;
+		origin[2] += in_position[1] * cg.worldscale;
+	}
+
+	VectorCopy(in_orientation, angles);
+	if ( vr->use_fake_6dof )
+	{
+		//Calculate the offhand angles from "first principles"
+		float deltaYaw = SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]);
+		angles[YAW] = deltaYaw + (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]) + in_orientation[YAW];
+	}
+	else
+	{
+		angles[YAW] += (cg.refdefViewAngles[YAW] - vr->hmdorientation[YAW]);
+	}
+}
+
+void CG_CalculateVROffHandPosition( vec3_t origin, vec3_t angles )
+{
+	CG_CalculateVRPositionInWorld(vr->offhandposition, vr->offhandoffset, vr->offhandangles, origin, angles);
+}
+
+static void CG_CalculateWeaponPosition( vec3_t origin, vec3_t angles );
+
+void CG_CalculateVRWeaponPosition( vec3_t origin, vec3_t angles )
+{
+	if ( cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW))
+	{
+		CG_CalculateWeaponPosition(origin, angles);
+		return;
+	}
+
+	CG_CalculateVRPositionInWorld(vr->weaponposition, vr->weaponoffset, vr->weaponangles, origin, angles);
+}
 
 /*
 ==========================
@@ -209,11 +500,44 @@ static void CG_NailgunEjectBrass( centity_t *cent ) {
 
 /*
 ==========================
+CG_LaserSight
+==========================
+*/
+void CG_LaserSight( vec3_t start, vec3_t end, byte colour[4], float width ) {
+  refEntity_t     re;
+	memset( &re, 0, sizeof( re ) );
+
+	//Ensure shader is loaded
+	cgs.media.railCoreShader = trap_R_RegisterShader( "railCore" );
+
+  re.reType = RT_LASERSIGHT;
+  re.customShader = cgs.media.railCoreShader;
+
+  VectorCopy( start, re.origin );
+  VectorCopy( end, re.oldorigin );
+
+  //radius is used to store width info
+  re.radius = width;
+
+  AxisClear( re.axis );
+
+	re.shaderRGBA[0] = colour[0];
+	re.shaderRGBA[1] = colour[1];
+	re.shaderRGBA[2] = colour[2];
+	re.shaderRGBA[3] = colour[3];
+
+	trap_R_AddRefEntityToScene(&re);
+}
+
+/*
+==========================
 CG_RailTrail
 ==========================
 */
 void CG_RailTrail (clientInfo_t *ci, vec3_t start, vec3_t end) {
-	vec3_t axis[36], move, move2, vec, temp;
+
+#define NUM_PARTICLE_PER_ROTATION   18
+	vec3_t axis[NUM_PARTICLE_PER_ROTATION], move, move2, vec, vec2, temp;
 	float  len;
 	int    i, j, skip;
  
@@ -256,8 +580,10 @@ void CG_RailTrail (clientInfo_t *ci, vec3_t start, vec3_t end) {
 	if (cg_oldRail.integer)
 	{
 		// nudge down a bit so it isn't exactly in center
+#if 0
 		re->origin[2] -= 8;
 		re->oldorigin[2] -= 8;
+#endif
 		return;
 	}
 
@@ -265,33 +591,35 @@ void CG_RailTrail (clientInfo_t *ci, vec3_t start, vec3_t end) {
 	VectorSubtract (end, start, vec);
 	len = VectorNormalize (vec);
 	PerpendicularVector(temp, vec);
-	for (i = 0 ; i < 36; i++)
+	for (i = 0 ; i < NUM_PARTICLE_PER_ROTATION; i++)
 	{
-		RotatePointAroundVector(axis[i], vec, temp, i * 10);//banshee 2.4 was 10
+		RotatePointAroundVector(axis[i], vec, temp, i * (360.0f / NUM_PARTICLE_PER_ROTATION));//banshee 2.4 was 10
 	}
 
-	VectorMA(move, 20, vec, move);
-	VectorScale (vec, SPACING, vec);
+	VectorMA(move, (360.0f / NUM_PARTICLE_PER_ROTATION), vec, move);
+	VectorScale (vec, SPACING, vec2);
 
 	skip = -1;
  
-	j = 18;
-	for (i = 0; i < len; i += SPACING)
+	j = 0;
+	int spacing = SPACING;
+	for (i = 0; i < len; i += spacing, spacing++)
 	{
 		if (i != skip)
 		{
-			skip = i + SPACING;
+      VectorScale (vec, spacing, vec2);
+			skip = i + spacing;
 			le = CG_AllocLocalEntity();
 			re = &le->refEntity;
 			le->leFlags = LEF_PUFF_DONT_SCALE;
 			le->leType = LE_MOVE_SCALE_FADE;
 			le->startTime = cg.time;
-			le->endTime = cg.time + (i>>1) + 600;
+			le->endTime = cg.time + (i>>1) + 500;
 			le->lifeRate = 1.0 / (le->endTime - le->startTime);
 
 			re->shaderTime = cg.time / 1000.0f;
 			re->reType = RT_SPRITE;
-			re->radius = 1.1f;
+			re->radius = 1.2f;
 			re->customShader = cgs.media.railRingsShader;
 
 			re->shaderRGBA[0] = ci->color2[0] * 255;
@@ -316,9 +644,9 @@ void CG_RailTrail (clientInfo_t *ci, vec3_t start, vec3_t end) {
 			le->pos.trDelta[2] = axis[j][2]*6;
 		}
 
-		VectorAdd (move, vec, move);
+		VectorAdd (move, vec2, move);
 
-		j = (j + ROTATION) % 36;
+		j = (j + ROTATION) % NUM_PARTICLE_PER_ROTATION;
 	}
 }
 
@@ -684,7 +1012,14 @@ void CG_RegisterWeapon( int weaponNum ) {
 		weaponInfo->firingSound = trap_S_RegisterSound( "sound/weapons/lightning/lg_hum.wav", qfalse );
 
 		weaponInfo->flashSound[0] = trap_S_RegisterSound( "sound/weapons/lightning/lg_fire.wav", qfalse );
-		cgs.media.lightningShader = trap_R_RegisterShader( "lightningBoltNew");
+		if (trap_Cvar_VariableValue("demoversion") != 0.0f)
+		{
+			cgs.media.lightningShader = trap_R_RegisterShader("lightningBolt");
+		}
+		else
+		{
+			cgs.media.lightningShader = trap_R_RegisterShader("lightningBoltNew");
+		}
 		cgs.media.lightningExplosionModel = trap_R_RegisterModel( "models/weaphits/crackle.md3" );
 		cgs.media.sfx_lghit1 = trap_S_RegisterSound( "sound/weapons/lightning/lg_hit.wav", qfalse );
 		cgs.media.sfx_lghit2 = trap_S_RegisterSound( "sound/weapons/lightning/lg_hit2.wav", qfalse );
@@ -921,9 +1256,12 @@ static void CG_CalculateWeaponPosition( vec3_t origin, vec3_t angles ) {
 	}
 
 	// gun angles from bobbing
-	angles[ROLL] += scale * cg.bobfracsin * 0.005;
-	angles[YAW] += scale * cg.bobfracsin * 0.01;
-	angles[PITCH] += cg.xyspeed * cg.bobfracsin * 0.005;
+	if (cg_weaponbob.value != 0)
+	{
+		angles[ROLL] += scale * cg.bobfracsin * 0.005;
+		angles[YAW] += scale * cg.bobfracsin * 0.01;
+		angles[PITCH] += cg.xyspeed * cg.bobfracsin * 0.005;
+	}
 
 	// drop the weapon when landing
 	delta = cg.time - cg.landTime;
@@ -978,42 +1316,28 @@ static void CG_LightningBolt( centity_t *cent, vec3_t origin ) {
 	memset( &beam, 0, sizeof( beam ) );
 
 	// CPMA  "true" lightning
-	if ((cent->currentState.number == cg.predictedPlayerState.clientNum) && (cg_trueLightning.value != 0)) {
+	if (cent->currentState.number == cg.predictedPlayerState.clientNum)// && (cg_trueLightning.value != 0))
+	{
 		vec3_t angle;
-		int i;
-
-		for (i = 0; i < 3; i++) {
-			float a = cent->lerpAngles[i] - cg.refdefViewAngles[i];
-			if (a > 180) {
-				a -= 360;
-			}
-			if (a < -180) {
-				a += 360;
-			}
-
-			angle[i] = cg.refdefViewAngles[i] + a * (1.0 - cg_trueLightning.value);
-			if (angle[i] < 0) {
-				angle[i] += 360;
-			}
-			if (angle[i] > 360) {
-				angle[i] -= 360;
-			}
-		}
-
+		CG_CalculateVRWeaponPosition(muzzlePoint, angle);
 		AngleVectors(angle, forward, NULL, NULL );
-		VectorCopy(cent->lerpOrigin, muzzlePoint );
-//		VectorCopy(cg.refdef.vieworg, muzzlePoint );
+
+		//Handle this here so it is refreshed on every frame, not just when the lightning gun is first fired
+		int position = vr->weapon_stabilised ? 4 : (vr->right_handed ? 1 : 2);
+		trap_HapticEvent("tesla_fire", position, 0, 100, 0, 0);
 	} else {
 		// !CPMA
 		AngleVectors( cent->lerpAngles, forward, NULL, NULL );
 		VectorCopy(cent->lerpOrigin, muzzlePoint );
 	}
 
-	anim = cent->currentState.legsAnim & ~ANIM_TOGGLEBIT;
-	if ( anim == LEGS_WALKCR || anim == LEGS_IDLECR ) {
-		muzzlePoint[2] += CROUCH_VIEWHEIGHT;
-	} else {
-		muzzlePoint[2] += DEFAULT_VIEWHEIGHT;
+	if (cent->currentState.number != cg.predictedPlayerState.clientNum) {
+		anim = cent->currentState.legsAnim & ~ANIM_TOGGLEBIT;
+		if (anim == LEGS_WALKCR || anim == LEGS_IDLECR) {
+			muzzlePoint[2] += CROUCH_VIEWHEIGHT;
+		} else {
+			muzzlePoint[2] += DEFAULT_VIEWHEIGHT;
+		}
 	}
 
 	VectorMA( muzzlePoint, 14, forward, muzzlePoint );
@@ -1345,7 +1669,6 @@ void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent
 		}
 	}
 }
-
 /*
 ==============
 CG_AddViewWeapon
@@ -1357,7 +1680,9 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 	refEntity_t	hand;
 	centity_t	*cent;
 	clientInfo_t	*ci;
+#if 0
 	float		fovOffset;
+#endif
 	vec3_t		angles;
 	weaponInfo_t	*weapon;
 
@@ -1395,10 +1720,22 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 	}
 
 	// drop gun lower at higher fov
+#if 0
 	if ( cg_fov.integer > 90 ) {
 		fovOffset = -0.2 * ( cg_fov.integer - 90 );
 	} else {
 		fovOffset = 0;
+	}
+#endif
+
+	if (vr->weapon_select)
+	{
+		CG_DrawWeaponSelector();
+		return;
+	}
+
+	if (vr->weapon_zoomed || vr->virtual_screen) {
+		return; // do not draw weapon model with enabled weapon scope or when in menu
 	}
 
 	cent = &cg.predictedPlayerEntity;	// &cg_entities[cg.snap->ps.clientNum];
@@ -1408,11 +1745,79 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 	memset (&hand, 0, sizeof(hand));
 
 	// set up gun position
-	CG_CalculateWeaponPosition( hand.origin, angles );
+	CG_CalculateVRWeaponPosition( hand.origin, angles );
 
+	if (trap_Cvar_VariableValue("vr_lasersight") != 0.0f && !vr->no_crosshair)
+	{
+		vec3_t forward, end;
+		AngleVectors(angles, forward, NULL, NULL);
+		VectorMA(hand.origin, 4096, forward, end);
+		trace_t trace;
+		CG_Trace(&trace, hand.origin, NULL, NULL, end, cg.predictedPlayerState.clientNum, MASK_SOLID);
+
+		byte colour[4];
+		colour[0] = 0xff;
+		colour[1] = 0x00;
+		colour[2] = 0x00;
+		colour[3] = 0x40;
+
+		CG_LaserSight(hand.origin, trace.endpos, colour, 1.0f);
+	}
+
+		//Scale / Move gun etc
+	float scale = 1.0f;
+	if (!(cg.snap->ps.pm_flags & PMF_FOLLOW && vr->follow_mode == VRFM_FIRSTPERSON))
+	{
+		char cvar_name[64];
+		Com_sprintf(cvar_name, sizeof(cvar_name), "vr_weapon_adjustment_%i", ps->weapon);
+
+		char weapon_adjustment[256];
+		trap_Cvar_VariableStringBuffer(cvar_name, weapon_adjustment, 256);
+
+		if (strlen(weapon_adjustment) > 0) {
+			vec3_t offset;
+			vec3_t adjust;
+			vec3_t temp_offset;
+			VectorClear(temp_offset);
+			VectorClear(adjust);
+
+			sscanf(weapon_adjustment, "%f,%f,%f,%f,%f,%f,%f", &scale,
+				   &(temp_offset[0]), &(temp_offset[1]), &(temp_offset[2]),
+				   &(adjust[PITCH]), &(adjust[YAW]), &(adjust[ROLL]));
+			VectorScale(temp_offset, scale, offset);
+
+			if (!vr->right_handed)
+			{
+				//yaw needs to go in the other direction as left handed model is reversed
+				adjust[YAW] *= -1.0f;
+			}
+
+			//Adjust angles for weapon models that aren't aligned very well
+			matrix4x4 m1, m2, m3;
+			vec3_t zero;
+			VectorClear(zero);
+			Matrix4x4_CreateFromEntity(m1, angles, zero, 1.0);
+			Matrix4x4_CreateFromEntity(m2, adjust, zero, 1.0);
+			Matrix4x4_Concat(m3, m1, m2);
+			Matrix4x4_ConvertToEntity(m3, angles, zero);
+
+			//Now move weapon closer to proper origin
+			vec3_t forward, right, up;
+			AngleVectors( angles, forward, right, up );
+			VectorMA( hand.origin, offset[2], forward, hand.origin );
+			VectorMA( hand.origin, offset[1], up, hand.origin );
+			if (vr->right_handed) {
+				VectorMA(hand.origin, offset[0], right, hand.origin);
+			} else {
+				VectorMA(hand.origin, -offset[0], right, hand.origin);
+			}
+		}
+	}
+
+	//Move gun a bit
 	VectorMA( hand.origin, cg_gun_x.value, cg.refdef.viewaxis[0], hand.origin );
 	VectorMA( hand.origin, cg_gun_y.value, cg.refdef.viewaxis[1], hand.origin );
-	VectorMA( hand.origin, (cg_gun_z.value+fovOffset), cg.refdef.viewaxis[2], hand.origin );
+	VectorMA( hand.origin, cg_gun_z.value, cg.refdef.viewaxis[2], hand.origin );
 
 	AnglesToAxis( angles, hand.axis );
 
@@ -1430,7 +1835,13 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 	}
 
 	hand.hModel = weapon->handsModel;
-	hand.renderfx = RF_DEPTHHACK | RF_FIRST_PERSON | RF_MINLIGHT;
+	hand.renderfx = /*RF_DEPTHHACK |*/ RF_FIRST_PERSON | RF_MINLIGHT;
+
+	//scale the whole model
+	for ( int i = 0; i < 3; i++ ) {
+		VectorScale( hand.axis[i], vr->right_handed || i != 1 ? scale : -scale, hand.axis[i] );
+	}
+
 
 	// add everything onto the hand
 	CG_AddPlayerWeapon( &hand, ps, &cg.predictedPlayerEntity, ps->persistant[PERS_TEAM] );
@@ -1459,6 +1870,11 @@ void CG_DrawWeaponSelect( void ) {
 
 	// don't display if dead
 	if ( cg.predictedPlayerState.stats[STAT_HEALTH] <= 0 ) {
+		return;
+	}
+
+	// don't display when weapon wheel is opened
+	if (vr->weapon_select) {
 		return;
 	}
 
@@ -1638,6 +2054,364 @@ void CG_Weapon_f( void ) {
 	cg.weaponSelect = num;
 }
 
+//Selects the currently selected weapon (if one _is_ selected)
+void CG_WeaponSelectorSelect_f( void )
+{
+	cg.weaponSelectorTime = 0;
+
+	if (cg.weaponSelectorSelection == WP_NONE || cg.weaponSelect == cg.weaponSelectorSelection)
+	{
+		return;
+	}
+
+	cg.weaponSelectTime = cg.time;
+	cg.weaponSelect = cg.weaponSelectorSelection;
+	cg.weaponSelectorSelection = WP_NONE;
+}
+
+static float length(float x, float y)
+{
+	return sqrtf(powf(x, 2.0f) + powf(y, 2.0f));
+}
+
+void CG_DrawWeaponSelector( void )
+{
+	if (cg.weaponSelectorTime == 0)
+	{
+		cg.weaponSelectorTime = cg.time;
+		VectorCopy(vr->weaponangles, cg.weaponSelectorAngles);
+		VectorCopy(vr->weaponposition, cg.weaponSelectorOrigin);
+		VectorCopy(vr->weaponoffset, cg.weaponSelectorOffset);
+	}
+
+	const int selectorMode = (int)trap_Cvar_VariableValue("vr_weaponSelectorMode");
+	float dist = 10.0f;
+	float radius = 4.0f;
+	float scale = 0.05f;
+
+	if (selectorMode == WS_HMD) // HMD locked
+	{
+		VectorCopy(vr->hmdorientation, cg.weaponSelectorAngles);
+		VectorCopy(vr->hmdposition, cg.weaponSelectorOrigin);
+		VectorClear(cg.weaponSelectorOffset);
+		dist = (trap_Cvar_VariableValue("vr_hudDepth")+3) * 3;
+		radius = dist / 3.0f;
+		scale = 0.04f + 0.01f * (trap_Cvar_VariableValue("vr_hudDepth")+1);
+	}
+
+	float frac = (cg.time - cg.weaponSelectorTime) / 100.0f;
+	if (frac > 1.0f)
+	{
+		frac = 1.0f;
+	}
+
+	vec3_t controllerOrigin, controllerAngles, controllerOffset, selectorOrigin;
+	CG_CalculateVRWeaponPosition(controllerOrigin, controllerAngles);
+	VectorSubtract(vr->weaponposition, cg.weaponSelectorOrigin, controllerOffset);
+
+	vec3_t wheelAngles, wheelOrigin, beamOrigin, wheelForward, wheelRight, wheelUp;
+	CG_CalculateVRPositionInWorld(cg.weaponSelectorOrigin, cg.weaponSelectorOffset, cg.weaponSelectorAngles, wheelOrigin, wheelAngles);
+
+	AngleVectors(wheelAngles, wheelForward, wheelRight, wheelUp);
+
+	if (selectorMode == WS_CONTROLLER)
+	{
+		VectorCopy(controllerOrigin, wheelOrigin);
+	}
+	else
+	{
+		// Do not shift weapon wheel down in order to fit inside comfort vignette
+		//VectorMA(wheelOrigin, -3.0f, wheelUp, wheelOrigin);
+	}
+
+	VectorCopy(wheelOrigin, beamOrigin);
+	VectorMA(wheelOrigin, (dist * ((selectorMode == WS_CONTROLLER) ? frac : 1.0f)), wheelForward, wheelOrigin);
+	VectorCopy(wheelOrigin, selectorOrigin);
+
+	const int switchThumbsticks = (int)trap_Cvar_VariableValue("vr_switchThumbsticks");
+	const int thumb = switchThumbsticks !=0 ? THUMB_LEFT : THUMB_RIGHT;
+
+	float thumbstickAxisX = 0.0f;
+	float thumbstickAxisY = 0.0f;
+	float a = atan2(vr->thumbstick_location[thumb][0], vr->thumbstick_location[thumb][1]);
+	float thumbstickValue = length(vr->thumbstick_location[thumb][0], vr->thumbstick_location[thumb][1]);
+	if (thumbstickValue > 0.95f)
+	{
+		thumbstickAxisX = sinf(a) * 0.95f;
+		thumbstickAxisY = cosf(a) * 0.95f;
+	}
+
+	float x = 0.0f;
+	float y = 0.0f;
+	if (selectorMode == WS_CONTROLLER)
+	{
+		x = (sinf(DEG2RAD(wheelAngles[YAW] - controllerAngles[YAW])) / sinf(DEG2RAD(22.5f)));
+		y = ((wheelAngles[PITCH] - controllerAngles[PITCH]) / 22.5f);
+
+		float len = length(x, y);
+		if (len > 1.0f)
+		{
+			x *= (1.0f / len);
+			y *= (1.0f / len);
+		}
+	}
+	else //selectorMode == WS_HMD
+	{
+		x = thumbstickAxisX;
+		y = thumbstickAxisY;
+	}
+
+	VectorMA(selectorOrigin, radius * x, wheelRight, selectorOrigin);
+	VectorMA(selectorOrigin, radius * y, wheelUp, selectorOrigin);
+
+	{
+		refEntity_t		blob;
+		memset( &blob, 0, sizeof( blob ) );
+		VectorCopy( selectorOrigin, blob.origin );
+		AnglesToAxis(vec3_origin, blob.axis);
+		VectorScale( blob.axis[0], scale - 0.01f, blob.axis[0] );
+		VectorScale( blob.axis[1], scale - 0.01f, blob.axis[1] );
+		VectorScale( blob.axis[2], scale - 0.01f, blob.axis[2] );
+		blob.nonNormalizedAxes = qtrue;
+		blob.hModel = cgs.media.smallSphereModel;
+		trap_R_AddRefEntityToScene( &blob );
+
+		if (selectorMode == WS_CONTROLLER)
+		{
+			byte colour[4];
+			colour[0] = 0x00;
+			colour[1] = 0x00;
+			colour[2] = 0xff;
+			colour[3] = 0x40;
+			CG_LaserSight(beamOrigin, selectorOrigin, colour, 0.1f);
+		}
+	}
+
+#ifdef MISSIONPACK
+	float wheelIconAngles[WP_NUM_WEAPONS] = {0.0f, 45.0f, 90.0f, 120.0f, 150.0f, 180.0f, 210.0f, 240.0f, 270.0f, 300.0f, 330.0f, 360.0f, 390.0f};
+#else
+	float wheelIconAngles[WP_NUM_WEAPONS] = {0.0f, 45.0f, 90.0f, 135.0f, 180.0f, 225.0f, 270.0f, 315.0f, 360.0f, 390.0f};
+#endif
+
+	qboolean selected = qfalse;
+	int angleIndex = 0;
+	for (int weaponId = 1; weaponId < WP_NUM_WEAPONS; ++weaponId)
+	{
+		if (weaponId == WP_GRAPPLING_HOOK || weaponId == WP_GAUNTLET)
+		{
+			continue;
+		}
+
+		//increment now we know we aren't looking at an invalid weapon id
+		++angleIndex;
+
+		CG_RegisterWeapon(weaponId);
+
+		{
+			qboolean selectable = CG_WeaponSelectable(weaponId) && cg.snap->ps.ammo[weaponId];
+
+			//first calculate wheel slot position
+			vec3_t angles, iconOrigin,iconBackground,iconForeground;
+			VectorClear(angles);
+			angles[YAW] = wheelAngles[YAW];
+			angles[PITCH] = wheelAngles[PITCH];
+			angles[ROLL] = wheelIconAngles[angleIndex];
+			vec3_t forward, up;
+			AngleVectors(angles, forward, NULL, up);
+
+			VectorMA(wheelOrigin, (radius*frac), up, iconOrigin);
+			VectorMA(iconOrigin, 0.2f, forward, iconBackground);
+			VectorMA(iconOrigin, -0.2f, forward, iconForeground);
+
+			if (selectorMode == WS_CONTROLLER)
+			{
+				vec3_t diff;
+				VectorSubtract(selectorOrigin, iconOrigin, diff);
+				float length = VectorLength(diff);
+				if (length <= 1.4f && frac == 1.0f && selectable)
+				{
+					if (cg.weaponSelectorSelection != weaponId)
+					{
+						cg.weaponSelectorSelection = weaponId;
+						trap_HapticEvent("selector_icon", 0, 0, 100, 0, 0);
+					}
+
+					selected = qtrue;
+				}
+			}
+			else
+			{
+				//For HMD selector, the weapon can be selected before the selector has finished
+				//its opening animation, use angles to identify the selected weapon, rather than
+				//the position of the selector pointer
+				float angle = AngleNormalize360(RAD2DEG(a));
+				float angle360 = angle + 360; // HACK - Account for the icon at the top
+
+				float low = ((wheelIconAngles[angleIndex-1]+wheelIconAngles[angleIndex])/2.0f);
+				float high = ((wheelIconAngles[angleIndex]+wheelIconAngles[angleIndex+1])/2.0f);
+
+				if (((angle > low && angle <= high) || (angle360 > low && angle360 <= high)) &&
+				    (length(vr->thumbstick_location[thumb][0], vr->thumbstick_location[thumb][1]) > 0.5f) &&
+				    selectable)
+				{
+					if (cg.weaponSelectorSelection != weaponId)
+					{
+						cg.weaponSelectorSelection = weaponId;
+						trap_HapticEvent("selector_icon", 0, 0, 100, 0, 0);
+					}
+
+					selected = qtrue;
+				}
+			}
+            
+			if (cg.weaponSelectorSelection == weaponId)
+			{
+				refEntity_t		sprite;
+				memset( &sprite, 0, sizeof( sprite ) );
+				VectorCopy( iconOrigin, sprite.origin );
+				sprite.origin[2] += 2.5f + (0.5f * sinf(DEG2RAD(AngleNormalize360((cg.time - cg.weaponSelectorTime)/4))));
+				sprite.reType = RT_SPRITE;
+				sprite.customShader = cgs.media.friendShader;
+				sprite.radius = 0.5f;
+				sprite.shaderRGBA[0] = 255;
+				sprite.shaderRGBA[1] = 255;
+				sprite.shaderRGBA[2] = 255;
+				sprite.shaderRGBA[3] = 255;
+				trap_R_AddRefEntityToScene( &sprite );
+			}
+
+			if (!cg_weaponSelectorSimple2DIcons.integer)
+			{
+				refEntity_t ent;
+				memset(&ent, 0, sizeof(ent));
+				VectorCopy(iconOrigin, ent.origin);
+
+				//Shift model a bit
+				VectorMA(ent.origin, 0.3f, wheelForward, ent.origin);
+				VectorMA(ent.origin, -0.2f, wheelRight, ent.origin);
+				VectorMA(ent.origin, 0.1f, wheelUp, ent.origin);
+
+				vec3_t iconAngles;
+				VectorCopy(wheelAngles, iconAngles);
+				iconAngles[PITCH] = 10;
+				iconAngles[YAW] -= 145.0f;
+				if (weaponId == WP_GAUNTLET)
+				{
+					iconAngles[ROLL] -= 90.0f;
+				}
+
+				float weaponScale = ((scale+0.02f)*frac) + (cg.weaponSelectorSelection == weaponId ? 0.04f : 0);
+
+				AnglesToAxis(iconAngles, ent.axis);
+				VectorScale(ent.axis[0], weaponScale, ent.axis[0]);
+				VectorScale(ent.axis[1], weaponScale, ent.axis[1]);
+				VectorScale(ent.axis[2], weaponScale, ent.axis[2]);
+				ent.nonNormalizedAxes = qtrue;
+
+				if( weaponId == WP_RAILGUN ) {
+					clientInfo_t *ci = &cgs.clientinfo[cg.predictedPlayerState.clientNum];
+					if( cg_entities[cg.predictedPlayerState.clientNum].pe.railFireTime + 1500 > cg.time ) {
+						int scale = 255 * ( cg.time - cg_entities[cg.predictedPlayerState.clientNum].pe.railFireTime ) / 1500;
+						ent.shaderRGBA[0] = ( ci->c1RGBA[0] * scale ) >> 8;
+						ent.shaderRGBA[1] = ( ci->c1RGBA[1] * scale ) >> 8;
+						ent.shaderRGBA[2] = ( ci->c1RGBA[2] * scale ) >> 8;
+						ent.shaderRGBA[3] = 255;
+					}
+					else {
+						Byte4Copy( ci->c1RGBA, ent.shaderRGBA );
+					}
+				}
+
+				ent.hModel = cg_weapons[weaponId].weaponModel;
+				if (!selectable)
+				{
+					ent.customShader = cgs.media.invisShader;				    
+				}
+				trap_R_AddRefEntityToScene(&ent);
+
+				if ( cg_weapons[weaponId].barrelModel )
+				{
+				refEntity_t barrel;
+				memset(&barrel, 0, sizeof(barrel));
+				barrel.hModel = cg_weapons[weaponId].barrelModel;
+				vec3_t barrelAngles;
+				VectorClear(barrelAngles);
+				barrelAngles[ROLL] = AngleNormalize360((cg.time - cg.weaponSelectorTime) * 0.9f);
+				AnglesToAxis(barrelAngles, barrel.axis);
+				CG_PositionRotatedEntityOnTag(&barrel, &ent, cg_weapons[weaponId].weaponModel, "tag_barrel");
+				if (!selectable)
+				{
+					barrel.customShader = cgs.media.invisShader;
+				}
+				trap_R_AddRefEntityToScene(&barrel);
+				}
+			}
+			else
+			{
+				refEntity_t		sprite;
+				memset( &sprite, 0, sizeof( sprite ) );
+
+				float sRadius = 0.7f + (0.2f * (trap_Cvar_VariableValue("vr_hudDepth")-1));
+
+				VectorCopy(iconOrigin, sprite.origin);
+				sprite.reType = RT_SPRITE;
+				sprite.customShader = cg_weapons[weaponId].weaponIcon;
+				sprite.radius = sRadius * 0.9f * (cg.weaponSelectorSelection == weaponId ? 1.1f : 1.0);
+				sprite.shaderRGBA[0] = 255;
+				sprite.shaderRGBA[1] = 255;
+				sprite.shaderRGBA[2] = 255;
+				sprite.shaderRGBA[3] = 255;
+				trap_R_AddRefEntityToScene(&sprite);
+
+				//And now the selection background
+				memset( &sprite, 0, sizeof( sprite ) );
+				VectorCopy( iconBackground, sprite.origin );
+				sprite.reType = RT_SPRITE;
+				sprite.customShader = cgs.media.selectShader;
+				sprite.radius = sRadius * (cg.weaponSelectorSelection == weaponId ? 1.1f : 1.0);
+				sprite.shaderRGBA[0] = 255;
+				sprite.shaderRGBA[1] = 255;
+				sprite.shaderRGBA[2] = 255;
+				sprite.shaderRGBA[3] = 255;
+				trap_R_AddRefEntityToScene( &sprite );
+
+				if (!selectable)
+				{
+					memset(&sprite, 0, sizeof(sprite));
+					VectorCopy(iconForeground, sprite.origin);
+					sprite.reType = RT_SPRITE;
+					sprite.customShader = cgs.media.noammoShader;
+					sprite.radius = sRadius;
+					sprite.shaderRGBA[0] = 255;
+					sprite.shaderRGBA[1] = 255;
+					sprite.shaderRGBA[2] = 255;
+					sprite.shaderRGBA[3] = 255;
+					trap_R_AddRefEntityToScene(&sprite);
+				}
+			}
+		}
+	}
+
+	//Only reset selection if using controller pointer
+	if (!selected && selectorMode == WS_CONTROLLER)
+	{
+		cg.weaponSelectorSelection = WP_NONE;
+	}
+
+	// In case was invoked by thumbstick axis and thumbstick is centered
+	// select weapon (if any selected) and close the selector
+	if (vr->weapon_select_autoclose && frac > 0.25f) {
+		if (thumbstickValue < 0.1f) {
+			if (selected) {
+				cg.weaponSelect = cg.weaponSelectorSelection;
+			}
+			vr->weapon_select = qfalse;
+			vr->weapon_select_autoclose = qfalse;
+			vr->weapon_select_using_thumbstick = qfalse;
+		}
+	}
+}
+
 /*
 ===================
 CG_OutOfAmmoChange
@@ -1727,6 +2501,68 @@ void CG_FireWeapon( centity_t *cent ) {
 	// do brass ejection
 	if ( weap->ejectBrassFunc && cg_brassTime.integer > 0 ) {
 		weap->ejectBrassFunc( cent );
+	}
+
+	//Are we the player?
+	if (cent->currentState.number == cg.predictedPlayerState.clientNum)
+	{
+		int position = vr->weapon_stabilised ? 4 : (vr->right_handed ? 1 : 2);
+
+		static int haptic_skip = 0;
+		// This is to adjust the excessive fire rate of the plasma-gun/machine-gun, everything else fires slower (or has haptics that compensate)
+		// so this will just fire every other time for the affected weapons
+		++haptic_skip;
+
+		//Haptics
+		switch (ent->weapon) {
+			case WP_GAUNTLET:
+				trap_HapticEvent("chainsaw_fire", position, 0, 50, 0, 0);
+				break;
+			case WP_MACHINEGUN:
+				if (haptic_skip & 1) {
+					trap_HapticEvent("machinegun_fire", position, 0, 100, 0, 0);
+				}
+				break;
+			case WP_SHOTGUN:
+				trap_HapticEvent("shotgun_fire", position, 0, 100, 0, 0);
+				break;
+			case WP_GRENADE_LAUNCHER:
+				trap_HapticEvent("handgrenade_fire", position, 0, 80, 0, 0);
+				break;
+			case WP_ROCKET_LAUNCHER:
+				trap_HapticEvent("rocket_fire", position, 0, 100, 0, 0);
+				break;
+			case WP_LIGHTNING:
+				//Haptics handled in the CG_LightningBolt code
+				break;
+			case WP_RAILGUN:
+				trap_HapticEvent("railgun_fire", position, 0, 100, 0, 0);
+				break;
+			case WP_PLASMAGUN:
+				if (haptic_skip & 1) {
+					trap_HapticEvent("plasmagun_fire", position, 0, 100, 0, 0);
+				}
+				break;
+			case WP_BFG:
+				trap_HapticEvent("bfg_fire", position, 0, 100, 0, 0);
+				break;
+			case WP_GRAPPLING_HOOK:
+				//No Haptics
+				break;
+#ifdef MISSIONPACK
+			case WP_NAILGUN:
+				trap_HapticEvent("shotgun_fire", position, 0, 100, 0, 0);
+				break;
+			case WP_PROX_LAUNCHER:
+				trap_HapticEvent("handgrenade_fire", position, 0, 100, 0, 0);
+				break;
+			case WP_CHAINGUN:
+				if (haptic_skip & 1) {
+					trap_HapticEvent("chaingun_fire", position, 0, 100, 0, 0);
+				}
+				break;
+#endif
+		}
 	}
 }
 
@@ -1944,6 +2780,11 @@ CG_MissileHitPlayer
 */
 void CG_MissileHitPlayer( int weapon, vec3_t origin, vec3_t dir, int entityNum ) {
 	CG_Bleed( origin, entityNum );
+
+	if ( entityNum == vr->clientNum )
+	{
+		trap_HapticEvent("fireball", 0, 0, 80, 0, 0);
+	}
 
 	// some weapons will make an explosion with the blood, while
 	// others will just make the blood

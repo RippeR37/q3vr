@@ -41,6 +41,7 @@ add_git_dependency(${SOURCE_DIR}/qcommon/common.c)
 set(SYSTEM_SOURCES
     ${SOURCE_DIR}/sys/con_log.c
     ${SOURCE_DIR}/sys/sys_autoupdater.c
+    $<$<BOOL:${USE_DEBUG_STACKTRACE}>:${SOURCE_DIR}/sys/sys_debug.c>
     ${SOURCE_DIR}/sys/sys_main.c
     ${SYSTEM_PLATFORM_SOURCES}
 )

@@ -22,6 +22,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 // cg_drawtools.c -- helper functions called by cg_draw, cg_scoreboard, cg_info, etc
 #include "cg_local.h"
+#include "../vr/vr_clientinfo.h"
+
+int hudflags = 0;
+extern vr_clientinfo_t* vr;
+
+void CG_SetHUDFlags(int flags)
+{
+	hudflags |= flags;
+}
+
+void CG_RemoveHUDFlags(int flags)
+{
+	hudflags &= ~flags;
+}
 
 /*
 ================
@@ -30,18 +44,46 @@ CG_AdjustFrom640
 Adjusted for resolution and screen aspect ratio
 ================
 */
-void CG_AdjustFrom640( float *x, float *y, float *w, float *h ) {
-#if 0
-	// adjust for wide screens
-	if ( cgs.glconfig.vidWidth * 480 > cgs.glconfig.vidHeight * 640 ) {
-		*x += 0.5 * ( cgs.glconfig.vidWidth - ( cgs.glconfig.vidHeight * 640 / 480 ) );
+void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
+{
+	int hudDrawStatus = (int)trap_Cvar_VariableValue("vr_currentHudDrawStatus");
+	//If using floating HUD and we are drawing it, then no need to scale as the HUD
+	//buffer is 640x480
+	if ( hudDrawStatus == 1 && cg.drawingHUD)
+	{
+		return;
 	}
-#endif
-	// scale for screen sizes
-	*x *= cgs.screenXScale;
-	*y *= cgs.screenYScale;
-	*w *= cgs.screenXScale;
-	*h *= cgs.screenYScale;
+
+	if (!cg.drawingHUD)
+	{
+		*x *= cgs.screenXScale;
+		*y *= cgs.screenYScale;
+		*w *= cgs.screenXScale;
+		*h *= cgs.screenYScale;
+	}
+	else  // scale to clearly visible portion of VR screen
+	{
+		float screenXScale = cgs.screenXScale / 2.8f;
+		float screenYScale = cgs.screenYScale / 2.3f;
+
+		*x *= screenXScale;
+		*y *= screenYScale;
+		if (hudflags & HUD_FLAGS_DRAWMODEL)
+		{
+			*w *= (screenXScale * 2.0f);
+			*x -= (*w / 3);
+			*h *= (screenYScale * 2.0f);
+			*y -= (*h / 3);
+		}
+		else
+		{
+			*w *= screenXScale;
+			*h *= screenYScale;
+		}
+
+		*x += (cg.refdef.width - (640 * screenXScale)) / 2.0f;
+		*y += (cg.refdef.height - (480 * screenYScale)) / 2.0f - trap_Cvar_VariableValue("vr_hudYOffset");
+	}
 }
 
 /*

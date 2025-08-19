@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 
 #include "g_local.h"
+#include "../vr/vr_clientinfo.h"
 
 level_locals_t	level;
 
@@ -37,6 +38,8 @@ typedef struct {
 
 gentity_t		g_entities[MAX_GENTITIES];
 gclient_t		g_clients[MAX_CLIENTS];
+
+vr_clientinfo_t* vr;
 
 vmCvar_t	g_gametype;
 vmCvar_t	g_dmflags;
@@ -201,9 +204,12 @@ This must be the very first function compiled into the .q3vm file
 */
 Q_EXPORT intptr_t vmMain( int command, int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6, int arg7, int arg8, int arg9, int arg10, int arg11  ) {
 	switch ( command ) {
-	case GAME_INIT:
+	case GAME_INIT: {
+		int ptr[2] = {arg3, arg4};
+		vr = (vr_clientinfo_t *) (*(long long *) (ptr));
 		G_InitGame( arg0, arg1, arg2 );
 		return 0;
+	}
 	case GAME_SHUTDOWN:
 		G_ShutdownGame( arg0 );
 		return 0;
@@ -509,6 +515,17 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	G_RemapTeamShaders();
 
 	trap_SetConfigstring( CS_INTERMISSION, "" );
+
+	char serverinfo[MAX_INFO_STRING];
+	trap_GetServerinfo( serverinfo, sizeof( serverinfo ) );
+	vr->no_crosshair = (Q_stristr(serverinfo, "nocrosshair") != NULL || Q_stristr(serverinfo, "no crosshair") != NULL);
+	vr->local_server = qtrue;
+#ifdef MISSIONPACK
+	vr->single_player = trap_Cvar_VariableValue("ui_singlePlayerActive");
+#else
+	vr->single_player = trap_Cvar_VariableValue( "g_gametype" ) == GT_SINGLE_PLAYER;
+#endif
+	vr->use_fake_6dof = !vr->single_player;
 }
 
 

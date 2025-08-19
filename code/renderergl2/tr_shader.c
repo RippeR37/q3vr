@@ -4007,6 +4007,20 @@ static void CreateExternalShaders( void ) {
 		tr.sunFlareShader = FinishShader();
 	}
 
+	//Set some stuff on our HUD shader
+	{
+		tr.hudShader = R_FindShader("sprites/vr/hud", LIGHTMAP_2D, qfalse);
+    // Double check not to crash
+    if (!tr.hudShader || !tr.hudShader->stages[0] || !tr.hudShader->stages[0]->bundle[0].image[0]) {
+      return;
+    }
+		tr.hudShader->stages[0]->bundle[0].image[0] = tr.hudImage;
+		// Ensure HUD is in front of other things
+		tr.hudShader->sort = SS_BLEND2;
+		// Reset stage's blend function config to a proper one
+		tr.hudShader->stages[0]->stateBits &= ~(GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS);
+		tr.hudShader->stages[0]->stateBits |= GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA;
+	}
 }
 
 /*

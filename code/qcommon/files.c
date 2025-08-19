@@ -244,11 +244,14 @@ typedef struct searchpath_s {
 	directory_t	*dir;
 } searchpath_t;
 
+static	cvar_t		*fs_forceNativeVM;
+
 static	char		fs_gamedir[MAX_OSPATH];	// this will be a single file name with no separators
 static	cvar_t		*fs_debug;
 static	cvar_t		*fs_homepath;
 
 static	cvar_t		*fs_apppath;
+
 static	cvar_t		*fs_steampath;
 static	cvar_t		*fs_gogpath;
 static	cvar_t		*fs_microsoftstorepath;
@@ -1376,7 +1379,7 @@ int FS_FindVM(void **startSearch, char *found, int foundlen, const char *name, i
 
 	while(search)
 	{
-		if(search->dir && !fs_numServerPaks)
+		if(search->dir && (!fs_numServerPaks || fs_forceNativeVM->integer != 0))
 		{
 			dir = search->dir;
 
@@ -1413,7 +1416,7 @@ int FS_FindVM(void **startSearch, char *found, int foundlen, const char *name, i
 				return VMI_COMPILED;
 			}
 		}
-		else if(search->pack)
+		else if(search->pack && fs_forceNativeVM->integer == 0)
 		{
 			pack = search->pack;
 
@@ -3499,7 +3502,10 @@ static void FS_CheckPak0( void )
 				&& !Q_stricmpn( pakBasename, "pak0", MAX_OSPATH ))
 		{
 			if(curpack->checksum == DEMO_PAK0_CHECKSUM)
+			{
+				Cvar_Set("demoversion", "1.0");
 				founddemo = qtrue;
+      }
 		}
 
 		else if(!Q_stricmpn( curpack->pakGamename, BASEGAME, MAX_OSPATH )
@@ -3635,7 +3641,7 @@ static void FS_CheckPak0( void )
 	else
 		installPath = fs_basepath->string;
 
-	if(!com_standalone->integer && (foundPak & ((1<<NUM_ID_PAKS)-1)) != ((1<<NUM_ID_PAKS)-1))
+	if(!com_standalone->integer && (foundPak & ((1<<NUM_ID_PAKS)-1)) != ((1<<NUM_ID_PAKS)-1) && !founddemo)
 	{
 		char errorText[MAX_STRING_CHARS] = "";
 
@@ -3663,7 +3669,7 @@ static void FS_CheckPak0( void )
 		else
 		{
 			Q_strcat(errorText, sizeof(errorText),
-					va("Also check that your ioq3 executable is in "
+					va("Also check that your q3vr executable is in "
 						"the correct place and that every file "
 						"in the \"%s\" directory is present and readable", BASEGAME));
 		}
@@ -3700,7 +3706,7 @@ static void FS_CheckPak0( void )
 		else
 		{
 			Q_strcat(errorText, sizeof(errorText),
-					va("Also check that your ioq3 executable is in "
+					va("Also check that your q3vr executable is in "
 						"the correct place and that every file "
 						"in the \"%s\" directory is present and readable", BASETA));
 		}
@@ -4047,6 +4053,8 @@ void FS_InitFilesystem( void ) {
 	Com_StartupVariable("fs_basepath");
 	Com_StartupVariable("fs_homepath");
 	Com_StartupVariable("fs_game");
+
+	fs_forceNativeVM = Cvar_Get("fs_forceNativeVM", "1", CVAR_ARCHIVE);
 
 	if(!FS_FilenameCompare(Cvar_VariableString("fs_game"), com_basegame->string))
 		Cvar_Set("fs_game", "");

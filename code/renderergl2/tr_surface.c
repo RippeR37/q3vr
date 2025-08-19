@@ -227,7 +227,8 @@ void RB_InstantQuad(vec4_t quadVerts[4])
 
 	GLSL_BindProgram(&tr.textureColorShader);
 	
-	GLSL_SetUniformMat4(&tr.textureColorShader, UNIFORM_MODELVIEWPROJECTIONMATRIX, glState.modelviewProjection);
+	GLSL_SetUniformMat4(&tr.textureColorShader, UNIFORM_MODELMATRIX, glState.modelMatrix);
+	GLSL_BindBuffers(&tr.textureColorShader);
 	GLSL_SetUniformVec4(&tr.textureColorShader, UNIFORM_COLOR, colorWhite);
 
 	RB_InstantQuad2(quadVerts, texCoords);
@@ -249,7 +250,7 @@ static void RB_SurfaceSprite( void ) {
 	radius = ent->e.radius;
 	if ( ent->e.rotation == 0 ) {
 		VectorScale( backEnd.viewParms.or.axis[1], radius, left );
-		VectorScale( backEnd.viewParms.or.axis[2], radius, up );
+		VectorScale( backEnd.viewParms.or.axis[2], ent->e.invert ? -radius : radius, up );
 	} else {
 		float	s, c;
 		float	ang;
@@ -542,7 +543,8 @@ static void RB_SurfaceBeam( void )
 	
 	GLSL_BindProgram(sp);
 		
-	GLSL_SetUniformMat4(sp, UNIFORM_MODELVIEWPROJECTIONMATRIX, glState.modelviewProjection);
+	GLSL_SetUniformMat4(sp, UNIFORM_MODELMATRIX, glState.modelMatrix);
+	GLSL_BindBuffers(sp);
 					
 	GLSL_SetUniformVec4(sp, UNIFORM_COLOR, colorRed);
 
@@ -734,6 +736,36 @@ static void RB_SurfaceRailCore( void ) {
 	VectorNormalize( right );
 
 	DoRailCore( start, end, right, len, r_railCoreWidth->integer );
+}
+
+/*
+** RB_LaserSight
+*/
+static void RB_LaserSight( void ) {
+	refEntity_t *e;
+	int			len;
+	vec3_t		right;
+	vec3_t		vec;
+	vec3_t		start, end;
+	vec3_t		v1, v2;
+
+	e = &backEnd.currentEntity->e;
+
+	VectorCopy( e->oldorigin, start );
+	VectorCopy( e->origin, end );
+
+	VectorSubtract( end, start, vec );
+	len = VectorNormalize( vec );
+
+	// compute side vector
+	VectorSubtract( start, backEnd.viewParms.or.origin, v1 );
+	VectorNormalize( v1 );
+	VectorSubtract( end, backEnd.viewParms.or.origin, v2 );
+	VectorNormalize( v2 );
+	CrossProduct( v1, v2, right );
+	VectorNormalize( right );
+
+	DoRailCore( start, end, right, len, 1 );
 }
 
 /*
@@ -1192,6 +1224,9 @@ static void RB_SurfaceEntity( surfaceType_t *surfType ) {
 		break;
 	case RT_LIGHTNING:
 		RB_SurfaceLightningBolt();
+		break;
+	case RT_LASERSIGHT:
+		RB_LaserSight();
 		break;
 	default:
 		RB_SurfaceAxis();

@@ -79,9 +79,11 @@ set(UI_SOURCES
     ${SOURCE_DIR}/q3_ui/ui_atoms.c
     ${SOURCE_DIR}/q3_ui/ui_cdkey.c
     ${SOURCE_DIR}/q3_ui/ui_cinematics.c
+    ${SOURCE_DIR}/q3_ui/ui_comfort.c
     ${SOURCE_DIR}/q3_ui/ui_confirm.c
     ${SOURCE_DIR}/q3_ui/ui_connect.c
     ${SOURCE_DIR}/q3_ui/ui_controls2.c
+    ${SOURCE_DIR}/q3_ui/ui_controls3.c
     ${SOURCE_DIR}/q3_ui/ui_credits.c
     ${SOURCE_DIR}/q3_ui/ui_demo2.c
     ${SOURCE_DIR}/q3_ui/ui_display.c
@@ -113,6 +115,7 @@ set(UI_SOURCES
     ${SOURCE_DIR}/q3_ui/ui_team.c
     ${SOURCE_DIR}/q3_ui/ui_teamorders.c
     ${SOURCE_DIR}/q3_ui/ui_video.c
+    ${SOURCE_DIR}/q3_ui/ui_vr.c
 )
 
 set(UI_BINARY_SOURCES ${SOURCE_DIR}/ui/ui_syscalls.c)

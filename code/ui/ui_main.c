@@ -32,6 +32,9 @@ USER INTERFACE MAIN
 //#define PRE_RELEASE_TADEMO
 
 #include "ui_local.h"
+#include "../vr/vr_clientinfo.h"
+
+vr_clientinfo_t *vr = NULL;
 
 uiInfo_t uiInfo;
 
@@ -159,11 +162,18 @@ Q_EXPORT intptr_t vmMain( int command, int arg0, int arg1, int arg2, int arg3, i
 	  case UI_GETAPIVERSION:
 		  return UI_API_VERSION;
 
-	  case UI_INIT:
+	  case UI_INIT: {
+		  int ptr[2] = {arg1, arg2};
+		  vr = (vr_clientinfo_t *) (*(long long *) (ptr));
 		  _UI_Init(arg0);
+		  vr->menuCursorX = &uiInfo.uiDC.cursorx;
+		  vr->menuCursorY = &uiInfo.uiDC.cursory;
 		  return 0;
+		}
 
 	  case UI_SHUTDOWN:
+		  vr->menuCursorX = NULL;
+		  vr->menuCursorY = NULL;
 		  _UI_Shutdown();
 		  return 0;
 
@@ -2477,11 +2487,11 @@ static qboolean UI_NetSource_HandleKey(int flags, float *special, int key) {
 
 		if(ui_netSource.integer >= UIAS_GLOBAL1 && ui_netSource.integer <= UIAS_GLOBAL5)
 		{
-			char masterstr[2], cvarname[sizeof("sv_master1")];
+			char masterstr[2], cvarname[sizeof("vr_master1")];
 		
 			while(ui_netSource.integer >= UIAS_GLOBAL1 && ui_netSource.integer <= UIAS_GLOBAL5)
 			{
-				Com_sprintf(cvarname, sizeof(cvarname), "sv_master%d", ui_netSource.integer - UIAS_GLOBAL0);
+				Com_sprintf(cvarname, sizeof(cvarname), "vr_master%d", ui_netSource.integer - UIAS_GLOBAL0);
 				trap_Cvar_VariableStringBuffer(cvarname, masterstr, sizeof(masterstr));
 				if(*masterstr)
 					break;
@@ -3036,13 +3046,19 @@ static void UI_Update(const char *name) {
  	} else if (Q_stricmp(name, "ui_setRate") == 0) {
 		float rate = trap_Cvar_VariableValue("rate");
 		if (rate >= 5000) {
+#if 0
 			trap_Cvar_Set("cl_maxpackets", "30");
+#endif
 			trap_Cvar_Set("cl_packetdup", "1");
 		} else if (rate >= 4000) {
+#if 0
 			trap_Cvar_Set("cl_maxpackets", "15");
+#endif
 			trap_Cvar_Set("cl_packetdup", "2");		// favor less prediction errors when there's packet loss
 		} else {
+#if 0
 			trap_Cvar_Set("cl_maxpackets", "15");
+#endif
 			trap_Cvar_Set("cl_packetdup", "1");		// favor lower bandwidth
 		}
  	} else if (Q_stricmp(name, "ui_GetName") == 0) {
@@ -3154,6 +3170,120 @@ static void UI_Update(const char *name) {
 			trap_Cvar_SetValue( "m_pitch", 0.022f );
 		} else {
 			trap_Cvar_SetValue( "m_pitch", -0.022f );
+		}
+	} else if (Q_stricmp(name, "vr_controlSchema") == 0) {
+		qboolean uturn = trap_Cvar_VariableValue( "vr_uturn" ) != 0;
+		switch (val)
+		{
+			case 0: // Default schema (weapon wheel on grip)
+				trap_Cvar_Set("vr_button_map_RTHUMBLEFT", "turnleft"); // turn left
+				trap_Cvar_Set("vr_button_map_RTHUMBRIGHT", "turnright"); // turn right
+				trap_Cvar_Set("vr_button_map_RTHUMBFORWARD", ""); // unmapped
+				if (uturn) {
+					trap_Cvar_Set("vr_button_map_RTHUMBBACK", "uturn"); // u-turn
+				} else {
+					trap_Cvar_Set("vr_button_map_RTHUMBBACK", ""); // unmapped
+				}
+				trap_Cvar_Set("vr_button_map_PRIMARYGRIP", "+weapon_select"); // weapon selector
+				trap_Cvar_Set("vr_button_map_PRIMARYTHUMBSTICK", ""); // unmapped
+				trap_Cvar_Set("vr_button_map_RTHUMBFORWARD_ALT", ""); // unmapped
+				trap_Cvar_Set("vr_button_map_RTHUMBRIGHT_ALT", ""); // unmapped
+				trap_Cvar_Set("vr_button_map_RTHUMBBACK_ALT", ""); // unmapped
+				trap_Cvar_Set("vr_button_map_RTHUMBLEFT_ALT", ""); // unmapped
+				break;
+			case 1: // Weapon wheel on thumbstick - all directions as weapon select (useful for HMD wheel)
+				trap_Cvar_Set("vr_button_map_RTHUMBFORWARD", "+weapon_select");
+				trap_Cvar_Set("vr_button_map_RTHUMBRIGHT", "+weapon_select");
+				trap_Cvar_Set("vr_button_map_RTHUMBBACK", "+weapon_select");
+				trap_Cvar_Set("vr_button_map_RTHUMBLEFT", "+weapon_select");
+				trap_Cvar_Set("vr_button_map_PRIMARYTHUMBSTICK", "+weapon_select");
+				trap_Cvar_Set("vr_button_map_PRIMARYGRIP", "+alt"); // switch to alt layout
+				trap_Cvar_Set("vr_button_map_RTHUMBLEFT_ALT", "turnleft"); // turn left
+				trap_Cvar_Set("vr_button_map_RTHUMBRIGHT_ALT", "turnright"); // turn right
+				trap_Cvar_Set("vr_button_map_RTHUMBFORWARD_ALT", "blank");
+				if (uturn) {
+					trap_Cvar_Set("vr_button_map_RTHUMBBACK_ALT", "uturn");
+				} else {
+					trap_Cvar_Set("vr_button_map_RTHUMBBACK_ALT", "blank");
+				}
+				break;
+			default: // Weapon wheel disabled - only prev/next weapon switch is active
+				trap_Cvar_Set("vr_button_map_RTHUMBLEFT", "turnleft"); // turn left
+				trap_Cvar_Set("vr_button_map_RTHUMBRIGHT", "turnright"); // turn right
+				trap_Cvar_Set("vr_button_map_RTHUMBFORWARD", "weapnext"); // next weapon
+				if (uturn) {
+					trap_Cvar_Set("vr_button_map_RTHUMBBACK", "uturn"); // u-turn
+				} else {
+					trap_Cvar_Set("vr_button_map_RTHUMBBACK", "weapprev"); // previous weapon
+				}
+				trap_Cvar_Set("vr_button_map_PRIMARYGRIP", "+alt"); // switch to alt layout
+				trap_Cvar_Set("vr_button_map_PRIMARYTHUMBSTICK", ""); // unmapped
+				trap_Cvar_Set("vr_button_map_RTHUMBFORWARD_ALT", ""); // unmapped
+				trap_Cvar_Set("vr_button_map_RTHUMBRIGHT_ALT", ""); // unmapped
+				trap_Cvar_Set("vr_button_map_RTHUMBBACK_ALT", ""); // unmapped
+				trap_Cvar_Set("vr_button_map_RTHUMBLEFT_ALT", ""); // unmapped
+				break;
+		}
+	} else if (Q_stricmp(name, "vr_switchThumbsticks") == 0) {
+		if (val) {
+			trap_Cvar_Set("vr_button_map_A", "+button2"); // Use Item
+			trap_Cvar_Set("vr_button_map_B", "togglemenu"); // Menu
+			trap_Cvar_Set("vr_button_map_X", "+moveup"); // Jump
+			trap_Cvar_Set("vr_button_map_Y", "+movedown"); // Crouch
+		} else {
+			trap_Cvar_Set("vr_button_map_A", "+moveup"); // Jump
+			trap_Cvar_Set("vr_button_map_B", "+movedown"); // Crouch
+			trap_Cvar_Set("vr_button_map_X", "+button2"); // Use Item
+			trap_Cvar_Set("vr_button_map_Y", "togglemenu"); // Menu
+		}
+	} else if (Q_stricmp(name, "vr_uturn") == 0) {
+		int controlSchema = (int)trap_Cvar_VariableValue( "vr_controlSchema" ) % 3;
+		if (val) {
+        	if (controlSchema == 1) {
+        		trap_Cvar_Set("vr_button_map_RTHUMBBACK_ALT", "uturn");
+        	} else {
+        		trap_Cvar_Set("vr_button_map_RTHUMBBACK", "uturn");
+        	}
+        } else {
+        	if (controlSchema == 1) {
+        		trap_Cvar_Set("vr_button_map_RTHUMBBACK_ALT", "blank");
+        	} else if (controlSchema == 2) {
+        		trap_Cvar_Set("vr_button_map_RTHUMBBACK", "weapprev");
+        	} else {
+        		trap_Cvar_Set("vr_button_map_RTHUMBBACK", "");
+        	}
+        }
+	} else if (Q_stricmp(name, "vr_goreLevel") == 0) {
+		switch (val) {
+			case 0:
+				trap_Cvar_SetValue( "com_blood", 0);
+				trap_Cvar_SetValue( "cg_gibs", 0);
+				trap_Cvar_SetValue( "cg_megagibs", 0);
+				break;
+			case 1:
+				trap_Cvar_SetValue( "com_blood", 1);
+				trap_Cvar_SetValue( "cg_gibs", 0);
+				trap_Cvar_SetValue( "cg_megagibs", 0);
+				break;
+			case 2:
+				trap_Cvar_SetValue( "com_blood", 1);
+				trap_Cvar_SetValue( "cg_gibs", 1);
+				trap_Cvar_SetValue( "cg_megagibs", 0);
+				break;
+			case 3:
+				trap_Cvar_SetValue( "com_blood", 1);
+				trap_Cvar_SetValue( "cg_gibs", 1);
+				trap_Cvar_SetValue( "cg_megagibs", 1);
+				break;
+		}
+	} else if (Q_stricmp(name, "vr_hudDrawStatus") == 0) {
+		switch (val) {
+			case 2:
+				trap_Cvar_SetValue("cg_draw3dIcons", 0);
+				break;
+			default:
+				trap_Cvar_SetValue("cg_draw3dIcons", 1);
+				break;
 		}
 	}
 }
@@ -5252,6 +5382,8 @@ void _UI_MouseEvent( int dx, int dy )
 	// convert X bias to 640 coords
 	bias = uiInfo.uiDC.bias / uiInfo.uiDC.xscale;
 
+	bias = 16;
+
 	// update mouse screen position
 	uiInfo.uiDC.cursorx += dx;
 	if (uiInfo.uiDC.cursorx < -bias)
@@ -5260,10 +5392,10 @@ void _UI_MouseEvent( int dx, int dy )
 		uiInfo.uiDC.cursorx = SCREEN_WIDTH+bias;
 
 	uiInfo.uiDC.cursory += dy;
-	if (uiInfo.uiDC.cursory < 0)
-		uiInfo.uiDC.cursory = 0;
-	else if (uiInfo.uiDC.cursory > SCREEN_HEIGHT)
-		uiInfo.uiDC.cursory = SCREEN_HEIGHT;
+	if (uiInfo.uiDC.cursory < -bias)
+		uiInfo.uiDC.cursory = -bias;
+	else if (uiInfo.uiDC.cursory > SCREEN_HEIGHT+bias)
+		uiInfo.uiDC.cursory = SCREEN_HEIGHT+bias;
 
   if (Menu_Count() > 0) {
     //menuDef_t *menu = Menu_GetFocused();
@@ -5803,7 +5935,7 @@ static cvarTable_t		cvarTable[] = {
 	{ &ui_server14, "server14", "", CVAR_ARCHIVE },
 	{ &ui_server15, "server15", "", CVAR_ARCHIVE },
 	{ &ui_server16, "server16", "", CVAR_ARCHIVE },
-	{ &ui_cdkeychecked, "ui_cdkeychecked", "0", CVAR_ROM },
+	{ &ui_cdkeychecked, "ui_cdkeychecked", "1", CVAR_ROM },
 	{ &ui_new, "ui_new", "0", CVAR_TEMP },
 	{ &ui_debug, "ui_debug", "0", CVAR_TEMP },
 	{ &ui_initialized, "ui_initialized", "0", CVAR_TEMP },

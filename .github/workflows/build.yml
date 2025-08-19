@@ -1,58 +1,18 @@
 name: Build
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+      - develop
+      - release/*
+    tags:
+      - '*'
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '18 0 1 * *'
 
 jobs:
-  linux-legacy:
-    name: Linux (Legacy Makefile)
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install libsdl2-dev
-    - name: Compile
-      run: |
-        echo I_ACKNOWLEDGE_THE_MAKEFILE_IS_DEPRECATED=1 > Makefile.local
-        make release -j$(nproc)
-  windows-legacy:
-    name: Windows (Legacy Makefile)
-    runs-on: windows-2022
-    steps:
-    - uses: actions/checkout@v4
-    - name: Compile
-      run: |
-        echo I_ACKNOWLEDGE_THE_MAKEFILE_IS_DEPRECATED=1 > Makefile.local
-        make release -j $env:NUMBER_OF_PROCESSORS
-  macos-legacy:
-    name: macOS (Legacy Makefile)
-    runs-on: macos-13
-    steps:
-    - uses: actions/checkout@v4
-    - name: Compile
-      run:  |
-        echo I_ACKNOWLEDGE_THE_MAKEFILE_IS_DEPRECATED=1 > Makefile.local
-        make release -j$(sysctl -n hw.logicalcpu)
-  emscripten-legacy:
-    name: Emscripten (Legacy Makefile)
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/checkout@v4
-      with:
-        repository: emscripten-core/emsdk
-        path: emsdk
-    - name: Install Dependencies
-      run: |
-        cd emsdk
-        ./emsdk install 3.1.58
-        ./emsdk activate 3.1.58
-    - name: Compile
-      run: |
-        echo I_ACKNOWLEDGE_THE_MAKEFILE_IS_DEPRECATED=1 > Makefile.local
-        source emsdk/emsdk_env.sh
-        emmake make release -j$(nproc)
-
   linux:
     name: Linux
     runs-on: ubuntu-22.04
@@ -86,16 +46,29 @@ jobs:
         cmake --build build --config Release
         $version = Get-Content build/version.txt -Raw
         Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$version"
+        dir .
+        dir build
+        dir build\Release
+        dir build\Release\baseq3
+        Get-ChildItem -Path . -Filter *.exe -Recurse -File
         cpack --config build/CPackConfig.cmake -B build/installer --verbose
         Move-Item -Path "build/installer/*.exe" -Destination "build/Release"
-    - name: Upload
+    - name: Upload portable
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ github.event.repository.name }}-windows-msvc-${{ env.VERSION }}
+        name: ${{ github.event.repository.name }}-windows-msvc-${{ env.VERSION }}-portable
         path: |
           build/Release/**/*.dll
-          build/Release/**/*.exe
+          build/Release/**/q3vr.exe
           build/Release/**/*.qvm
+          build/Release/**/*.pk3
+          build/Release/**/COPYING.txt
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.repository.name }}-windows-msvc-${{ env.VERSION }}-installer
+        path: |
+          build/Release/**/q3vr-*-installer.exe
   windows-mingw:
     name: Windows MinGW
     runs-on: windows-2022
@@ -112,11 +85,19 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ github.event.repository.name }}-windows-mingw-${{ env.VERSION }}
+        name: ${{ github.event.repository.name }}-windows-mingw-${{ env.VERSION }}-portable
         path: |
           build/Release/**/*.dll
-          build/Release/**/*.exe
+          build/Release/**/q3vr.exe
           build/Release/**/*.qvm
+          build/Release/**/*.pk3
+          build/Release/**/COPYING.txt
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.repository.name }}-windows-mingw-${{ env.VERSION }}-installer
+        path: |
+          build/Release/**/q3vr-*-installer.exe
   macos:
     name: macOS
     runs-on: macos-13
@@ -151,37 +132,3 @@ jobs:
         name: ${{ github.event.repository.name }}-macOS-${{ env.VERSION }}
         path: |
           build/Release/**/*
-  emscripten:
-    name: Emscripten
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install emsdk
-      uses: mymindstorm/setup-emsdk@v13
-      with:
-        version: 3.1.58
-    - name: Compile
-      run: |
-        emcmake cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-        cmake --build build
-        echo "VERSION=$(cat build/version.txt)" >> $GITHUB_ENV
-    - name: Upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ github.event.repository.name }}-emscripten-${{ env.VERSION }}
-        path: |
-          build/Release/**/*
-  linux-external-libraries:
-    name: Linux (USE_INTERNAL_LIBS OFF)
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install libsdl2-dev zlib1g-dev libjpeg-dev libopenal-dev \
-          libogg-dev libvorbis-dev libopus-dev libopusfile-dev libcurl4-openssl-dev
-    - name: Compile
-      run: |
-        cmake -S . -B build -G Ninja -DUSE_INTERNAL_LIBS=OFF -DCMAKE_BUILD_TYPE=Release
-        cmake --build build

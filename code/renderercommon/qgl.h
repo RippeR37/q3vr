@@ -188,6 +188,7 @@ extern void (APIENTRYP qglUnlockArraysEXT) (void);
 	GLE(void, UniformMatrix4fv, GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) \
 	GLE(void, ValidateProgram, GLuint program) \
 	GLE(void, VertexAttribPointer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer) \
+  GLE(GLboolean, UnmapBuffer, GLenum target) \
 
 // GL_NVX_gpu_memory_info
 #ifndef GL_NVX_gpu_memory_info
@@ -240,6 +241,9 @@ extern void (APIENTRYP qglUnlockArraysEXT) (void);
 // OpenGL 3.0 specific
 #define QGL_3_0_PROCS \
 	GLE(const GLubyte *, GetStringi, GLenum name, GLuint index) \
+	GLE(void *, MapBufferRange, GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access) \
+	GLE(void, BindBufferBase, GLenum target, GLuint index, GLuint buffer) \
+	GLE(void, FramebufferTextureLayer, GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 
 // GL_ARB_framebuffer_object, built-in to OpenGL 3.0
 #define QGL_ARB_framebuffer_object_PROCS \
@@ -262,6 +266,24 @@ extern void (APIENTRYP qglUnlockArraysEXT) (void);
 	GLE(void, BindVertexArray, GLuint array) \
 	GLE(void, DeleteVertexArrays, GLsizei n, const GLuint *arrays) \
 	GLE(void, GenVertexArrays, GLsizei n, GLuint *arrays) \
+
+// OpenGL 3.1 specific
+#define QGL_3_1_PROCS \
+	GLE(void, UniformBlockBinding, GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding) \
+	GLE(GLuint, GetUniformBlockIndex, GLuint program, const GLchar *uniformBlockName) \
+
+#define QGL_3_2_PROCS \
+	GLE(void, FramebufferTexture, GLenum target, GLenum attachment, GLuint texture, GLint level) \
+
+#define QGL_4_3_PROCS \
+	GLE(void, DebugMessageCallback, GLDEBUGPROC callback, const void * userParam) \
+	GLE(void, InvalidateFramebuffer, GLenum target, GLsizei numAttachments, const GLenum * attachments) \
+
+#define QGL_4_5_PROCS \
+	GLE(void, BlitNamedFramebuffer, GLuint readFramebuffer, GLuint drawFramebuffer, GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) \
+
+#define QGL_OVR_multiview_PROCS \
+	GLE(void, FramebufferTextureMultiviewOVR, GLenum target, GLenum attachment, GLuint texture, GLint level, GLint baseViewIndex, GLsizei numViews) \
 
 #ifndef GL_ARB_texture_compression_rgtc
 #define GL_ARB_texture_compression_rgtc
@@ -324,6 +346,11 @@ QGL_1_3_PROCS;
 QGL_1_5_PROCS;
 QGL_2_0_PROCS;
 QGL_3_0_PROCS;
+QGL_3_1_PROCS;
+QGL_3_2_PROCS;
+QGL_4_3_PROCS;
+QGL_4_5_PROCS;
+QGL_OVR_multiview_PROCS;
 QGL_ARB_occlusion_query_PROCS;
 QGL_ARB_framebuffer_object_PROCS;
 QGL_ARB_vertex_array_object_PROCS;

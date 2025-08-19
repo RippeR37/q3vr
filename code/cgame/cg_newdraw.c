@@ -26,8 +26,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "cg_local.h"
 #include "../ui/ui_shared.h"
+#include "../vr/vr_clientinfo.h"
 
 extern displayContextDef_t cgDC;
+extern vr_clientinfo_t *vr;
 
 
 // set in CG_ParseTeamInfo
@@ -165,7 +167,7 @@ static void CG_DrawPlayerArmorIcon( rectDef_t *rect, qboolean draw2D ) {
 	vec3_t		angles;
 	vec3_t		origin;
 
-	if ( cg_drawStatus.integer == 0 ) {
+	if ( trap_Cvar_VariableValue( "vr_currentHudDrawStatus" ) == 0 ) {
 		return;
 	}
 
@@ -1100,16 +1102,21 @@ static void CG_DrawPlayerHasFlag(rectDef_t *rect, qboolean force2D) {
 	}
 }
 
+static int CG_GetChatOffsetY( void )
+{
+	return (-5 * (vr ? vr->hmdorientation[PITCH] : 0));
+}
+
 static void CG_DrawAreaSystemChat(rectDef_t *rect, float scale, vec4_t color, qhandle_t shader) {
-  CG_Text_Paint(rect->x, rect->y + rect->h, scale, color, systemChat, 0, 0, 0);
+  CG_Text_Paint(rect->x + 200, rect->y + rect->h + CG_GetChatOffsetY(), scale, color, systemChat, 0, 0, 0);
 }
 
 static void CG_DrawAreaTeamChat(rectDef_t *rect, float scale, vec4_t color, qhandle_t shader) {
-  CG_Text_Paint(rect->x, rect->y + rect->h, scale, color,teamChat1, 0, 0, 0);
+  CG_Text_Paint(rect->x + 200, rect->y + rect->h + CG_GetChatOffsetY(), scale, color,teamChat1, 0, 0, 0);
 }
 
 static void CG_DrawAreaChat(rectDef_t *rect, float scale, vec4_t color, qhandle_t shader) {
-  CG_Text_Paint(rect->x, rect->y + rect->h, scale, color, teamChat2, 0, 0, 0);
+  CG_Text_Paint(rect->x + 200, rect->y + rect->h + CG_GetChatOffsetY(), scale, color, teamChat2, 0, 0, 0);
 }
 
 const char *CG_GetKillerText(void) {
@@ -1496,7 +1503,7 @@ void CG_DrawMedal(int ownerDraw, rectDef_t *rect, float scale, vec4_t color, qha
 void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y, int ownerDraw, int ownerDrawFlags, int align, float special, float scale, vec4_t color, qhandle_t shader, int textStyle) {
 	rectDef_t rect;
 
-  if ( cg_drawStatus.integer == 0 ) {
+  if ( trap_Cvar_VariableValue( "vr_currentHudDrawStatus" ) == 0 ) {
 		return;
 	}
 

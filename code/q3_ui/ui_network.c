@@ -41,7 +41,9 @@ NETWORK OPTIONS MENU
 #define ID_SOUND			12
 #define ID_NETWORK			13
 #define ID_RATE				14
-#define ID_BACK				15
+#define ID_ALLOWDOWNLOAD	15
+#define ID_SENDROLL			16
+#define ID_BACK				17
 
 
 static const char *rate_items[] = {
@@ -66,6 +68,8 @@ typedef struct {
 	menutext_s		network;
 
 	menulist_s		rate;
+	menuradiobutton_s	allowdownload;
+	menuradiobutton_s	sendroll;
 
 	menubitmap_s	back;
 } networkOptionsInfo_t;
@@ -89,10 +93,12 @@ static void UI_NetworkOptionsMenu_Event( void* ptr, int event ) {
 		UI_GraphicsOptionsMenu();
 		break;
 
+#if 0
 	case ID_DISPLAY:
 		UI_PopMenu();
 		UI_DisplayOptionsMenu();
 		break;
+#endif
 
 	case ID_SOUND:
 		UI_PopMenu();
@@ -118,6 +124,15 @@ static void UI_NetworkOptionsMenu_Event( void* ptr, int event ) {
 		else if( networkOptionsInfo.rate.curvalue == 4 ) {
 			trap_Cvar_SetValue( "rate", 25000 );
 		}
+		break;
+
+	case ID_ALLOWDOWNLOAD:
+		trap_Cvar_SetValue( "cl_allowDownload", networkOptionsInfo.allowdownload.curvalue );
+		trap_Cvar_SetValue( "sv_allowDownload", networkOptionsInfo.allowdownload.curvalue );
+		break;
+
+	case ID_SENDROLL:
+		trap_Cvar_SetValue( "vr_sendRollToServer", networkOptionsInfo.sendroll.curvalue);
 		break;
 
 	case ID_BACK:
@@ -171,11 +186,12 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	networkOptionsInfo.graphics.generic.id			= ID_GRAPHICS;
 	networkOptionsInfo.graphics.generic.callback	= UI_NetworkOptionsMenu_Event;
 	networkOptionsInfo.graphics.generic.x			= 216;
-	networkOptionsInfo.graphics.generic.y			= 240 - 2 * PROP_HEIGHT;
+	networkOptionsInfo.graphics.generic.y			= 256 - 2 * PROP_HEIGHT;
 	networkOptionsInfo.graphics.string				= "GRAPHICS";
 	networkOptionsInfo.graphics.style				= UI_RIGHT;
 	networkOptionsInfo.graphics.color				= color_red;
 
+#if 0
 	networkOptionsInfo.display.generic.type			= MTYPE_PTEXT;
 	networkOptionsInfo.display.generic.flags		= QMF_RIGHT_JUSTIFY|QMF_PULSEIFFOCUS;
 	networkOptionsInfo.display.generic.id			= ID_DISPLAY;
@@ -185,13 +201,14 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	networkOptionsInfo.display.string				= "DISPLAY";
 	networkOptionsInfo.display.style				= UI_RIGHT;
 	networkOptionsInfo.display.color				= color_red;
+#endif
 
 	networkOptionsInfo.sound.generic.type			= MTYPE_PTEXT;
 	networkOptionsInfo.sound.generic.flags			= QMF_RIGHT_JUSTIFY|QMF_PULSEIFFOCUS;
 	networkOptionsInfo.sound.generic.id				= ID_SOUND;
 	networkOptionsInfo.sound.generic.callback		= UI_NetworkOptionsMenu_Event;
 	networkOptionsInfo.sound.generic.x				= 216;
-	networkOptionsInfo.sound.generic.y				= 240;
+	networkOptionsInfo.sound.generic.y				= 256 - PROP_HEIGHT;
 	networkOptionsInfo.sound.string					= "SOUND";
 	networkOptionsInfo.sound.style					= UI_RIGHT;
 	networkOptionsInfo.sound.color					= color_red;
@@ -201,12 +218,12 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	networkOptionsInfo.network.generic.id			= ID_NETWORK;
 	networkOptionsInfo.network.generic.callback		= UI_NetworkOptionsMenu_Event;
 	networkOptionsInfo.network.generic.x			= 216;
-	networkOptionsInfo.network.generic.y			= 240 + PROP_HEIGHT;
+	networkOptionsInfo.network.generic.y			= 256;
 	networkOptionsInfo.network.string				= "NETWORK";
 	networkOptionsInfo.network.style				= UI_RIGHT;
 	networkOptionsInfo.network.color				= color_red;
 
-	y = 240 - 1 * (BIGCHAR_HEIGHT+2);
+	y = 256 - 2 * (BIGCHAR_HEIGHT + 2);
 	networkOptionsInfo.rate.generic.type		= MTYPE_SPINCONTROL;
 	networkOptionsInfo.rate.generic.name		= "Data Rate:";
 	networkOptionsInfo.rate.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
@@ -215,6 +232,24 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	networkOptionsInfo.rate.generic.x			= 400;
 	networkOptionsInfo.rate.generic.y			= y;
 	networkOptionsInfo.rate.itemnames			= rate_items;
+
+	y += BIGCHAR_HEIGHT+2;
+	networkOptionsInfo.allowdownload.generic.type     = MTYPE_RADIOBUTTON;
+	networkOptionsInfo.allowdownload.generic.name	   = "Auto-Download:";
+	networkOptionsInfo.allowdownload.generic.flags	   = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	networkOptionsInfo.allowdownload.generic.callback = UI_NetworkOptionsMenu_Event;
+	networkOptionsInfo.allowdownload.generic.id       = ID_ALLOWDOWNLOAD;
+	networkOptionsInfo.allowdownload.generic.x	       = 400;
+	networkOptionsInfo.allowdownload.generic.y	       = y;
+
+	y += BIGCHAR_HEIGHT+2;
+	networkOptionsInfo.sendroll.generic.type        = MTYPE_RADIOBUTTON;
+	networkOptionsInfo.sendroll.generic.name	      = "Send Roll Angle:";
+	networkOptionsInfo.sendroll.generic.flags	      = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	networkOptionsInfo.sendroll.generic.callback    = UI_NetworkOptionsMenu_Event;
+	networkOptionsInfo.sendroll.generic.id          = ID_SENDROLL;
+	networkOptionsInfo.sendroll.generic.x	          = 400;
+	networkOptionsInfo.sendroll.generic.y	          = y;
 
 	networkOptionsInfo.back.generic.type		= MTYPE_BITMAP;
 	networkOptionsInfo.back.generic.name		= ART_BACK0;
@@ -231,10 +266,14 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.framel );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.framer );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.graphics );
+#if 0
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.display );
+#endif
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.sound );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.network );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.rate );
+	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.allowdownload );
+	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.sendroll );
 	Menu_AddItem( &networkOptionsInfo.menu, ( void * ) &networkOptionsInfo.back );
 
 	rate = trap_Cvar_VariableValue( "rate" );
@@ -253,6 +292,8 @@ static void UI_NetworkOptionsMenu_Init( void ) {
 	else {
 		networkOptionsInfo.rate.curvalue = 4;
 	}
+	networkOptionsInfo.allowdownload.curvalue	= trap_Cvar_VariableValue( "cl_allowDownload" ) != 0;
+	networkOptionsInfo.sendroll.curvalue		= trap_Cvar_VariableValue( "vr_sendRollToServer" ) != 0;
 }
 
 

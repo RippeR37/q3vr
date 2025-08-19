@@ -22,10 +22,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // console.c
 
 #include "client.h"
+#include "../vr/vr_clientinfo.h"
 
 
 int g_console_field_width = 78;
 
+extern vr_clientinfo_t vr;
+extern cvar_t *vr_currentHudDrawStatus;
+extern cvar_t *vr_showConsoleMessages;
 
 #define	NUM_CON_TIMES 4
 
@@ -573,6 +577,11 @@ void Con_DrawNotify (void)
 	currentColor = 7;
 	re.SetColor( g_color_table[currentColor] );
 
+	re.HUDBufferStart(qfalse);
+
+	int xadjust = (vr_currentHudDrawStatus->integer != 1) ? 500 : 10;
+	int yadjust = (vr_currentHudDrawStatus->integer != 1) ? 600 : 10;
+
 	v = 0;
 	for (i= con.current-NUM_CON_TIMES+1 ; i<=con.current ; i++)
 	{
@@ -598,13 +607,21 @@ void Con_DrawNotify (void)
 				currentColor = ColorIndexForNumber( text[x]>>8 );
 				re.SetColor( g_color_table[currentColor] );
 			}
-			SCR_DrawSmallChar( cl_conXOffset->integer + con.xadjust + (x+1)*SMALLCHAR_WIDTH, v, text[x] & 0xff );
+
+			if (vr_showConsoleMessages->integer)
+			{
+				SCR_DrawSmallChar(
+						cl_conXOffset->integer + con.xadjust + (x + 1) * SMALLCHAR_WIDTH + xadjust,
+						v + yadjust, text[x] & 0xff);
+			}
 		}
 
 		v += SMALLCHAR_HEIGHT;
 	}
 
 	re.SetColor( NULL );
+
+	re.HUDBufferEnd();
 
 	if (Key_GetCatcher( ) & (KEYCATCH_UI | KEYCATCH_CGAME) ) {
 		return;
@@ -783,7 +800,7 @@ Scroll it up or down
 void Con_RunConsole (void) {
 	// decide on the destination height of the console
 	if ( Key_GetCatcher( ) & KEYCATCH_CONSOLE )
-		con.finalFrac = 0.5;		// half screen
+		con.finalFrac = 0.4;		// half screen
 	else
 		con.finalFrac = 0;				// none visible
 	

@@ -1,0 +1,101 @@
+name: Report a bug
+description: Create a new bug report (please ensure its not a duplicate!)
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve the project!
+        Please fill out the following with as many details as possible.
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Select your operating system on which the problem occurs
+      multiple: true
+      options:
+        - Windows 10
+        - Windows 11
+        - Linux
+        - macOS
+    validations:
+      required: true
+  - type: dropdown
+    id: vr-runtime
+    attributes:
+      label: VR Runtime
+      description: Select VR runtimes on which the problem occurs
+      multiple: true
+      options:
+        - SteamVR
+        - HTC
+        - Windows Mixed Reality
+        - Oculus/Meta
+        - Varjo
+        - Other (please specify below)
+    validations:
+      required: true
+  - type: input
+    id: other-runtime
+    attributes:
+      label: Other VR Runtime
+      description: If you selected 'Other' above, please specify here
+    validations:
+      required: false
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU
+      description: Specify your graphics card model
+      placeholder: e.g. Nvidia RTX 4080
+    validations:
+      required: true
+  - type: input
+    id: headset
+    attributes:
+      label: VR Headset
+      description: Which headset are you using?
+      placeholder: e.g, Valve Index, Meta Quest 3
+    validations:
+      required: true
+  - type: input
+    id: controllers
+    attributes:
+      label: VR Controllers
+      description: Specify the controllers you use (optional)
+      placeholder: e.g. Valve Index Controllers, Quest Touch Pro
+    validations:
+      required: false
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem description
+      description: Describe the issue you encountered
+      placeholder: |
+        What happened?
+
+        What were you expecting to happen instead?
+
+        Please attach any logs, screenshots or recordings if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the steps that reproduce the issue
+      placeholder: |
+        1. Launch the game
+        2. ...
+        3. Something unexpected happens
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: Game version / build
+      description: Which version of the app are you using?
+      placeholder: e.g. beta, v1.0
+    validations:
+      required: true

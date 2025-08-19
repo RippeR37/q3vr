@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Go to support forum
+    url: https://github.com/RippeR37/q3vr/discussions
+    about: Ask a question or propose a feature

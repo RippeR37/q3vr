@@ -43,3 +43,7 @@ profile
 *.opensdf
 *.suo
 /.vs
+
+# Cache
+####################
+.cache/

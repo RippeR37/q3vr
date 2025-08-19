@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "builtin-baseline": "d5a87c6bcc5d3cb3f5627bfeff977280097c719c",
+  "dependencies": [
+    {
+      "name": "openxr-loader"
+    }
+  ]
+}

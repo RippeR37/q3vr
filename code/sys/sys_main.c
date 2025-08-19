@@ -51,6 +51,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../qcommon/q_shared.h"
 #include "../qcommon/qcommon.h"
 
+#include "../vr/vr_base.h"
+#include "../vr/vr_input.h"
+#include "../vr/vr_renderer.h"
+
 static char binaryPath[ MAX_OSPATH ] = { 0 };
 static char installPath[ MAX_OSPATH ] = { 0 };
 
@@ -270,9 +274,11 @@ void Sys_InitPIDFile( const char *gamedir ) {
 			"it didn't exit properly. This may be due to inappropriate video "
 			"settings. Would you like to start with \"safe\" video settings?", modName );
 
+#if 0 // Don't ask for change, it's poor UX in VR
 		if( Sys_Dialog( DT_YES_NO, message, "Abnormal Exit" ) == DR_YES ) {
 			Cvar_Set( "com_abnormalExit", "1" );
 		}
+#endif
 #endif
 	}
 }
@@ -730,6 +736,8 @@ char *Sys_ParseProtocolUri( const char *uri )
 #	endif
 #endif
 
+void print_stacktrace(void);
+
 /*
 =================
 Sys_SigHandler
@@ -738,6 +746,11 @@ Sys_SigHandler
 void Sys_SigHandler( int signal )
 {
 	static qboolean signalcaught = qfalse;
+
+#ifdef USE_DEBUG_STACKTRACE
+  fprintf( stderr, "Sys_SigHandler(%d)\n", signal);
+  print_stacktrace();
+#endif
 
 	if( signalcaught )
 	{
@@ -859,6 +872,8 @@ int main( int argc, char **argv )
 	}
 #endif
 
+	VR_Engine* engine = VR_Init( );
+
 	CON_Init( );
 	Com_Init( commandLine );
 	NET_Init( );
@@ -877,6 +892,12 @@ int main( int argc, char **argv )
 		Com_Frame( );
 	}
 #endif
+
+	if (engine->appState.Session) {
+		VR_LeaveVR( engine );
+		VR_DestroyRenderer( engine );
+	}
+	VR_Destroy( engine );
 
 	return 0;
 }

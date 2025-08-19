@@ -23,8 +23,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "client.h"
 
+#include "../vr/vr_clientinfo.h"
+
 unsigned	frame_msec;
 int			old_com_frameTime;
+
+extern vr_clientinfo_t vr;
+extern cvar_t *vr_refreshrate;
+extern cvar_t *vr_sendRollToServer;
 
 /*
 ===============================================================================
@@ -290,6 +296,7 @@ Moves the local angle positions
 ================
 */
 void CL_AdjustAngles( void ) {
+#if 0
 	float	speed;
 	
 	if ( in_speed.active ) {
@@ -305,6 +312,25 @@ void CL_AdjustAngles( void ) {
 
 	cl.viewangles[PITCH] -= speed*cl_pitchspeed->value * CL_KeyState (&in_lookup);
 	cl.viewangles[PITCH] += speed*cl_pitchspeed->value * CL_KeyState (&in_lookdown);
+#endif
+
+	cl.viewangles[YAW] -= vr.hmdorientation_delta[YAW];
+
+	//Make angles good
+	while (cl.viewangles[YAW] > 180.0f)
+	{
+		cl.viewangles[YAW] -= 360.0f;
+	}
+
+	while (cl.viewangles[YAW] < -180.0f)
+	{
+		cl.viewangles[YAW] += 360.0f;
+	}
+
+	cl.viewangles[PITCH] = vr.hmdorientation[PITCH];
+	cl.viewangles[ROLL] = vr.hmdorientation[ROLL];
+
+	VectorCopy(cl.viewangles, vr.clientviewangles);
 }
 
 /*
@@ -352,6 +378,17 @@ void CL_KeyMove( usercmd_t *cmd ) {
 	cmd->forwardmove = ClampChar( forward );
 	cmd->rightmove = ClampChar( side );
 	cmd->upmove = ClampChar( up );
+}
+
+void CL_SnapTurn( int dxYaw )
+{
+	cl.viewangles[YAW] -= dxYaw;
+
+	//Make angles good
+	while (cl.viewangles[YAW] > 180.0f)
+		cl.viewangles[YAW] -= 360.0f;
+	while (cl.viewangles[YAW] < -180.0f)
+		cl.viewangles[YAW] += 360.0f;
 }
 
 /*
@@ -554,6 +591,7 @@ void CL_CmdButtons( usercmd_t *cmd ) {
 CL_FinishMove
 ==============
 */
+void rotateAboutOrigin(float x, float y, float rotation, vec2_t out);
 void CL_FinishMove( usercmd_t *cmd ) {
 	int		i;
 
@@ -564,8 +602,48 @@ void CL_FinishMove( usercmd_t *cmd ) {
 	// can be determined without allowing cheating
 	cmd->serverTime = cl.serverTime;
 
-	for (i=0 ; i<3 ; i++) {
-		cmd->angles[i] = ANGLE2SHORT(cl.viewangles[i]);
+	vr.clientNum = cl.snap.ps.clientNum;
+
+	//If we are running multiplayer, pass the angles from the weapon and adjust the move values accordingly,
+	// to "fake" a 3DoF weapon but keeping the movement correct (necessary with a remote non-vr server)
+	if ( vr.use_fake_6dof )
+	{
+		//Realign in playspace
+		if (--vr.realign == 0)
+		{
+			VectorCopy(vr.hmdposition, vr.hmdorigin);
+		}
+
+		vec3_t angles;
+		VectorCopy(vr.calculated_weaponangles, angles);
+
+		//Adjust for difference in server angles
+		float deltaPitch = SHORT2ANGLE(cl.snap.ps.delta_angles[PITCH]);
+		angles[PITCH] -= deltaPitch;
+		angles[YAW] += (cl.viewangles[YAW] - vr.hmdorientation[YAW]);
+		if (!vr_sendRollToServer->integer)
+		{
+			angles[ROLL] = 0; // suppress roll
+		}
+		else
+		{
+			angles[ROLL] = vr.hmdorientation[ROLL];
+		}
+
+		for (i = 0; i < 3; i++) {
+			cmd->angles[i] = ANGLE2SHORT(angles[i]);
+		}
+
+		vec3_t out;
+		rotateAboutOrigin(cmd->rightmove, cmd->forwardmove, -vr.calculated_weaponangles[YAW], out);
+		cmd->rightmove = out[0];
+		cmd->forwardmove = out[1];
+	}
+	else 
+	{
+		for (i=0 ; i<3 ; i++) {
+			cmd->angles[i] = ANGLE2SHORT(cl.viewangles[i]);
+		}
 	}
 }
 
@@ -704,14 +782,16 @@ qboolean CL_ReadyToSendPacket( void ) {
 	}
 
 	// check for exceeding cl_maxpackets
+#if 0
 	if ( cl_maxpackets->integer < 15 ) {
 		Cvar_Set( "cl_maxpackets", "15" );
 	} else if ( cl_maxpackets->integer > 125 ) {
 		Cvar_Set( "cl_maxpackets", "125" );
 	}
+ #endif
 	oldPacketNum = (clc.netchan.outgoingSequence - 1) & PACKET_MASK;
 	delta = cls.realtime -  cl.outPackets[ oldPacketNum ].p_realtime;
-	if ( delta < 1000 / cl_maxpackets->integer ) {
+	if ( delta < 1000 / vr_refreshrate->integer ) {
 		// the accumulated commands will go out in the next packet
 		return qfalse;
 	}

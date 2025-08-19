@@ -23,7 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // cg_view.c -- setup all the parameters (position, angle, etc)
 // for a 3D rendering
 #include "cg_local.h"
+#include "../vr/vr_clientinfo.h"
 
+extern vr_clientinfo_t* vr;
 
 /*
 =============================================================================
@@ -218,6 +220,62 @@ static void CG_CalcVrect (void) {
 
 /*
 ===============
+CG_OffsetVRThirdPersonView
+
+===============
+*/
+static void CG_OffsetVRThirdPersonView( void ) {
+	float scale = 1.0f;
+
+	//Follow mode 1
+ 	if ( cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_1))
+	{
+		scale *= SPECTATOR_WORLDSCALE_MULTIPLIER;
+		
+		//Check to see if the followed player has moved far enough away to mean we should update our location
+		vec3_t current;
+		VectorSubtract(cg.refdef.vieworg, cg.vr_vieworigin, current);
+		current[2] = 0;
+		if (VectorLength(current) > 400)
+		{
+			VectorCopy(cg.refdef.vieworg, cg.vr_vieworigin);
+
+			//Move behind the player
+			vec3_t angles;
+			vec3_t		forward, right, up;
+			VectorCopy(vr->clientviewangles, angles);
+			angles[PITCH] = 0;
+			AngleVectors( angles, forward, right, up );
+			VectorMA( cg.vr_vieworigin, -60, forward, cg.vr_vieworigin );
+		}
+	}
+	//Death or follow mode 2
+	else if (CG_IsDeathCam() ||CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_2))
+	{
+		scale *= SPECTATOR2_WORLDSCALE_MULTIPLIER;
+
+		//Move camera if the user is pushing thumbstick
+		vec3_t angles, forward, right, up;
+		VectorCopy(vr->offhandangles, angles);
+		float deltaYaw = CG_IsDeathCam() ? SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]) : 0.0f;
+		angles[YAW] += deltaYaw + (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);
+		AngleVectors(angles, forward, right, up);
+		VectorMA(cg.vr_vieworigin, vr->thumbstick_location[THUMB_LEFT][1] * 5.0f, forward, cg.vr_vieworigin);
+		VectorMA(cg.vr_vieworigin, vr->thumbstick_location[THUMB_LEFT][0] * 5.0f, right, cg.vr_vieworigin);
+	}
+
+	{
+		vec3_t position;
+		VectorCopy(vr->hmdposition, position);
+		CG_ConvertFromVR(position, NULL, position);
+		position[2] = 0;
+		VectorScale(position, scale, position);
+		VectorAdd(cg.vr_vieworigin, position, cg.refdef.vieworg);
+	}
+}
+
+/*
+===============
 CG_OffsetThirdPersonView
 
 ===============
@@ -238,11 +296,13 @@ static void CG_OffsetThirdPersonView( void ) {
 
 	VectorCopy( cg.refdefViewAngles, focusAngles );
 
+#if 0
 	// if dead, look at killer
 	if ( cg.predictedPlayerState.stats[STAT_HEALTH] <= 0 ) {
 		focusAngles[YAW] = cg.predictedPlayerState.stats[STAT_DEAD_YAW];
 		cg.refdefViewAngles[YAW] = cg.predictedPlayerState.stats[STAT_DEAD_YAW];
 	}
+#endif
 
 	if ( focusAngles[PITCH] > 45 ) {
 		focusAngles[PITCH] = 45;		// don't go too far overhead
@@ -331,6 +391,7 @@ static void CG_OffsetFirstPersonView( void ) {
 	origin = cg.refdef.vieworg;
 	angles = cg.refdefViewAngles;
 
+#if 0
 	// if dead, fix the angle and don't add any kick
 	if ( cg.snap->ps.stats[STAT_HEALTH] <= 0 ) {
 		angles[ROLL] = 40;
@@ -339,19 +400,21 @@ static void CG_OffsetFirstPersonView( void ) {
 		origin[2] += cg.predictedPlayerState.viewheight;
 		return;
 	}
+#endif
+	float hitRollCoeff = trap_Cvar_VariableValue("vr_rollWhenHit");
 
 	// add angles based on damage kick
 	if ( cg.damageTime ) {
 		ratio = cg.time - cg.damageTime;
 		if ( ratio < DAMAGE_DEFLECT_TIME ) {
 			ratio /= DAMAGE_DEFLECT_TIME;
-			angles[PITCH] += ratio * cg.v_dmg_pitch;
-			angles[ROLL] += ratio * cg.v_dmg_roll;
+			angles[PITCH] += ratio * cg.v_dmg_pitch * hitRollCoeff;
+			angles[ROLL] += ratio * cg.v_dmg_roll * hitRollCoeff;
 		} else {
 			ratio = 1.0 - ( ratio - DAMAGE_DEFLECT_TIME ) / DAMAGE_RETURN_TIME;
 			if ( ratio > 0 ) {
-				angles[PITCH] += ratio * cg.v_dmg_pitch;
-				angles[ROLL] += ratio * cg.v_dmg_roll;
+				angles[PITCH] += ratio * cg.v_dmg_pitch * hitRollCoeff;
+				angles[ROLL] += ratio * cg.v_dmg_roll * hitRollCoeff;
 			}
 		}
 	}
@@ -468,14 +531,15 @@ Fixed fov at intermissions, otherwise account for fov variable and zooms.
 #define	WAVE_FREQUENCY	0.4
 
 static int CG_CalcFov( void ) {
-	float	x;
+	int		contents;
+	int		inwater;
+#if 0	
 	float	phase;
 	float	v;
-	int		contents;
+	float	x;
 	float	fov_x, fov_y;
 	float	zoomFov;
 	float	f;
-	int		inwater;
 
 	if ( cg.predictedPlayerState.pm_type == PM_INTERMISSION ) {
 		// if in intermission, use a fixed value
@@ -520,14 +584,17 @@ static int CG_CalcFov( void ) {
 	x = cg.refdef.width / tan( fov_x / 360 * M_PI );
 	fov_y = atan2( cg.refdef.height, x );
 	fov_y = fov_y * 360 / M_PI;
+#endif
 
 	// warp if underwater
 	contents = CG_PointContents( cg.refdef.vieworg, -1 );
 	if ( contents & ( CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA ) ){
+#if 0
 		phase = cg.time / 1000.0 * WAVE_FREQUENCY * M_PI * 2;
 		v = WAVE_AMPLITUDE * sin( phase );
 		fov_x += v;
 		fov_y -= v;
+#endif
 		inwater = qtrue;
 	}
 	else {
@@ -536,8 +603,8 @@ static int CG_CalcFov( void ) {
 
 
 	// set it
-	cg.refdef.fov_x = fov_x;
-	cg.refdef.fov_y = fov_y;
+	cg.refdef.fov_x = vr->fov_x;
+	cg.refdef.fov_y = vr->fov_y;
 
 	if ( !cg.zoomed ) {
 		cg.zoomSensitivity = 1;
@@ -638,12 +705,28 @@ static int CG_CalcViewValues( void ) {
 	}
 */
 	// intermission view
+	static float hmdYaw = 0;
 	if ( ps->pm_type == PM_INTERMISSION ) {
 		VectorCopy( ps->origin, cg.refdef.vieworg );
-		VectorCopy( ps->viewangles, cg.refdefViewAngles );
+
+		static vec3_t	mins = { -1, -1, -1 };
+		static vec3_t	maxs = { 1, 1, 1 };
+		trace_t		trace;
+		vec3_t forward;
+		vec3_t end;
+		AngleVectors(ps->viewangles, forward, NULL, NULL);
+		VectorMA(ps->origin, -80, forward, end);
+		CG_Trace( &trace, ps->origin, mins, maxs, end, cg.predictedPlayerState.clientNum, MASK_SOLID );
+		VectorCopy(trace.endpos, cg.refdef.vieworg);
+
+		VectorCopy(vr->hmdorientation, cg.refdefViewAngles);
+		cg.refdefViewAngles[YAW] += (ps->viewangles[YAW] - hmdYaw);
 		AnglesToAxis( cg.refdefViewAngles, cg.refdef.viewaxis );
+
 		return CG_CalcFov();
 	}
+
+	hmdYaw = vr->hmdorientation[YAW];
 
 	cg.bobcycle = ( ps->bobCycle & 128 ) >> 7;
 	cg.bobfracsin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
@@ -674,16 +757,153 @@ static int CG_CalcViewValues( void ) {
 		}
 	}
 
-	if ( cg.renderingThirdPerson ) {
-		// back away from character
-		CG_OffsetThirdPersonView();
-	} else {
-		// offset for local bobbing and kicks
-		CG_OffsetFirstPersonView();
+	if (CG_IsDeathCam() || cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+	{
+		//If dead, or spectating, view the map from above
+		CG_OffsetVRThirdPersonView();
+	}
+	else
+	{
+		if (cg.renderingThirdPerson)
+		{
+// This offset is verry annoying in VR, let's not do it now...
+#if 0
+			// back away from character
+			CG_OffsetThirdPersonView();
+#endif
+		}
+		else
+		{
+			// offset for local bobbing and kicks
+			CG_OffsetFirstPersonView();
+		}
+
+		//Reset this in case we die or follow
+		VectorCopy(cg.refdef.vieworg, cg.vr_vieworigin);
+	}
+
+	if (vr->use_fake_6dof && !vr->virtual_screen)
+	{
+		vec3_t weaponorigin, weaponangles;
+		if (cg.predictedPlayerState.pm_type == PM_SPECTATOR && !(cg.snap->ps.pm_flags & PMF_FOLLOW)) {
+			// For free cam spectator, use offhand's angles to compute fly direction (mainly up/down)
+  		CG_CalculateVROffHandPosition(weaponorigin, weaponangles);
+		} else {
+			CG_CalculateVRWeaponPosition(weaponorigin, weaponangles);
+		}
+
+		vec3_t forward, end, dir;
+		AngleVectors(weaponangles, forward, NULL, NULL);
+		VectorMA(weaponorigin, 4096, forward, end);
+		trace_t trace;
+		CG_Trace(&trace, weaponorigin, NULL, NULL, end, cg.predictedPlayerState.clientNum, MASK_SOLID);
+
+		if (cg_debugWeaponAiming.integer)
+		{
+			byte colour[4];
+			colour[0] = 0xff;
+			colour[1] = 0x00;
+			colour[2] = 0x00;
+			colour[3] = 0x40;
+
+			CG_LaserSight(weaponorigin, trace.endpos, colour, 1.0f);
+		}
+
+		if (cg.predictedPlayerState.pm_type == PM_SPECTATOR && (cg.snap->ps.pm_flags & PMF_FOLLOW))
+		{
+			//If spectating, just take the weapon angles directly
+			VectorCopy(weaponangles, vr->calculated_weaponangles);
+		}
+		else
+		{
+			VectorSubtract(trace.endpos, cg.refdef.vieworg, dir);
+			vectoangles(dir, vr->calculated_weaponangles);
+
+			vec3_t origin;
+			VectorCopy(ps->origin, origin);
+			origin[2] += cg.predictedPlayerState.viewheight;
+			int timeDelta = cg.time - cg.duckTime;
+			if ( timeDelta < DUCK_TIME) {
+				origin[2] -= cg.duckChange * (DUCK_TIME - timeDelta) / DUCK_TIME;
+			}
+
+			vec3_t forward2, end2;
+			AngleVectors(vr->calculated_weaponangles, forward2, NULL, NULL);
+			VectorMA(origin, 4096, forward2, end2);
+
+			trace_t trace2;
+			CG_Trace(&trace2, cg.refdef.vieworg, NULL, NULL, end2, cg.predictedPlayerState.clientNum, MASK_SOLID);
+
+			if (cg_debugWeaponAiming.integer)
+			{
+				byte colour[4];
+				colour[0] = 0x00;
+				colour[1] = 0xff;
+				colour[2] = 0x00;
+				colour[3] = 0x40;
+
+				CG_LaserSight(cg.refdef.vieworg, trace2.endpos, colour, 1.0f);
+			}
+
+			//convert to real-world angles - should be very close to real weapon angles
+			float deltaYaw = SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]);
+			vr->calculated_weaponangles[YAW] -= (deltaYaw + (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]));
+		}
 	}
 
 	// position eye relative to origin
-	AnglesToAxis( cg.refdefViewAngles, cg.refdef.viewaxis );
+	if (vr->use_fake_6dof && !vr->virtual_screen)
+	{
+		if (vr->weapon_zoomed) {
+			//If we are zoomed, then we use the refdefViewANgles (which are the weapon angles)
+			vec3_t angles;
+			VectorCopy(cg.refdefViewAngles, angles);
+			angles[ROLL] = vr->hmdorientation[ROLL];
+			AnglesToAxis( angles, cg.refdef.viewaxis );
+		}
+		else if ( cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+		{
+			//If we're following someone,
+			vec3_t angles;
+			VectorCopy(vr->hmdorientation, angles);
+			angles[YAW] = vr->clientviewangles[YAW];
+			AnglesToAxis(angles, cg.refdef.viewaxis);
+		}
+		else if (!(cg.snap->ps.pm_flags & PMF_FOLLOW && vr->follow_mode == VRFM_FIRSTPERSON))
+		{
+			//We are connected to a multiplayer server, so make the appropriate adjustment to the view
+			//angles as we send orientation to the server that includes the weapon angles
+			vec3_t angles;
+			VectorCopy(vr->hmdorientation, angles);
+			float deltaYaw = SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]);
+			angles[YAW] = deltaYaw + vr->clientviewangles[YAW];
+			AnglesToAxis(angles, cg.refdef.viewaxis);
+		}
+		else
+		{
+			AnglesToAxis(cg.refdefViewAngles, cg.refdef.viewaxis);
+		}
+	} else {
+		if (vr->weapon_zoomed) {
+			vec3_t angles;
+			angles[ROLL] = vr->hmdorientation[ROLL];
+			angles[PITCH] = vr->weaponangles[PITCH];
+			angles[YAW] = (cg.refdefViewAngles[YAW] - vr->hmdorientation[YAW]) + vr->weaponangles[YAW];
+			AnglesToAxis(angles, cg.refdef.viewaxis);
+		}
+		else if ( cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+		{
+			//If we're following someone,
+			vec3_t angles;
+			VectorCopy(vr->hmdorientation, angles);
+			angles[YAW] = vr->clientviewangles[YAW];
+			AnglesToAxis(angles, cg.refdef.viewaxis);
+		}
+		else 
+		{
+			AnglesToAxis(cg.refdefViewAngles, cg.refdef.viewaxis);
+		}
+	}
 
 	if ( cg.hyperspace ) {
 		cg.refdef.rdflags |= RDF_NOWORLDMODEL | RDF_HYPERSPACE;
@@ -751,6 +971,23 @@ static void CG_PlayBufferedSounds( void ) {
 
 //=========================================================================
 
+qboolean CG_IsThirdPersonFollowMode( VR_FollowMode followMode )
+{
+	if (followMode == VRFM_QUERY)
+	{
+		return cg.snap->ps.pm_flags & PMF_FOLLOW &&
+			   (vr->follow_mode == VRFM_THIRDPERSON_1 || vr->follow_mode == VRFM_THIRDPERSON_2);
+	}
+
+	return 	cg.snap->ps.pm_flags & PMF_FOLLOW && vr->follow_mode == followMode;
+}
+
+qboolean CG_IsDeathCam( void )
+{
+	return 	(( cg.predictedPlayerState.stats[STAT_HEALTH] <= 0 ) &&
+               ( cg.predictedPlayerState.pm_type != PM_INTERMISSION ));
+}
+
 /*
 =================
 CG_DrawActiveFrame
@@ -763,9 +1000,25 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 
 	cg.time = serverTime;
 	cg.demoPlayback = demoPlayback;
+	cg.stereoView = stereoView;
+
+	cg.worldscale = trap_Cvar_VariableValue("vr_worldscale");
 
 	// update cvars
 	CG_UpdateCvars();
+
+	//HACK!! - should change this to a renderer function call
+	//Indicate to renderer whether we are in deathcam mode, We don't want sky in death cam mode
+	trap_Cvar_Set( "vr_thirdPersonSpectator", (CG_IsDeathCam() ||
+                                             cg.demoPlayback ||
+                                             CG_IsThirdPersonFollowMode(VRFM_QUERY) ? "1" : "0" ));
+
+	if (cg.demoPlayback || (cg.snap && (cg.snap->ps.pm_flags & PMF_FOLLOW) && (vr->follow_mode == VRFM_FIRSTPERSON)))
+	{
+    trap_Cvar_SetValue( "vr_currentHudDrawStatus", 2);
+	} else {
+		trap_Cvar_SetValue( "vr_currentHudDrawStatus", trap_Cvar_VariableValue( "vr_hudDrawStatus" ));
+	}
 
 	// if we are only updating the screen as a loading
 	// pacifier, don't even try to read snapshots
@@ -801,8 +1054,9 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	CG_PredictPlayerState();
 
 	// decide on third person view
-	cg.renderingThirdPerson = cg.snap->ps.persistant[PERS_TEAM] != TEAM_SPECTATOR
-							&& (cg_thirdPerson.integer || (cg.snap->ps.stats[STAT_HEALTH] <= 0));
+	cg.renderingThirdPerson = cg.predictedPlayerState.pm_type == PM_SPECTATOR ||
+			cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY) ||
+			cg_thirdPerson.integer;
 
 	// build cg.refdef
 	inwater = CG_CalcViewValues();
@@ -868,7 +1122,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	}
 
 	// actually issue the rendering calls
-	CG_DrawActive( stereoView );
+	CG_DrawActive();
 
 	if ( cg_stats.integer ) {
 		CG_Printf( "cg.clientFrame:%i\n", cg.clientFrame );

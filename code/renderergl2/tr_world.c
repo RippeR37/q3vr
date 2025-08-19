@@ -407,7 +407,7 @@ static void R_RecursiveWorldNode( mnode_t *node, uint32_t planeBits, uint32_t dl
 
 		// if the node wasn't marked as potentially visible, exit
 		// pvs is skipped for depth shadows
-		if (!(tr.viewParms.flags & VPF_DEPTHSHADOW) && node->visCounts[tr.visIndex] != tr.visCounts[tr.visIndex]) {
+		if (!vr_thirdPersonSpectator->integer && !(tr.viewParms.flags & VPF_DEPTHSHADOW) && node->visCounts[tr.visIndex] != tr.visCounts[tr.visIndex]) {
 			return;
 		}
 

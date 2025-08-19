@@ -149,7 +149,7 @@ void RB_AddFlare( void *surface, int fogNum, vec3_t point, vec3_t color, vec3_t 
 
 	// if the point is off the screen, don't bother adding it
 	// calculate screen coordinates and depth
-	R_TransformModelToClip( point, backEnd.or.modelMatrix, 
+	R_TransformModelToClip( point, backEnd.or.modelView,
 		backEnd.viewParms.projectionMatrix, eye, clip );
 
 	// check to see if the point is completely off screen
@@ -278,6 +278,9 @@ void RB_TestFlare( flare_t *f ) {
 	float			fade;
 	float			screenZ;
 	FBO_t           *oldFbo;
+
+  // Disable flares in VR
+  return;
 
 	backEnd.pc.c_flareTests++;
 
@@ -472,7 +475,7 @@ void RB_RenderFlares (void) {
 	flare_t		*f;
 	flare_t		**prev;
 	qboolean	draw;
-	mat4_t    oldmodelview, oldprojection, matrix;
+	mat4_t    oldmodelmatrix, oldprojection, matrix;
 
 	if ( !r_flares->integer ) {
 		return;
@@ -535,9 +538,9 @@ void RB_RenderFlares (void) {
 	}
 
 	Mat4Copy(glState.projection, oldprojection);
-	Mat4Copy(glState.modelview, oldmodelview);
+	Mat4Copy(glState.modelMatrix, oldmodelmatrix);
 	Mat4Identity(matrix);
-	GL_SetModelviewMatrix(matrix);
+	GL_SetModelMatrix(matrix);
 	Mat4Ortho( backEnd.viewParms.viewportX, backEnd.viewParms.viewportX + backEnd.viewParms.viewportWidth,
 	               backEnd.viewParms.viewportY, backEnd.viewParms.viewportY + backEnd.viewParms.viewportHeight,
 	               -99999, 99999, matrix );
@@ -552,7 +555,7 @@ void RB_RenderFlares (void) {
 	}
 
 	GL_SetProjectionMatrix(oldprojection);
-	GL_SetModelviewMatrix(oldmodelview);
+	GL_SetModelMatrix(oldmodelmatrix);
 }
 
 

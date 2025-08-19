@@ -1,8 +1,8 @@
-set(PROJECT_NAME ioq3)
-set(PROJECT_VERSION 1.36)
+set(PROJECT_NAME q3vr)
+set(PROJECT_VERSION 0.9)
 
-set(SERVER_NAME ioq3ded)
-set(CLIENT_NAME ioquake3)
+set(SERVER_NAME q3vr-ded)
+set(CLIENT_NAME q3vr)
 
 set(BASEGAME baseq3)
 

@@ -22,6 +22,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // cl_scrn.c -- master for refresh, status bar, console, chat, notify, etc
 
 #include "client.h"
+#include "../vr/vr_clientinfo.h"
+#include "../vr/vr_renderer.h"
+#include "../vr/vr_base.h"
+
+extern vr_clientinfo_t vr;
+extern cvar_t *vr_currentHudDrawStatus;
 
 qboolean	scr_initialized;		// ready to draw
 
@@ -70,17 +76,38 @@ void SCR_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 	// scale for screen sizes
 	xscale = cls.glconfig.vidWidth / 640.0;
 	yscale = cls.glconfig.vidHeight / 480.0;
-	if ( x ) {
-		*x *= xscale;
-	}
-	if ( y ) {
-		*y *= yscale;
-	}
-	if ( w ) {
-		*w *= xscale;
-	}
-	if ( h ) {
-		*h *= yscale;
+
+	if (vr.virtual_screen || vr_currentHudDrawStatus->integer != 2) {
+		if (x) {
+			*x *= xscale;
+		}
+		if (y) {
+			*y *= yscale;
+		}
+		if (w) {
+			*w *= xscale;
+		}
+		if (h) {
+			*h *= yscale;
+		}
+	} else {
+		float screenXScale = xscale / 2.75f;
+		float screenYScale = yscale / 2.25f;
+
+		if (x) {
+			*x *= screenXScale;
+			*x += (cls.glconfig.vidWidth - (640 * screenXScale)) / 2.0f;
+		}
+		if (y) {
+			*y *= screenYScale;
+			*y += (cls.glconfig.vidHeight - (480 * screenYScale)) / 2.0f;
+		}
+		if (w) {
+			*w *= screenXScale;
+		}
+		if (h) {
+			*h *= screenYScale;
+		}
 	}
 }
 
@@ -557,6 +584,11 @@ text to the screen.
 ==================
 */
 void SCR_UpdateScreen( void ) {
+  // VR_DrawFrame() will call SCR_UpdateScreenImpl() internally
+  VR_DrawFrame(VR_GetEngine());
+}
+
+void SCR_UpdateScreenImpl( void ) {
 	static int	recursive;
 
 	if ( !scr_initialized ) {
@@ -572,10 +604,13 @@ void SCR_UpdateScreen( void ) {
 	// that case.
 	if( uivm || com_dedicated->integer )
 	{
+#if 0
 		// XXX
 		int in_anaglyphMode = Cvar_VariableIntegerValue("r_anaglyphMode");
 		// if running in stereo, we need to draw the frame twice
 		if ( cls.glconfig.stereoEnabled || in_anaglyphMode) {
+#endif
+		if (qfalse) {
 			SCR_DrawScreenField( STEREO_LEFT );
 			SCR_DrawScreenField( STEREO_RIGHT );
 		} else {

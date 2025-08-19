@@ -23,6 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_local.h"
 
 #include "tr_dsa.h"
+#include "../vr/vr_base.h"
+#include "../vr/vr_clientinfo.h"
+
 
 extern const char *fallbackShader_bokeh_vp;
 extern const char *fallbackShader_bokeh_fp;
@@ -59,6 +62,23 @@ typedef struct uniformInfo_s
 	int type;
 }
 uniformInfo_t;
+
+typedef enum {
+	FULLSCREEN_ORTHO_PROJECTION, // Orthographic projection and no stereo view for fullscreen rendering
+	HUDBUFFER_ORTHO_PROJECTION, // Orthographic projection and no stereo view for the HUD buffer
+	STEREO_ORTHO_PROJECTION, // Orthographic projection with a slight stereo offset per eye for the static hud
+	VR_PROJECTION,
+	MIRROR_VR_PROJECTION, // For mirrors etc
+	MONO_VR_PROJECTION,
+
+	PROJECTION_COUNT
+} projection_t;
+
+GLuint		viewMatricesBuffer[PROJECTION_COUNT];
+GLuint		projectionMatricesBuffer[PROJECTION_COUNT];
+
+float       orthoProjectionMatrix[16];
+
 
 // These must be in the same order as in uniform_t in tr_local.h.
 static uniformInfo_t uniformsInfo[] =
@@ -127,8 +147,7 @@ static uniformInfo_t uniformsInfo[] =
 	{ "u_FogEyeT",      GLSL_FLOAT },
 	{ "u_FogColorMask", GLSL_VEC4 },
 
-	{ "u_ModelMatrix",               GLSL_MAT16 },
-	{ "u_ModelViewProjectionMatrix", GLSL_MAT16 },
+	{ "u_ModelMatrix",   GLSL_MAT16 },
 
 	{ "u_Time",          GLSL_FLOAT },
 	{ "u_VertexLerp" ,   GLSL_FLOAT },
@@ -165,6 +184,101 @@ typedef enum
 	GLSL_PRINTLOG_SHADER_SOURCE
 }
 glslPrintLog_t;
+
+
+/*
+====================
+GLSL_ViewMatricesUniformBuffer
+====================
+*/
+static void GLSL_ViewMatricesUniformBuffer(const float eyeView[2][16], const float modelView[32]) {
+
+	for (int i = 0; i < PROJECTION_COUNT; ++i)
+	{
+		// Update the scene matrices for when we are using a normal projection
+		qglBindBuffer(GL_UNIFORM_BUFFER, viewMatricesBuffer[i]);
+		float *viewMatrices = (float *) qglMapBufferRange(
+				GL_UNIFORM_BUFFER,
+				0,
+				2 * 16 * sizeof(float),
+				GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+
+		if (viewMatrices == NULL)
+		{
+			ri.Error(ERR_DROP, "View Matrices Uniform Buffer is NULL");
+			return;
+		}
+
+		switch (i)
+    {
+      case FULLSCREEN_ORTHO_PROJECTION:
+      case HUDBUFFER_ORTHO_PROJECTION:
+        {
+          Mat4Identity( viewMatrices );
+          Mat4Identity( viewMatrices + 16 );
+        }
+        break;
+      case STEREO_ORTHO_PROJECTION:
+        {
+          //This is a bit of a fiddle this calc.. it is just done like this to
+          //make the HUD depths line up with the weapon wheel depth. I _know_ there
+          //would be a proper calculation to do this exactly, but this is good enough
+          //and I've just had enough messing about with this
+				  const int depthOffset = (5-powf(vr_hudDepth->integer, 0.7f)) * 16;
+          vec3_t translate;
+          VectorSet(translate, depthOffset, 0, 0);
+          Mat4Translation( translate, viewMatrices );
+
+          VectorSet(translate, -depthOffset, 0, 0);
+          Mat4Translation( translate, viewMatrices + 16 );
+        }
+        break;
+      case MIRROR_VR_PROJECTION:
+      case VR_PROJECTION:
+        {
+          Mat4Copy(eyeView[0], viewMatrices);
+          Mat4Copy(eyeView[1], viewMatrices+16);
+        }
+        break;
+      case MONO_VR_PROJECTION:
+        {
+          Mat4Copy(modelView, viewMatrices);
+          Mat4Copy(modelView, viewMatrices+16);
+        }
+        break;
+    }
+
+		qglUnmapBuffer(GL_UNIFORM_BUFFER);
+		qglBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
+}
+
+/*
+====================
+GLSL_ProjectionMatricesUniformBuffer
+====================
+*/
+static void GLSL_ProjectionMatricesUniformBuffer(GLint projectionMatricesBuffer, const float value[16]) {
+
+	// Update the scene matrices.
+	qglBindBuffer(GL_UNIFORM_BUFFER, projectionMatricesBuffer);
+	float* projectionMatrix = (float*)qglMapBufferRange(
+			GL_UNIFORM_BUFFER,
+			0,
+			16 * sizeof(float),
+			GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+
+	if (projectionMatrix == NULL)
+	{
+		ri.Error(ERR_DROP, "Projection Matrices Uniform Buffer is NULL");
+		return;
+	}
+
+	memcpy((char*)projectionMatrix, value, 16 * sizeof(float));
+
+	qglUnmapBuffer(GL_UNIFORM_BUFFER);
+	qglBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
 
 static void GLSL_PrintLog(GLuint programOrShader, glslPrintLog_t type, qboolean developerOnly)
 {
@@ -249,7 +363,15 @@ static void GLSL_GetShaderHeader( GLenum shaderType, const GLchar *extra, char *
 	// HACK: abuse the GLSL preprocessor to turn GLSL 1.20 shaders into 1.30 ones
 	if(glRefConfig.glslMajorVersion > 1 || (glRefConfig.glslMajorVersion == 1 && glRefConfig.glslMinorVersion >= 30))
 	{
-		if (qglesMajorVersion >= 3 && glRefConfig.glslMajorVersion >= 3)
+    if(shaderType == GL_VERTEX_SHADER)
+    {
+      //Enable multiview
+      Q_strcat(dest, size, "#version 430\n");
+      Q_strcat(dest, size, "#define NUM_VIEWS 2\n");
+      Q_strcat(dest, size, "#extension GL_OVR_multiview2 : enable\n");
+      Q_strcat(dest, size, "layout(num_views=NUM_VIEWS) in;\n");
+    }
+		else if (qglesMajorVersion >= 3 && glRefConfig.glslMajorVersion >= 3)
 			Q_strcat(dest, size, "#version 300 es\n");
 		else if (glRefConfig.glslMajorVersion > 1 || (glRefConfig.glslMajorVersion == 1 && glRefConfig.glslMinorVersion >= 50))
 			Q_strcat(dest, size, "#version 150\n");
@@ -676,6 +798,23 @@ void GLSL_InitUniforms(shaderProgram_t *program)
 
 	GLint *uniforms = program->uniforms;
 
+	//Shader Matrices for the View Matrices
+	GLuint viewMatricesUniformLocation = qglGetUniformBlockIndex(program->program, "ViewMatrices");
+	int numBufferBindings = 0;
+	program->viewMatricesBinding = numBufferBindings++;
+	qglUniformBlockBinding(
+			program->program,
+			viewMatricesUniformLocation,
+			program->viewMatricesBinding);
+
+	//Shader Matrices for the Projection Matrix
+	GLuint projectionMatrixUniformLocation = qglGetUniformBlockIndex(program->program, "ProjectionMatrix");
+	program->projectionMatrixBinding = numBufferBindings++;
+	qglUniformBlockBinding(
+			program->program,
+			projectionMatrixUniformLocation,
+			program->projectionMatrixBinding);
+
 	size = 0;
 	for (i = 0; i < UNIFORM_COUNT; i++)
 	{
@@ -964,6 +1103,28 @@ void GLSL_InitGPUShaders(void)
 
 	ri.Printf(PRINT_ALL, "------- GLSL_InitGPUShaders -------\n");
 
+	for (int i = 0; i < PROJECTION_COUNT; ++i)
+	{
+		//Generate buffer for 2 * view matrices
+		qglGenBuffers(1, &viewMatricesBuffer[i]);
+		qglBindBuffer(GL_UNIFORM_BUFFER, viewMatricesBuffer[i]);
+		qglBufferData(
+				GL_UNIFORM_BUFFER,
+				2 * 16 * sizeof(float),
+				NULL,
+				GL_STATIC_DRAW);
+		qglBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+		qglGenBuffers(1, &projectionMatricesBuffer[i]);
+		qglBindBuffer(GL_UNIFORM_BUFFER, projectionMatricesBuffer[i]);
+		qglBufferData(
+				GL_UNIFORM_BUFFER,
+				16 * sizeof(float),
+				NULL,
+				GL_STATIC_DRAW);
+		qglBindBuffer(GL_UNIFORM_BUFFER, 0);
+	}
+
 	R_IssuePendingRenderCommands();
 
 	startTime = ri.Milliseconds();
@@ -1140,6 +1301,13 @@ void GLSL_InitGPUShaders(void)
 
 		if (glRefConfig.swizzleNormalmap)
 			Q_strcat(extradefines, 1024, "#define SWIZZLE_NORMALMAP\n");
+
+
+		// HACK: use in main menu simple light model (to prevent issue with missing models textures)
+		if (Cvar_Get("r_uiFullScreen", "1", 0)->integer)
+		{
+			Q_strcat(extradefines, 1024, "#define USE_MENU_LIGHT\n");
+		}
 
 		if (lightType)
 		{
@@ -1579,8 +1747,54 @@ void GLSL_ShutdownGPUShaders(void)
 
 	for ( i = 0; i < 4; i++)
 		GLSL_DeleteGPUShader(&tr.depthBlurShader[i]);
+
+	//Clean up buffers
+	qglDeleteBuffers(PROJECTION_COUNT, viewMatricesBuffer);
+	qglDeleteBuffers(PROJECTION_COUNT, projectionMatricesBuffer);
 }
 
+void GLSL_PrepareUniformBuffers(void)
+{
+  int width, height;
+  if (glState.currentFBO)
+  {
+    width = glState.currentFBO->width;
+    height = glState.currentFBO->height;
+  }
+  else
+  {
+    width = glConfig.vidWidth;
+    height = glConfig.vidHeight;
+  }
+
+  Mat4Ortho(0, width, height, 0, 0, 1, orthoProjectionMatrix);
+
+  //ortho projection matrices
+  GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[FULLSCREEN_ORTHO_PROJECTION],
+          orthoProjectionMatrix);
+  GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[STEREO_ORTHO_PROJECTION],
+          orthoProjectionMatrix);
+
+  float hudOrthoProjectionMatrix[16];
+  Mat4Ortho(0, 640, 480, 0, 0, 1, hudOrthoProjectionMatrix);
+  GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[HUDBUFFER_ORTHO_PROJECTION],
+          hudOrthoProjectionMatrix);
+
+  //VR projection matrix
+  GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[VR_PROJECTION],
+          tr.vrParms.projection);
+
+  //Mirror VR projection matrix
+	GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MIRROR_VR_PROJECTION],
+                                         tr.vrParms.mirrorProjection);
+
+  //Used for drawing models
+  GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MONO_VR_PROJECTION],
+                                        tr.vrParms.monoVRProjection);
+
+  //Set all view matrices
+	GLSL_ViewMatricesUniformBuffer(tr.viewParms.world.eyeViewMatrix, tr.viewParms.world.modelView);
+}
 
 void GLSL_BindProgram(shaderProgram_t * program)
 {
@@ -1595,6 +1809,50 @@ void GLSL_BindProgram(shaderProgram_t * program)
 
 	if (GL_UseProgram(programObject))
 		backEnd.pc.c_glslShaderBinds++;
+}
+
+static GLuint GLSL_CalculateProjection() {
+  GLuint result =  glState.isDrawingHUD ? MONO_VR_PROJECTION : VR_PROJECTION;
+
+  if (backEnd.viewParms.isPortal)
+	{
+    result = MIRROR_VR_PROJECTION;
+	}
+
+  if (Mat4Compare(orthoProjectionMatrix, glState.projection))
+  {
+    if (glState.isDrawingHUD)
+    {
+      if (vr_currentHudDrawStatus->integer != 2)
+      {
+        result = HUDBUFFER_ORTHO_PROJECTION;
+      }
+      else
+      {
+        result = STEREO_ORTHO_PROJECTION;
+      }
+    }
+    else
+    {
+      result = FULLSCREEN_ORTHO_PROJECTION;
+    }
+  }
+
+  return result;
+}
+
+void GLSL_BindBuffers( shaderProgram_t * program )
+{
+	GLuint projection = GLSL_CalculateProjection();
+	qglBindBufferBase(
+			GL_UNIFORM_BUFFER,
+			program->viewMatricesBinding,
+			viewMatricesBuffer[projection]);
+
+	qglBindBufferBase(
+			GL_UNIFORM_BUFFER,
+			program->projectionMatrixBinding,
+			projectionMatricesBuffer[projection]);
 }
 
 

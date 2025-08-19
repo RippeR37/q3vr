@@ -25,11 +25,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../botlib/botlib.h"
 
+#include "../vr/vr_input.h"
+#include "../vr/vr_clientinfo.h"
+
 #ifdef USE_MUMBLE
 #include "libmumblelink.h"
 #endif
 
 extern	botlib_export_t	*botlib_export;
+extern vr_clientinfo_t vr;
 
 extern qboolean loadCamera(const char *name);
 extern void startCamera(int time);
@@ -692,6 +696,15 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		return re.GetEntityToken( VMA(1), args[2] );
 	case CG_R_INPVS:
 		return re.inPVS( VMA(1), VMA(2) );
+	case CG_HAPTICEVENT:
+		VR_HapticEvent( VMA(1), args[2], args[3], args[4], VMF(5), VMF(6) );
+		return 0;
+	case CG_R_HUDBUFFER_START:
+		re.HUDBufferStart(args[1]);
+		return 0;
+	case CG_R_HUDBUFFER_END:
+		re.HUDBufferEnd();
+		return 0;
 
 	default:
 	        assert(0);
@@ -733,16 +746,21 @@ void CL_InitCGame( void ) {
 			interpret = VMI_COMPILED;
 	}
 
+  interpret = VMI_NATIVE;
 	cgvm = VM_Create( "cgame", CL_CgameSystemCalls, interpret );
 	if ( !cgvm ) {
 		Com_Error( ERR_DROP, "VM_Create on cgame failed" );
 	}
 	clc.state = CA_LOADING;
 
+	//Pass the vr client info in on the init
+	long long val = (long long)(&vr);
+	int *ptr = (int*)(&val);	 //HACK!!
+
 	// init for this gamestate
 	// use the lastExecutedServerCommand instead of the serverCommandSequence
 	// otherwise server commands sent just before a gamestate are dropped
-	VM_Call( cgvm, CG_INIT, clc.serverMessageSequence, clc.lastExecutedServerCommand, clc.clientNum );
+	VM_Call( cgvm, CG_INIT, clc.serverMessageSequence, clc.lastExecutedServerCommand, clc.clientNum, ptr[0], ptr[1] );
 
 	// reset any CVAR_CHEAT cvars registered by cgame
 	if ( !clc.demoplaying && !cl_connectedToCheatServer )

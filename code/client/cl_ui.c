@@ -24,7 +24,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../botlib/botlib.h"
 
+#include "../vr/vr_clientinfo.h"
+#include "../vr/vr_input.h"
+
 extern	botlib_export_t	*botlib_export;
+extern vr_clientinfo_t vr;
 
 vm_t *uivm;
 
@@ -1071,6 +1075,10 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 
 	case UI_VERIFY_CDKEY:
 		return CL_CDKeyValidate(VMA(1), VMA(2));
+
+	case UI_HAPTICEVENT:
+		VR_HapticEvent( VMA(1), args[2], args[3], args[4], VMF(5), VMF(6) );
+		return 0;
 		
 	default:
 		Com_Error( ERR_DROP, "Bad UI system trap: %ld", (long int) args[0] );
@@ -1116,17 +1124,21 @@ void CL_InitUI( void ) {
 			interpret = VMI_COMPILED;
 	}
 
-	uivm = VM_Create( "ui", CL_UISystemCalls, interpret );
+  interpret = VMI_NATIVE;
+  uivm = VM_Create( "ui", CL_UISystemCalls, interpret );
 	if ( !uivm ) {
 		Com_Error( ERR_FATAL, "VM_Create on UI failed" );
 	}
+
+  long long val = (long long)(&vr);
+	int *ptr = (int*)(&val);	 //HACK!!
 
 	// sanity check
 	v = VM_Call( uivm, UI_GETAPIVERSION );
 	if (v == UI_OLD_API_VERSION) {
 //		Com_Printf(S_COLOR_YELLOW "WARNING: loading old Quake III Arena User Interface version %d\n", v );
 		// init for this gamestate
-		VM_Call( uivm, UI_INIT, (clc.state >= CA_AUTHORIZING && clc.state < CA_ACTIVE));
+		VM_Call( uivm, UI_INIT, (clc.state >= CA_AUTHORIZING && clc.state < CA_ACTIVE), ptr[0], ptr[1]);
 	}
 	else if (v != UI_API_VERSION) {
 		// Free uivm now, so UI_SHUTDOWN doesn't get called later.
@@ -1138,7 +1150,7 @@ void CL_InitUI( void ) {
 	}
 	else {
 		// init for this gamestate
-		VM_Call( uivm, UI_INIT, (clc.state >= CA_AUTHORIZING && clc.state < CA_ACTIVE) );
+		VM_Call( uivm, UI_INIT, (clc.state >= CA_AUTHORIZING && clc.state < CA_ACTIVE), ptr[0], ptr[1] );
 	}
 }
 

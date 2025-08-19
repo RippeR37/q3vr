@@ -23,11 +23,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // string allocation/management
 
 #include "ui_shared.h"
+#include "../vr/vr_clientinfo.h"
 
 #define SCROLL_TIME_START					500
 #define SCROLL_TIME_ADJUST				150
 #define SCROLL_TIME_ADJUSTOFFSET	40
 #define SCROLL_TIME_FLOOR					20
+
+extern vr_clientinfo_t *vr;
 
 typedef struct scrollInfo_s {
 	int nextScrollTime;
@@ -3645,11 +3648,25 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down) {
 
 
 void AdjustFrom640(float *x, float *y, float *w, float *h) {
-	//*x = *x * DC->scale + DC->bias;
-	*x *= DC->xscale;
-	*y *= DC->yscale;
-	*w *= DC->xscale;
-	*h *= DC->yscale;
+
+	if (vr == NULL || vr->virtual_screen) {
+		// expect valid pointers
+		*x *= DC->xscale;
+		*y *= DC->yscale;
+		*w *= DC->xscale;
+		*h *= DC->yscale;
+	} else {
+		float screenXScale = DC->xscale / 2.75f;
+		float screenYScale = DC->yscale / 2.75f;
+
+		*x *= screenXScale;
+		*y *= screenYScale;
+		*w *= screenXScale;
+		*h *= screenYScale;
+
+		*x += (DC->glconfig.vidWidth - (640 * screenXScale)) / 2.0f;
+		*y += (DC->glconfig.vidHeight - (480 * screenYScale)) / 2.0f;
+	}
 }
 
 void Item_Model_Paint(itemDef_t *item) {

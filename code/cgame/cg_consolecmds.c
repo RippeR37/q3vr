@@ -157,8 +157,10 @@ static void CG_scrollScoresUp_f( void) {
 
 
 static void CG_spWin_f( void) {
+#if 0
 	trap_Cvar_Set("cg_cameraOrbit", "2");
 	trap_Cvar_Set("cg_cameraOrbitDelay", "35");
+#endif
 	trap_Cvar_Set("cg_thirdPerson", "1");
 	trap_Cvar_Set("cg_thirdPersonAngle", "0");
 	trap_Cvar_Set("cg_thirdPersonRange", "100");
@@ -168,8 +170,10 @@ static void CG_spWin_f( void) {
 }
 
 static void CG_spLose_f( void) {
+#if 0
 	trap_Cvar_Set("cg_cameraOrbit", "2");
 	trap_Cvar_Set("cg_cameraOrbitDelay", "35");
+#endif
 	trap_Cvar_Set("cg_thirdPerson", "1");
 	trap_Cvar_Set("cg_thirdPersonAngle", "0");
 	trap_Cvar_Set("cg_thirdPersonRange", "100");
@@ -470,6 +474,7 @@ static consoleCommand_t	commands[] = {
 	{ "tcmd", CG_TargetCommand_f },
 	{ "tell_target", CG_TellTarget_f },
 	{ "tell_attacker", CG_TellAttacker_f },
+	{ "weapon_select", CG_WeaponSelectorSelect_f },
 #ifdef MISSIONPACK
 	{ "vtell_target", CG_VoiceTellTarget_f },
 	{ "vtell_attacker", CG_VoiceTellAttacker_f },

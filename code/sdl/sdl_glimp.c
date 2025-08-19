@@ -35,6 +35,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../sys/sys_local.h"
 #include "sdl_icon.h"
 
+#include "../vr/vr_base.h"
+#include "../vr/vr_input.h"
+#include "../vr/vr_renderer.h"
+
 typedef enum
 {
 	RSERR_OK,
@@ -75,6 +79,11 @@ QGL_1_3_PROCS;
 QGL_1_5_PROCS;
 QGL_2_0_PROCS;
 QGL_3_0_PROCS;
+QGL_3_1_PROCS;
+QGL_3_2_PROCS;
+QGL_4_3_PROCS;
+QGL_4_5_PROCS;
+QGL_OVR_multiview_PROCS;
 QGL_ARB_occlusion_query_PROCS;
 QGL_ARB_framebuffer_object_PROCS;
 QGL_ARB_vertex_array_object_PROCS;
@@ -89,6 +98,18 @@ GLimp_Shutdown
 void GLimp_Shutdown( void )
 {
 	ri.IN_Shutdown();
+
+	// [OpenXR] Destroy renderer and current XR session due to loss of GL context,
+	// will recreate it on next renderer init.
+	VR_Engine* engine = VR_GetEngine();
+  VR_DestroySessionInput(engine);
+	VR_DestroyRenderer(engine);
+	VR_LeaveVR(engine);
+
+	// Reinitialize OpenXR instance and system, otherwise there might be visual
+	// glitches/problems with swapchains when new session is (re)created.
+	VR_Destroy(engine);
+	VR_Init();
 
 	SDL_QuitSubSystem( SDL_INIT_VIDEO );
 }
@@ -341,6 +362,21 @@ static qboolean GLimp_GetProcAddresses( qboolean fixedFunction ) {
 	if ( QGL_VERSION_ATLEAST( 3, 0 ) || QGLES_VERSION_ATLEAST( 3, 0 ) ) {
 		QGL_3_0_PROCS;
 	}
+	if ( QGL_VERSION_ATLEAST( 3, 1 ) ) {
+		QGL_3_1_PROCS;
+	}
+	if ( QGL_VERSION_ATLEAST( 3, 2 ) ) {
+		QGL_3_2_PROCS;
+	}
+	if ( QGL_VERSION_ATLEAST( 4, 3 ) ) {
+		QGL_4_3_PROCS;
+	}
+	if ( QGL_VERSION_ATLEAST( 4, 5 ) ) {
+		QGL_4_5_PROCS;
+	}
+	if ( QGL_VERSION_ATLEAST( 4, 5 ) ) {
+		QGL_OVR_multiview_PROCS;
+	}
 
 #undef GLE
 
@@ -458,6 +494,16 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 
 	ri.Printf (PRINT_ALL, "...setting mode %d:", mode );
 
+  VR_Engine* engine = VR_GetEngine();
+	VR_GetResolution(engine, &glConfig.vidWidth, &glConfig.vidHeight);
+
+  engine->window.width = glConfig.vidWidth;
+  engine->window.height = glConfig.vidHeight;
+  if (engine->window.width > desktopMode.w)
+    engine->window.width = desktopMode.w;
+  if (engine->window.height > desktopMode.h)
+    engine->window.height = desktopMode.h;
+#if 0
 	if (mode == -2)
 	{
 		// use desktop video resolution
@@ -481,6 +527,7 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 		ri.Printf( PRINT_ALL, " invalid mode\n" );
 		return RSERR_INVALID_MODE;
 	}
+#endif
 	ri.Printf( PRINT_ALL, " %d %d\n", glConfig.vidWidth, glConfig.vidHeight);
 
 	// Center window
@@ -533,6 +580,7 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 
 	numContexts = 0;
 
+#if 0
 	if ( !fixedFunction ) {
 		int profileMask;
 		qboolean preferOpenGLES;
@@ -587,6 +635,11 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 		contexts[numContexts].minorVersion = 1;
 		numContexts++;
 	}
+#endif
+  contexts[0].majorVersion = 4;
+  contexts[0].minorVersion = 6;
+  contexts[0].profileMask = SDL_GL_CONTEXT_PROFILE_CORE;
+  numContexts = 1;
 
 	for (i = 0; i < 16; i++)
 	{
@@ -669,6 +722,7 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 		SDL_GL_SetAttribute( SDL_GL_MULTISAMPLEBUFFERS, samples ? 1 : 0 );
 		SDL_GL_SetAttribute( SDL_GL_MULTISAMPLESAMPLES, samples );
 
+#if 0
 		if(r_stereoEnabled->integer)
 		{
 			glConfig.stereoEnabled = qtrue;
@@ -680,7 +734,8 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 			SDL_GL_SetAttribute(SDL_GL_STEREO, 0);
 		}
 		
-		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+#endif
+		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 0 );
 
 #if 0 // if multisampling is enabled on X11, this causes create window to fail.
 		// If not allowing software GL, demand accelerated
@@ -689,12 +744,13 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 #endif
 
 		if( ( SDL_window = SDL_CreateWindow( CLIENT_WINDOW_TITLE, x, y,
-				glConfig.vidWidth, glConfig.vidHeight, flags ) ) == NULL )
+				engine->window.width, engine->window.height, flags ) ) == NULL )
 		{
 			ri.Printf( PRINT_DEVELOPER, "SDL_CreateWindow failed: %s\n", SDL_GetError( ) );
 			continue;
 		}
 
+#if 0
 		if( fullscreen )
 		{
 			SDL_DisplayMode desiredMode;
@@ -719,6 +775,7 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 		}
 
 		SDL_SetWindowIcon( SDL_window, icon );
+#endif
 
 		for ( type = 0; type < numContexts; type++ ) {
 			char contextName[32];
@@ -775,6 +832,11 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 				}
 			}
 
+			ri.Printf(PRINT_ALL, "GL_RENDERER with profile %d.%d%s\n", 
+					contexts[type].majorVersion, 
+					contexts[type].minorVersion, 
+					(contexts[type].profileMask == SDL_GL_CONTEXT_PROFILE_CORE ? " (core)" : "")
+			);
 			break;
 		}
 
@@ -1051,6 +1113,15 @@ static void GLimp_InitExtensions( qboolean fixedFunction )
 	{
 		ri.Printf( PRINT_ALL, "...GL_SGIS_texture_edge_clamp not found\n" );
 	}
+
+	if ( SDL_GL_ExtensionSupported( "GL_OVR_multiview2" ) )
+	{
+		qglFramebufferTextureMultiviewOVR = SDL_GL_GetProcAddress( "glFramebufferTextureMultiviewOVR" );
+	}
+	else
+	{
+		ri.Error( ERR_FATAL, "Failed to initialze GL_OVR_multiview2 OpenGL extension\n" );
+	}
 }
 
 #define R_MODE_FALLBACK 3 // 640 * 480
@@ -1160,6 +1231,17 @@ success:
 
 	// This depends on SDL_INIT_VIDEO, hence having it here
 	ri.IN_Init( SDL_window );
+}
+
+// [OpenXR] (Re)create session and renderer if needed
+void GLimp_InitVR(void)
+{
+	VR_Engine* engine = VR_GetEngine();
+	if (engine->appState.Session == XR_NULL_HANDLE) {
+		VR_EnterVR(engine);
+		VR_InitRenderer(engine);
+    VR_InitSessionInput(engine);
+	}
 }
 
 

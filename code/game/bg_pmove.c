@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../qcommon/q_shared.h"
 #include "bg_public.h"
 #include "bg_local.h"
+#include "../vr/vr_clientinfo.h"
 
 pmove_t		*pm;
 pml_t		pml;
@@ -35,19 +36,34 @@ float	pm_stopspeed = 100.0f;
 float	pm_duckScale = 0.25f;
 float	pm_swimScale = 0.50f;
 
-float	pm_accelerate = 10.0f;
 float	pm_airaccelerate = 1.0f;
 float	pm_wateraccelerate = 4.0f;
 float	pm_flyaccelerate = 8.0f;
 
-float	pm_friction = 6.0f;
 float	pm_waterfriction = 1.0f;
 float	pm_flightfriction = 3.0f;
 float	pm_spectatorfriction = 5.0f;
 
 int		c_pmove = 0;
 
+extern vr_clientinfo_t *vr;
 
+
+float PM_GetFrictionCoefficient( void ) {
+	if (vr != NULL && vr->clientNum == pm->ps->clientNum && !vr->use_fake_6dof) {
+		return 10.0f;
+	} else {
+		return 6.0f;
+	}
+}
+
+float PM_GetAccelerationCoefficient( void ) {
+	if (vr != NULL && vr->clientNum == pm->ps->clientNum && !vr->use_fake_6dof) {
+		return 1000.0f;
+	} else {
+		return 10.0f;
+	}
+}
 /*
 ===============
 PM_AddEvent
@@ -197,7 +213,7 @@ static void PM_Friction( void ) {
 			// if getting knocked back, no friction
 			if ( ! (pm->ps->pm_flags & PMF_TIME_KNOCKBACK) ) {
 				control = speed < pm_stopspeed ? pm_stopspeed : speed;
-				drop += control*pm_friction*pml.frametime;
+				drop += control*PM_GetFrictionCoefficient()*pml.frametime;
 			}
 		}
 	}
@@ -771,7 +787,7 @@ static void PM_WalkMove( void ) {
 	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK ) {
 		accelerate = pm_airaccelerate;
 	} else {
-		accelerate = pm_accelerate;
+		accelerate = PM_GetAccelerationCoefficient();
 	}
 
 	PM_Accelerate (wishdir, wishspeed, accelerate);
@@ -860,7 +876,7 @@ static void PM_NoclipMove( void ) {
 	{
 		drop = 0;
 
-		friction = pm_friction*1.5;	// extra friction
+		friction = PM_GetFrictionCoefficient()*1.5;	// extra friction
 		control = speed < pm_stopspeed ? pm_stopspeed : speed;
 		drop += control*friction*pml.frametime;
 
@@ -887,7 +903,7 @@ static void PM_NoclipMove( void ) {
 	wishspeed = VectorNormalize(wishdir);
 	wishspeed *= scale;
 
-	PM_Accelerate( wishdir, wishspeed, pm_accelerate );
+	PM_Accelerate(wishdir, wishspeed, PM_GetAccelerationCoefficient() );
 
 	// move
 	VectorMA (pm->ps->origin, pml.frametime, pm->ps->velocity, pm->ps->origin);
@@ -1343,15 +1359,16 @@ static void PM_Footsteps( void ) {
 	}
 
 	// if not trying to move
-	if ( !pm->cmd.forwardmove && !pm->cmd.rightmove ) {
-		if (  pm->xyspeed < 5 ) {
-			pm->ps->bobCycle = 0;	// start at beginning of cycle again
-			if ( pm->ps->pm_flags & PMF_DUCKED ) {
-				PM_ContinueLegsAnim( LEGS_IDLECR );
-			} else {
-				PM_ContinueLegsAnim( LEGS_IDLE );
-			}
+	if (( !pm->cmd.forwardmove && !pm->cmd.rightmove ) ||
+		(  pm->xyspeed < 10 ))
+	{
+		pm->ps->bobCycle = 0;	// start at beginning of cycle again
+		if ( pm->ps->pm_flags & PMF_DUCKED ) {
+			PM_ContinueLegsAnim( LEGS_IDLECR );
+		} else {
+			PM_ContinueLegsAnim( LEGS_IDLE );
 		}
+
 		return;
 	}
 	
@@ -1801,13 +1818,27 @@ void PM_UpdateViewAngles( playerState_t *ps, const usercmd_t *cmd ) {
 		return;		// no view changes at all
 	}
 
+	// We want to allow user to look around if they are dead
+#if 0
 	if ( ps->pm_type != PM_SPECTATOR && ps->stats[STAT_HEALTH] <= 0 ) {
 		return;		// no view changes at all
 	}
+#endif
 
 	// circularly clamp the angles with deltas
 	for (i=0 ; i<3 ; i++) {
-		temp = cmd->angles[i] + ps->delta_angles[i];
+		if (vr != NULL && vr->clientNum == ps->clientNum && !vr->use_fake_6dof)
+		{
+			//Client is the VR player in the singleplayer game
+			temp = cmd->angles[i] + (i == YAW ? ps->delta_angles[i] : 0);
+		}
+		else
+		{
+			//Client is either a BOT or we are running multiplayer, or
+			//the vr player playing on a remote server (since this is shared code by game and cgame)
+			temp = cmd->angles[i] + ps->delta_angles[i];
+		}
+
 		if ( i == PITCH ) {
 			// don't let the player look up or down more than 90 degrees
 			if ( temp > 16000 ) {

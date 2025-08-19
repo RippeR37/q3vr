@@ -84,7 +84,10 @@ void Favorites_Add( void )
 		
 		// use first empty available slot
 		if (!adrstr[0] && !best)
+		{
 			best = i+1;
+			break;
+		}
 	}
 
 	if (best)

@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../game/bg_public.h"
 #include "cg_public.h"
 
+#include "../vr/vr_safe_types.h"
 
 // The entire cgame module is unloaded and reloaded on each level change,
 // so there is NO persistant data between levels on the client side.
@@ -77,6 +78,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define	NUM_CROSSHAIRS		10
 
+//multiplying size you go to when dead looking down on the match
+#define SPECTATOR2_WORLDSCALE_MULTIPLIER	30
+#define SPECTATOR_WORLDSCALE_MULTIPLIER		10
+#define PLAYER_HEIGHT		48
+
 #define TEAM_OVERLAY_MAXNAME_WIDTH	12
 #define TEAM_OVERLAY_MAXLOCATION_WIDTH	16
 
@@ -91,6 +97,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #define DEFAULT_REDTEAM_NAME		"Stroggs"
 #define DEFAULT_BLUETEAM_NAME		"Pagans"
+//VR HUD
+#define HUD_FLAGS_DRAWMODEL				1
 
 typedef enum {
 	FOOTSTEP_NORMAL,
@@ -472,6 +480,9 @@ typedef struct {
 	qboolean	thisFrameTeleport;
 	qboolean	nextFrameTeleport;
 
+	float 		worldscale;
+	stereoFrame_t stereoView;
+
 	int			frametime;		// cg.time - cg.oldTime
 
 	int			time;			// this is the time value that the client
@@ -486,6 +497,8 @@ typedef struct {
 	qboolean	mapRestart;			// set on a map restart to set back the weapon
 
 	qboolean	renderingThirdPerson;		// during deaths, chasecams, etc
+
+	qboolean	drawingHUD;
 
 	// prediction state
 	qboolean	hyperspace;				// true if prediction has hit a trigger_teleport
@@ -519,6 +532,9 @@ typedef struct {
 	// view rendering
 	refdef_t	refdef;
 	vec3_t		refdefViewAngles;		// will be converted to refdef.viewaxis
+
+	// view origin in VR thirdperson
+	vec3_t 		vr_vieworigin;
 
 	// zoom key
 	qboolean	zoomed;
@@ -607,6 +623,12 @@ typedef struct {
 	int			weaponSelectTime;
 	int			weaponAnimation;
 	int			weaponAnimationTime;
+
+	int			weaponSelectorSelection;
+	int 		weaponSelectorTime;
+	vec3_t		weaponSelectorAngles;
+	vec3_t		weaponSelectorOrigin;
+	vec3_t		weaponSelectorOffset;
 
 	// blend blobs
 	float		damageTime;
@@ -732,6 +754,8 @@ typedef struct {
 	qhandle_t	backTileShader;
 	qhandle_t	noammoShader;
 
+	qhandle_t	scopeShader;
+
 	qhandle_t	smokePuffShader;
 	qhandle_t	smokePuffRageProShader;
 	qhandle_t	shotgunSmokePuffShader;
@@ -771,11 +795,15 @@ typedef struct {
 	qhandle_t	blueKamikazeShader;
 #endif
 
+	qhandle_t	smallSphereModel;
+
 	// weapon effect models
 	qhandle_t	bulletFlashModel;
 	qhandle_t	ringFlashModel;
 	qhandle_t	dishFlashModel;
 	qhandle_t	lightningExplosionModel;
+
+	qhandle_t	reticleShader;
 
 	// weapon effect shaders
 	qhandle_t	railExplosionShader;
@@ -805,6 +833,8 @@ typedef struct {
 	qhandle_t	heartShader;
 	qhandle_t	invulnerabilityPowerupModel;
 #endif
+
+	qhandle_t	hudShader;
 
 	// scoreboard headers
 	qhandle_t	scoreboardName;
@@ -983,6 +1013,11 @@ typedef struct {
 	sfxHandle_t	wstbimpdSound;
 	sfxHandle_t	wstbactvSound;
 
+	// comfort vignette
+	qhandle_t	vignetteShader;
+
+	// VR hand model
+	qhandle_t vrHandModel;
 } cgMedia_t;
 
 
@@ -1090,26 +1125,34 @@ extern	vmCvar_t		cg_runroll;
 extern	vmCvar_t		cg_bobup;
 extern	vmCvar_t		cg_bobpitch;
 extern	vmCvar_t		cg_bobroll;
+extern	vmCvar_t		cg_weaponbob;
 extern	vmCvar_t		cg_swingSpeed;
 extern	vmCvar_t		cg_shadows;
+extern	vmCvar_t		cg_playerShadow;
 extern	vmCvar_t		cg_gibs;
+extern	vmCvar_t		cg_megagibs;
 extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
 extern	vmCvar_t		cg_drawSnapshot;
 extern	vmCvar_t		cg_draw3dIcons;
+extern	vmCvar_t		cg_debugWeaponAiming;
+extern	vmCvar_t		cg_weaponSelectorSimple2DIcons;
 extern	vmCvar_t		cg_drawIcons;
 extern	vmCvar_t		cg_drawAmmoWarning;
 extern	vmCvar_t		cg_drawCrosshair;
 extern	vmCvar_t		cg_drawCrosshairNames;
 extern	vmCvar_t		cg_drawRewards;
+extern	vmCvar_t		cg_fragMessage;
 extern	vmCvar_t		cg_drawTeamOverlay;
 extern	vmCvar_t		cg_teamOverlayUserinfo;
 extern	vmCvar_t		cg_crosshairX;
 extern	vmCvar_t		cg_crosshairY;
 extern	vmCvar_t		cg_crosshairSize;
 extern	vmCvar_t		cg_crosshairHealth;
+#if 0
 extern	vmCvar_t		cg_drawStatus;
 extern	vmCvar_t		cg_draw2D;
+#endif
 extern	vmCvar_t		cg_animSpeed;
 extern	vmCvar_t		cg_debugAnim;
 extern	vmCvar_t		cg_debugPosition;
@@ -1192,6 +1235,9 @@ extern  vmCvar_t		cg_recordSPDemoName;
 extern	vmCvar_t		cg_obeliskRespawnDelay;
 #endif
 
+void CG_TrailItem( centity_t *cent, qhandle_t hModel, vec3_t offset, float scale );
+
+
 //
 // cg_main.c
 //
@@ -1229,6 +1275,8 @@ void CG_TestModelPrevSkin_f (void);
 void CG_ZoomDown_f( void );
 void CG_ZoomUp_f( void );
 void CG_AddBufferedSound( sfxHandle_t sfx);
+qboolean CG_IsThirdPersonFollowMode( VR_FollowMode followMode );
+qboolean CG_IsDeathCam( void );
 
 void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback );
 
@@ -1236,6 +1284,8 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 //
 // cg_drawtools.c
 //
+void CG_SetHUDFlags(int flags);
+void CG_RemoveHUDFlags(int flags);
 void CG_AdjustFrom640( float *x, float *y, float *w, float *h );
 void CG_FillRect( float x, float y, float width, float height, const float *color );
 void CG_DrawPic( float x, float y, float width, float height, qhandle_t hShader );
@@ -1278,7 +1328,7 @@ void CG_AddLagometerFrameInfo( void );
 void CG_AddLagometerSnapshotInfo( snapshot_t *snap );
 void CG_CenterPrint( const char *str, int y, int charWidth );
 void CG_DrawHead( float x, float y, float w, float h, int clientNum, vec3_t headAngles );
-void CG_DrawActive( stereoFrame_t stereoView );
+void CG_DrawActive( void );
 void CG_DrawFlagModel( float x, float y, float w, float h, int team, qboolean force2D );
 void CG_DrawTeamBackground( int x, int y, int w, int h, float alpha, int team );
 void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y, int ownerDraw, int ownerDrawFlags, int align, float special, float scale, vec4_t color, qhandle_t shader, int textStyle);
@@ -1356,6 +1406,12 @@ void CG_PositionRotatedEntityOnTag( refEntity_t *entity, const refEntity_t *pare
 void CG_NextWeapon_f( void );
 void CG_PrevWeapon_f( void );
 void CG_Weapon_f( void );
+void CG_WeaponSelectorSelect_f( void );
+
+void rotateAboutOrigin(float x, float y, float rotation, vec2_t out);
+void CG_CalculateVRWeaponPosition( vec3_t origin, vec3_t angles );
+void CG_CalculateVROffHandPosition( vec3_t origin, vec3_t angles );
+void CG_ConvertFromVR(vec3_t in, vec3_t offset, vec3_t out);
 
 void CG_RegisterWeapon( int weaponNum );
 void CG_RegisterItemVisuals( int itemNum );
@@ -1369,8 +1425,10 @@ void CG_Bullet( vec3_t origin, int sourceEntityNum, vec3_t normal, qboolean fles
 void CG_RailTrail( clientInfo_t *ci, vec3_t start, vec3_t end );
 void CG_GrappleTrail( centity_t *ent, const weaponInfo_t *wi );
 void CG_AddViewWeapon (playerState_t *ps);
+void CG_DrawWeaponSelector( void );
 void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent, int team );
 void CG_DrawWeaponSelect( void );
+void CG_LaserSight( vec3_t start, vec3_t end, byte colour[4], float width );
 
 void CG_OutOfAmmoChange( void );	// should this be in pmove?
 
@@ -1493,7 +1551,9 @@ int			trap_Milliseconds( void );
 void		trap_Cvar_Register( vmCvar_t *vmCvar, const char *varName, const char *defaultValue, int flags );
 void		trap_Cvar_Update( vmCvar_t *vmCvar );
 void		trap_Cvar_Set( const char *var_name, const char *value );
+void		trap_Cvar_SetValue( const char *var_name, const float value );
 void		trap_Cvar_VariableStringBuffer( const char *var_name, char *buffer, int bufsize );
+float 		trap_Cvar_VariableValue( const char *var_name );
 
 // ServerCommand and ConsoleCommand parameter access
 int			trap_Argc( void );
@@ -1507,6 +1567,9 @@ void		trap_FS_Read( void *buffer, int len, fileHandle_t f );
 void		trap_FS_Write( const void *buffer, int len, fileHandle_t f );
 void		trap_FS_FCloseFile( fileHandle_t f );
 int			trap_FS_Seek( fileHandle_t f, long offset, int origin ); // fsOrigin_t
+
+//Haptics
+int trap_HapticEvent( char *description, int position, int channel, int intensity, float yaw, float height);
 
 // add commands to the local console as if they were typed in
 // for map changing, etc.  The command is not executed immediately,
@@ -1603,6 +1666,9 @@ int			trap_R_LerpTag( orientation_t *tag, clipHandle_t mod, int startFrame, int 
 					   float frac, const char *tagName );
 void		trap_R_RemapShader( const char *oldShader, const char *newShader, const char *timeOffset );
 qboolean	trap_R_inPVS( const vec3_t p1, const vec3_t p2 );
+
+void		trap_R_HUDBufferStart( qboolean clear );
+void		trap_R_HUDBufferEnd( void );
 
 // The glconfig_t will not change during the life of a cgame.
 // If it needs to change, the entire cgame will be restarted, because

@@ -8,6 +8,8 @@ include(shared_sources)
 
 include(renderer_common)
 
+include(vr)
+
 set(CLIENT_SOURCES
     ${SOURCE_DIR}/client/cl_cgame.c
     ${SOURCE_DIR}/client/cl_cin.c
@@ -66,6 +68,10 @@ if(USE_MUMBLE)
     list(APPEND CLIENT_LIBRARY_SOURCES ${SOURCE_DIR}/client/libmumblelink.c)
 endif()
 
+if(USE_DEBUG_STACKTRACE)
+    list(APPEND CLIENT_DEFINITIONS USE_DEBUG_STACKTRACE)
+endif()
+
 list(APPEND CLIENT_BINARY_SOURCES
     ${SERVER_SOURCES}
     ${CLIENT_SOURCES}
@@ -74,6 +80,7 @@ list(APPEND CLIENT_BINARY_SOURCES
     ${SYSTEM_SOURCES}
     ${ASM_SOURCES}
     ${CLIENT_ASM_SOURCES}
+    ${VR_SOURCES}
     ${CLIENT_LIBRARY_SOURCES})
 
 add_executable(${CLIENT_BINARY} ${CLIENT_EXECUTABLE_OPTIONS} ${CLIENT_BINARY_SOURCES})
@@ -81,7 +88,7 @@ add_executable(${CLIENT_BINARY} ${CLIENT_EXECUTABLE_OPTIONS} ${CLIENT_BINARY_SOU
 target_include_directories(     ${CLIENT_BINARY} PRIVATE ${CLIENT_INCLUDE_DIRS})
 target_compile_definitions(     ${CLIENT_BINARY} PRIVATE ${CLIENT_DEFINITIONS})
 target_compile_options(         ${CLIENT_BINARY} PRIVATE ${CLIENT_COMPILE_OPTIONS})
-target_link_libraries(          ${CLIENT_BINARY} PRIVATE ${COMMON_LIBRARIES} ${CLIENT_LIBRARIES})
+target_link_libraries(          ${CLIENT_BINARY} PRIVATE ${COMMON_LIBRARIES} ${CLIENT_LIBRARIES} ${VR_LIBRARIES})
 target_link_options(            ${CLIENT_BINARY} PRIVATE ${CLIENT_LINK_OPTIONS})
 
 set_output_dirs(${CLIENT_BINARY})
@@ -108,3 +115,13 @@ foreach(LIBRARY IN LISTS CLIENT_DEPLOY_LIBRARIES)
         # install() requires a relative path hence:
         $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>,${CMAKE_BINARY_DIR}/$<CONFIG>>)
 endforeach()
+
+# Copy assets to output dir
+add_custom_command(TARGET ${CLIENT_BINARY} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
+    "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/")
+
+install(FILES "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3" DESTINATION
+    # install() requires a relative path hence:
+    $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>)

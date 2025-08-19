@@ -26,9 +26,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 	User interface building blocks and support functions.
 **********************************************************************/
 #include "ui_local.h"
+#include "../vr/vr_clientinfo.h"
 
 uiStatic_t		uis;
 qboolean		m_entersound;		// after a frame, so caching won't disrupt the sound
+
+extern vr_clientinfo_t *vr;
 
 void QDECL Com_Error( int level, const char *error, ... ) {
 	va_list		argptr;
@@ -50,6 +53,42 @@ void QDECL Com_Printf( const char *msg, ... ) {
 	va_end (argptr);
 
 	trap_Print( text );
+}
+
+float UI_GetXScale()
+{
+	if (vr == NULL || vr->virtual_screen) {
+		return uis.xscale;
+	} else {
+		return uis.xscale / 2.75f;
+	}
+}
+
+float UI_GetYScale()
+{
+	if (vr == NULL || vr->virtual_screen) {
+		return uis.yscale;
+	} else {
+		return uis.yscale / 3.25f;
+	}
+}
+
+float UI_GetXOffset()
+{
+	if (vr == NULL || vr->virtual_screen) {
+		return 0;
+	} else {
+		return (uis.glconfig.vidWidth - (640 * UI_GetXScale())) / 2.0f;
+	}
+}
+
+float UI_GetYOffset()
+{
+	if (vr == NULL || vr->virtual_screen) {
+		return 0;
+	} else {
+		return (uis.glconfig.vidHeight - (480 * UI_GetYScale())) / 2.0f;
+	}
 }
 
 /*
@@ -351,15 +390,15 @@ static void UI_DrawBannerString2( int x, int y, const char* str, vec4_t color )
 	// draw the colored text
 	trap_R_SetColor( color );
 	
-	ax = x * uis.xscale + uis.bias;
-	ay = y * uis.yscale;
+	ax = x * UI_GetXScale() + uis.bias + UI_GetXOffset();
+	ay = y * UI_GetYScale() + UI_GetYOffset();
 
 	s = str;
 	while ( *s )
 	{
 		ch = *s & 127;
 		if ( ch == ' ' ) {
-			ax += ((float)PROPB_SPACE_WIDTH + (float)PROPB_GAP_WIDTH)* uis.xscale;
+			ax += ((float)PROPB_SPACE_WIDTH + (float)PROPB_GAP_WIDTH)* UI_GetXScale();
 		}
 		else if ( ch >= 'A' && ch <= 'Z' ) {
 			ch -= 'A';
@@ -367,10 +406,10 @@ static void UI_DrawBannerString2( int x, int y, const char* str, vec4_t color )
 			frow = (float)propMapB[ch][1] / 256.0f;
 			fwidth = (float)propMapB[ch][2] / 256.0f;
 			fheight = (float)PROPB_HEIGHT / 256.0f;
-			aw = (float)propMapB[ch][2] * uis.xscale;
-			ah = (float)PROPB_HEIGHT * uis.yscale;
+			aw = (float)propMapB[ch][2] * UI_GetXScale();
+			ah = (float)PROPB_HEIGHT * UI_GetYScale();
 			trap_R_DrawStretchPic( ax, ay, aw, ah, fcol, frow, fcol+fwidth, frow+fheight, uis.charsetPropB );
-			ax += (aw + (float)PROPB_GAP_WIDTH * uis.xscale);
+			ax += (aw + (float)PROPB_GAP_WIDTH * UI_GetXScale());
 		}
 		s++;
 	}
@@ -461,27 +500,27 @@ static void UI_DrawProportionalString2( int x, int y, const char* str, vec4_t co
 	// draw the colored text
 	trap_R_SetColor( color );
 	
-	ax = x * uis.xscale + uis.bias;
-	ay = y * uis.yscale;
+	ax = x * UI_GetXScale() + uis.bias + UI_GetXOffset();
+	ay = y * UI_GetYScale() + UI_GetYOffset();
 
 	s = str;
 	while ( *s )
 	{
 		ch = *s & 127;
 		if ( ch == ' ' ) {
-			aw = (float)PROP_SPACE_WIDTH * uis.xscale * sizeScale;
+			aw = (float)PROP_SPACE_WIDTH * UI_GetXScale() * sizeScale;
 		}
 		else if ( propMap[ch][2] != -1 ) {
 			fcol = (float)propMap[ch][0] / 256.0f;
 			frow = (float)propMap[ch][1] / 256.0f;
 			fwidth = (float)propMap[ch][2] / 256.0f;
 			fheight = (float)PROP_HEIGHT / 256.0f;
-			aw = (float)propMap[ch][2] * uis.xscale * sizeScale;
-			ah = (float)PROP_HEIGHT * uis.yscale * sizeScale;
+			aw = (float)propMap[ch][2] * UI_GetXScale() * sizeScale;
+			ah = (float)PROP_HEIGHT * UI_GetYScale() * sizeScale;
 			trap_R_DrawStretchPic( ax, ay, aw, ah, fcol, frow, fcol+fwidth, frow+fheight, charset );
 		}
 
-		ax += (aw + (float)PROP_GAP_WIDTH * uis.xscale * sizeScale);
+		ax += (aw + (float)PROP_GAP_WIDTH * UI_GetXScale() * sizeScale);
 		s++;
 	}
 
@@ -656,10 +695,10 @@ static void UI_DrawString2( int x, int y, const char* str, vec4_t color, int cha
 	// draw the colored text
 	trap_R_SetColor( color );
 	
-	ax = x * uis.xscale + uis.bias;
-	ay = y * uis.yscale;
-	aw = charw * uis.xscale;
-	ah = charh * uis.yscale;
+	ax = x * UI_GetXScale() + uis.bias + UI_GetXOffset();
+	ay = y * UI_GetYScale() + UI_GetYOffset();
+	aw = charw * UI_GetXScale();
+	ah = charh * UI_GetYScale();
 
 	s = str;
 	while ( *s )
@@ -876,27 +915,23 @@ UI_MouseEvent
 void UI_MouseEvent( int dx, int dy )
 {
 	int				i;
-	int				bias;
 	menucommon_s*	m;
 
 	if (!uis.activemenu)
 		return;
 
-	// convert X bias to 640 coords
-	bias = uis.bias / uis.xscale;
-
 	// update mouse screen position
 	uis.cursorx += dx;
-	if (uis.cursorx < -bias)
-		uis.cursorx = -bias;
-	else if (uis.cursorx > SCREEN_WIDTH+bias)
-		uis.cursorx = SCREEN_WIDTH+bias;
+	if (uis.cursorx < -16)
+		uis.cursorx = -16;
+	else if (uis.cursorx > SCREEN_WIDTH+16)
+		uis.cursorx = SCREEN_WIDTH+16;
 
 	uis.cursory += dy;
-	if (uis.cursory < 0)
-		uis.cursory = 0;
-	else if (uis.cursory > SCREEN_HEIGHT)
-		uis.cursory = SCREEN_HEIGHT;
+	if (uis.cursory < -16)
+		uis.cursory = -16;
+	else if (uis.cursory > SCREEN_HEIGHT+16)
+		uis.cursory = SCREEN_HEIGHT+16;
 
 	// region test the active menu items
 	for (i=0; i<uis.activemenu->nitems; i++)
@@ -923,6 +958,7 @@ void UI_MouseEvent( int dx, int dy )
 
 			if ( !(((menucommon_s*)(uis.activemenu->items[uis.activemenu->cursor]))->flags & QMF_SILENT ) ) {
 				trap_S_StartLocalSound( menu_move_sound, CHAN_LOCAL_SOUND );
+        trap_HapticEvent("menu_move", 0, 0, 30, 0, 0);
 			}
 		}
 
@@ -976,7 +1012,9 @@ void UI_Cache_f( void ) {
 	ServerOptions_Cache();
 	DriverInfo_Cache();
 	GraphicsOptions_Cache();
+#if 0
 	UI_DisplayOptionsMenu_Cache();
+#endif
 	UI_SoundOptionsMenu_Cache();
 	UI_NetworkOptionsMenu_Cache();
 	UI_SPLevelMenu_Cache();
@@ -989,7 +1027,9 @@ void UI_Cache_f( void ) {
 //	UI_LoadConfig_Cache();
 //	UI_SaveConfigMenu_Cache();
 	UI_BotSelectMenu_Cache();
+#if 0
 	UI_CDKeyMenu_Cache();
+#endif
 	UI_ModsMenu_Cache();
 
 }
@@ -1078,12 +1118,15 @@ void UI_Init( void ) {
 	// for 640x480 virtualized screen
 	uis.xscale = uis.glconfig.vidWidth * (1.0/640.0);
 	uis.yscale = uis.glconfig.vidHeight * (1.0/480.0);
+#if 0
 	if ( uis.glconfig.vidWidth * 480 > uis.glconfig.vidHeight * 640 ) {
 		// wide screen
 		uis.bias = 0.5 * ( uis.glconfig.vidWidth - ( uis.glconfig.vidHeight * (640.0/480.0) ) );
 		uis.xscale = uis.yscale;
 	}
 	else {
+#endif
+ 	{
 		// no wide screen
 		uis.bias = 0;
 	}
@@ -1104,10 +1147,10 @@ Adjusted for resolution and screen aspect ratio
 */
 void UI_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 	// expect valid pointers
-	*x = *x * uis.xscale + uis.bias;
-	*y *= uis.yscale;
-	*w *= uis.xscale;
-	*h *= uis.yscale;
+	*x = *x * UI_GetXScale() + uis.bias + UI_GetXOffset();
+	*y = *y * UI_GetYScale() + UI_GetYOffset();
+	*w *= UI_GetXScale();
+	*h *= UI_GetYScale();
 }
 
 void UI_DrawNamedPic( float x, float y, float width, float height, const char *picname ) {
