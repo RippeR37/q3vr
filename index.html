@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quake 3 VR - a PCVR port of Quake 3 Arena</title>
+  <meta name="description" content="Quake 3 VR - a PCVR port of Quake 3 Arena. Project by RippeR37.">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="styles.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+
+<body>
+  <!-- Top navigation -->
+  <nav class="navbar navbar-expand-lg topbar">
+    <div class="container">
+      <a class="navbar-brand brand-logo text-white d-flex align-items-center" href="index.html">
+        <img src="media/q3_logo.png" width="42" height="42">
+        <span class="ms-2">Quake 3 VR</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navmenu"
+        aria-controls="navmenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navmenu">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="btn btn-accent" href="https://buymeacoffee.com/RippeR37" target="_blank"
+              rel="noopener">Support</a></li>
+          <li class="nav-item"><a class="nav-link" href="#media">Media</a></li>
+          <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+          <li class="nav-item"><a class="nav-link" href="#howto">How to play</a></li>
+          <li class="nav-item"><a class="nav-link" href="#controls">Controls</a></li>
+          <li class="nav-item"><a class="nav-link" href="https://github.com/RippeR37/q3vr" target="_blank"
+              rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Header / hero with full-width background image -->
+  <header class="hero">
+    <div class="container text-start py-5">
+      <div class="row align-items-center">
+        <div class="col-lg-7">
+          <h1 class="display-5 fw-bold">Quake 3 VR</h1>
+          <p class="lead">
+            A PCVR port of Quake 3 Arena (<span class="mono">q3vr</span>) by <span class="mono">RippeR37</span> — based
+            on <span class="mono">ioquake3</span> and <span class="mono">Quake3Quest</span> with VR-specific
+            improvements, QoL
+            and multiplayer support.
+          </p>
+          <p>
+            <a class="btn btn-accent btn-lg" href="https://github.com/RippeR37/q3vr/releases" target="_blank"
+              rel="noopener">
+              Download
+            </a>
+            <a class="btn btn-accent btn-lg" href="https://github.com/RippeR37/q3vr" target="_blank" rel="noopener">
+              View on GitHub
+            </a>
+            <a class="btn btn-accent btn-lg" href="https://discord.gg/qzugwtSn4Y" target="_blank" rel="noopener">
+              Discord
+            </a>
+          </p>
+        </div>
+        <div class="col-lg-5 d-none d-lg-block">
+          <div class="info-card">
+            <h5 class="mb-2">Status</h5>
+            <p class="mb-1">
+              <b>Beta</b> — features include single-player, multiplayer (crossplay), 6DoF support,
+              haptics, weapon wheel and many comfort options.
+            </p>
+            <small class="muted">See below for information how to play, controls and troubleshooting.</small>
+          </div>
+          <br>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container my-5">
+    <!-- Gallery row -->
+    <section id="media" class="mb-5">
+      <div class="row g-3 gallery">
+        <div class="col-12 col-md-4">
+          <a href="media/screenshot_0.png" target="_blank" rel="noopener">
+            <img src="media/screenshot_0.png" alt="Quake 3 VR thumbnail 1" class="shadow-sm">
+          </a>
+        </div>
+        <div class="col-12 col-md-4">
+          <a href="media/screenshot_1.png" target="_blank" rel="noopener">
+            <img src="media/screenshot_1.png" alt="Quake 3 VR thumbnail 2" class="shadow-sm">
+          </a>
+        </div>
+        <div class="col-12 col-md-4">
+          <a href="media/screenshot_2.png" target="_blank" rel="noopener">
+            <img src="media/screenshot_2.png" alt="Quake 3 VR thumbnail 3" class="shadow-sm">
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Description & embedded YouTube -->
+    <section id="features" class="mb-5">
+      <div class="row">
+        <div class="col-lg-7">
+          <div class="info-card">
+            <h3 class="mb-3">About the project</h3>
+            <p>Quake 3 VR (<code>q3vr</code>) is a PCVR port of Quake 3 Arena. It is based on the community-maintained
+              <a href="https://ioquake3.org/" target="_blank" rel="noopener">ioquake3</a> engine and the Quest port (<a
+                href="https://quake3.quakevr.com/" target="_blank" rel="noopener">Quake3Quest</a>). The port includes
+              bugfixes, VR-specific improvements and a number of quality-of-life features.
+            </p>
+            <ul>
+              <li>Full single-player campaign and multiplayer support (crossplay with PC & Quest).</li>
+              <li>6DoF movement, weapon selection wheel, haptics, virtual screen and comfort options (vignette, height
+                adjust).</li>
+              <li>Supports playing on many community servers and simpler mods.</li>
+            </ul>
+            <p class="mb-0">For full setup instructions, controls and troubleshooting follow the repository on GitHub.
+            </p>
+          </div>
+        </div>
+        <div class="col-lg-5 mt-3 mt-lg-0">
+          <div class="ratio ratio-16x9 shadow-sm">
+            <iframe src="https://www.youtube.com/embed/8tOLAvJST3Y" title="Quake 3 VR Trailer" allowfullscreen></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How to play / How to build -->
+    <section id="howto" class="mb-5">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="info-card mb-3">
+            <h3 class="mb-3">How to play</h3>
+            <ol>
+              <li>
+                Download the latest release from the GitHub
+                <a href="https://github.com/RippeR37/q3vr/releases" target="_blank" rel="noopener">Releases</a>
+                page.
+              </li>
+              <li>
+                Download required PAK files and place them in the <code>baseq3/</code> subdirectory next to
+                <code>pakQ3VR.pk3</code>:
+                <ul>
+                  <li>Get <code>pak0.pk3</code> from your copy of the game or
+                    <a href="https://github.com/Team-Beef-Studios/ioq3quest/raw/dba25f1d528253ad9ff8638931726d06bffcf0b0/android/app/src/main/assets/pak0.pk3"
+                      target="_blank" rel="noopener">download demo version</a>,
+                  </li>
+                  <li>
+                    Get the rest from the
+                    <a href="https://files.ioquake3.org/quake3-latest-pk3s.zip" target="_blank" rel="noopener">
+                      latest Release Point files (v1.32)</a> (<a href="https://ioquake3.org/extras/patch-data/"
+                      target="_blank" rel="noopener">EULA</a>).
+                  </li>
+                </ul>
+              </li>
+              <li>Start your VR runtime (e.g. SteamVR) and run <code>q3vr.exe</code>.</li>
+            </ol>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="info-card mb-3">
+            <h3 class="mb-3">How to build yourself</h3>
+            <p>The project uses <code>CMake</code>. On Windows (<code>MSVC</code>) you can build with:</p>
+            <pre class="bg-dark p-2 rounded small">
+> cmake -S . -B build
+> cmake --build build --config Release</pre>
+            <p class="small muted mb-0">
+              Currently Windows is the only officially supported platform.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls section -->
+    <section id="controls">
+      <div class="row mt-3">
+        <div class="col-md-12">
+          <div class="info-card mb-3">
+            <h3 class="mb-3">Controls</h3>
+            <p>
+              Default controls on Valve Index controllers are:
+            </p>
+            <!-- Controllers screenshot here -->
+            <img src="media/bindings.png" alt="Description" class="img-fluid d-block mx-auto mb-4" style="width:75%;">
+            <p>
+              Some of these can be affected by changes made in the in-game <code>Setup</code> menus.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Troubleshooting and Feedback sections -->
+    <section id="troubleshooting_feedback">
+      <div class="row mt-3">
+        <div class="col-md-6">
+          <div class="info-card mb-3">
+            <h3 class="mb-3">Troubleshooting</h3>
+            <p>Common issues and quick fixes:</p>
+            <ul>
+              <li>
+                Verify that you have latest version of <code>Q3VR</code>.
+              </li>
+              <li>
+                Ensure that SteamVR (or your VR runtime) is running when the game starts.
+              </li>
+              <li>
+                Ensure that all required PAK files are present in <code>baseq3/</code> subdirectory.
+              </li>
+              <li>
+                Remove local user configs from <code>C:\Users\$user\AppData\Local\Quake3\</code>.
+              </li>
+              <li>
+                Update all related drivers (e.g. GPUs).
+              </li>
+              <li>
+                Check <a href="https://github.com/RippeR37/q3vr/issues" target="_blank" rel="noopener">reported
+                  issues</a> for known problems.
+              </li>
+              <li>
+                Reach out to others:
+                <ul>
+                  <li>
+                    Ask in <a href="https://github.com/RippeR37/q3vr/issues" target="_blank" rel="noopener">GitHub
+                      discussions</a>,
+                  </li>
+                  <li>
+                    Ask in
+                    <a href="https://discord.gg/qzugwtSn4Y" target="_blank" rel="noopener" class="mono">#q3-pcvr</a>
+                    or
+                    <a href="https://discord.gg/YY9UvMHGYb" target="_blank" rel="noopener" class="mono">#ioquake3</a>
+                    Discord channels,
+                  </li>
+                  <li>
+                    <a href="https://github.com/RippeR37/q3vr/issues/new/choose" target="_blank" rel="noopener">Report a
+                      new issue in GitHub</a>.
+                  </li>
+                </ul>
+              </li>
+            </ul>
+            <p>If the problem persists, gather logs and follow the reporting steps on the right.</p>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="info-card mb-3">
+            <h3 class="mb-3">Reporting issues & Feedback</h3>
+            <div class="note-card warning mb-2">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              Feedback and bug reports are necessary for the project to improve.
+            </div>
+            <ol>
+              <li>Search existing <a href="https://github.com/RippeR37/q3vr/issues" target="_blank"
+                  rel="noopener">GitHub issues</a> to avoid duplicates.</li>
+              <li>If none exist, <a href="https://github.com/RippeR37/q3vr/issues/new/choose" target="_blank"
+                  rel="noopener">open a new issue</a> and provide as much details as you can.</li>
+              <li>For general feedback or ideas, use <a href="https://github.com/RippeR37/q3vr/discussions"
+                  target="_blank" rel="noopener">Discussions</a> or open an issue tagged as <code>enhancement</code>.
+              </li>
+            </ol>
+            <p>
+              If possible, please attach logs, screenshots and/or recordings to your issues to make it easier to verify
+              and fix found problems.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Troubleshooting and Feedback sections -->
+    <section id="troubleshooting_feedback">
+      <div class="row mt-3">
+        <div class="col-md-12">
+          <div class="info-card mb-3">
+            <h3 class="mb-3">Disclaimer</h3>
+            <p>
+              <code>Q3VR</code> is not affiliated, associated, authorized, endorsed by, or in any way officially connected with
+              Bethesda or ID Software, or any of its subsidiaries or its affiliates.<br>
+              <code>Q3VR</code> is an unofficial port of the idTech3 engine, which was originally written by ID Software.
+            </p>
+
+            <p>
+              Quake 3, Quake 3 Arena, id, id Software, id Tech and related logos are registered trademarks or trademarks
+              of id Software LLC in the U.S. and/or other countries. All Rights Reserved.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <p class="mb-0">© <strong>RippeR37</strong> — Quake 3 VR. Project available on <a
+              href="https://github.com/RippeR37/q3vr" target="_blank" rel="noopener">GitHub</a>.</p>
+        </div>
+        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+          <a class="me-3 muted" href="https://github.com/RippeR37/q3vr/issues" target="_blank" rel="noopener">Issues</a>
+          <a class="me-3 muted" href="https://github.com/RippeR37/q3vr/discussions" target="_blank"
+            rel="noopener">Discussions</a>
+          <a class="me-3 muted" href="https://github.com/sponsors/RippeR37/" target="_blank" rel="noopener">Support</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="main.js"></script>
+</body>
+
+</html>
