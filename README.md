@@ -200,7 +200,7 @@ If you like what I'm working on and would like to support me or my future work
 on VR games, ports or tools you can do so via:
 
 * [GitHub Sponsors](https://github.com/sponsors/RippeR37/)
-* [Buy Me a Coffe](https://buymeacoffee.com/RippeR37)
+* [Buy Me a Coffee](https://buymeacoffee.com/RippeR37)
 
 Please also consider supporting authors of `ioquake3` and `Quake3Quest`
 projects.
