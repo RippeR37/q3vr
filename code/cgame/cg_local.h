@@ -911,6 +911,7 @@ typedef struct {
 	sfxHandle_t oneFragSound;
 
 	sfxHandle_t hitSound;
+	sfxHandle_t hitSounds[4];
 	sfxHandle_t hitSoundHighArmor;
 	sfxHandle_t hitSoundLowArmor;
 	sfxHandle_t hitTeamSound;
@@ -1131,6 +1132,7 @@ extern	vmCvar_t		cg_shadows;
 extern	vmCvar_t		cg_playerShadow;
 extern	vmCvar_t		cg_gibs;
 extern	vmCvar_t		cg_megagibs;
+extern	vmCvar_t		cg_hitSounds;
 extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
 extern	vmCvar_t		cg_drawSnapshot;
