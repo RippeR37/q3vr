@@ -109,6 +109,7 @@ vmCvar_t	cg_shadows;
 vmCvar_t	cg_playerShadow;
 vmCvar_t	cg_gibs;
 vmCvar_t	cg_megagibs;
+vmCvar_t	cg_hitSounds;
 vmCvar_t	cg_drawTimer;
 vmCvar_t	cg_drawFPS;
 vmCvar_t	cg_drawSnapshot;
@@ -240,6 +241,7 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_draw2D, "cg_draw2D", "1", CVAR_ARCHIVE  },
 	{ &cg_drawStatus, "cg_drawStatus", "1", CVAR_ARCHIVE  },
 #endif
+	{ &cg_hitSounds, "cg_hitSounds", "0", CVAR_ARCHIVE  },
 	{ &cg_drawTimer, "cg_drawTimer", "0", CVAR_ARCHIVE  },
 	{ &cg_drawFPS, "cg_drawFPS", "0", CVAR_ARCHIVE  },
 	{ &cg_drawSnapshot, "cg_drawSnapshot", "0", CVAR_ARCHIVE  },
@@ -673,6 +675,11 @@ static void CG_RegisterSounds( void ) {
 
 	cgs.media.talkSound = trap_S_RegisterSound( "sound/player/talk.wav", qfalse );
 	cgs.media.landSound = trap_S_RegisterSound( "sound/player/land1.wav", qfalse);
+
+	cgs.media.hitSounds[0] = trap_S_RegisterSound( "sound/feedback/hit25.wav", qfalse );
+	cgs.media.hitSounds[1] = trap_S_RegisterSound( "sound/feedback/hit50.wav", qfalse );
+	cgs.media.hitSounds[2] = trap_S_RegisterSound( "sound/feedback/hit75.wav", qfalse );
+	cgs.media.hitSounds[3] = trap_S_RegisterSound( "sound/feedback/hit100.wav", qfalse );
 
 	cgs.media.hitSound = trap_S_RegisterSound( "sound/feedback/hit.wav", qfalse );
 #ifdef MISSIONPACK
