@@ -2,7 +2,6 @@
 
 #include <math.h>
 
-#include "../qcommon/q_shared.h"
 #include "../client/client.h"
 
 #include "common/xr_linear.h"
@@ -30,9 +29,17 @@ const float hudScale = M_PI * 15.0f / 180.0f;
 
 XrBool32 stageSupported = XR_FALSE;
 XrTime lastPredictedDisplayTime = 0;
-qboolean frameFinished = qtrue;
+qboolean frameStarted = qfalse;
 qboolean needRecenter = qtrue;
 
+// Data per-frame data held between BeginFrame and EndFrame
+XrFovf fov = { 0 };
+XrView views[2];
+uint32_t viewCount = 2;
+uint32_t swapchainImageIndex = 0;
+
+void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter);
+void VR_Renderer_EndFrame(VR_Engine* engine);
 void VR_Recenter(VR_Engine* engine, XrTime predictedDisplayTime);
 void VR_ClearFrameBuffer( int width, int height);
 void VR_UpdatePerFrameState( void );
@@ -74,7 +81,7 @@ void VR_InitRenderer( VR_Engine* engine )
 	{
 		PFN_xrGetDisplayRefreshRateFB xrGetDisplayRefreshRateFB;
 		XR_CHECK(
-			xrGetInstanceProcAddr(engine->appState.Instance, "xrGetDisplayRefreshRateFB", (PFN_xrVoidFunction*)(&xrGetDisplayRefreshRateFB)), 
+			xrGetInstanceProcAddr(engine->appState.Instance, "xrGetDisplayRefreshRateFB", (PFN_xrVoidFunction*)(&xrGetDisplayRefreshRateFB)),
 			"failed to get xrGetDisplayRefreshRateFB func proc");
 
 		engine->appState.Renderer.RefreshRate = 0.0f;
@@ -109,46 +116,68 @@ void VR_DestroyRenderer( VR_Engine* engine )
 	VR_DestroySwapchains(&engine->appState.Renderer.Swapchains);
 }
 
-void VR_DrawFrame( VR_Engine* engine )
+void VR_ProcessFrame( VR_Engine* engine )
 {
 	VR_UpdatePerFrameState();
 
 	const XrBool32 needsRecenter = VR_ProcessXrEvents(&engine->appState);
 	if (engine->appState.SessionActive == GL_FALSE)
 	{
+		// If we haven't called Com_Frame() then let's at least process input
+		// (specifically SDL events) so that app won't appear as stuck/deadlocked
+		IN_Frame();
 		return;
 	}
 
-	VR_SwapchainInfos* swapchains = &engine->appState.Renderer.Swapchains;
-	XrFovf fov = { 0 };
+	VR_Renderer_BeginFrame(engine, needsRecenter);
+	Com_Frame();
+	VR_Renderer_EndFrame(engine);
 
-	if (!frameFinished)
+	if (needRecenter)
 	{
-		// In some cases, we may reset the state and perform `longjmp()` while rendering a frame
-		// to the beginning of the loop. In such case, finish the previous frame before
-		// starting another, otherwise we may end up in a bad state.
-		VR_Swapchains_Release(swapchains);
-		VR_EndFrame(engine->appState.Session, swapchains, NULL, 0, fov, engine->appState.CurrentSpace, lastPredictedDisplayTime);
+		VR_Recenter(engine, lastPredictedDisplayTime);
+		needRecenter = qfalse;
 	}
-	frameFinished = qfalse;
+}
 
-	const XrFrameState frameState = VR_WaitFrame(engine->appState.Session);
-	lastPredictedDisplayTime = frameState.predictedDisplayTime;
+void VR_Renderer_RestoreState(VR_Engine* engine)
+{
+	if (!frameStarted)
+	{
+		// Frame hasn't started, no need to restore anything here
+		return;
+	}
+
+	VR_UpdatePerFrameState();
+
+	// If we need to re-start frame until `Com_Frame()` call, we need session to
+	// be active to proceed
+	XrBool32 needsRecenter = XR_FALSE;
+	while (!engine->appState.SessionActive)
+	{
+		needsRecenter |= VR_ProcessXrEvents(&engine->appState);
+	}
+
+	VR_Renderer_BeginFrame(engine, needsRecenter);
+}
+
+void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter)
+{
+	frameStarted = qtrue;
+	lastPredictedDisplayTime = VR_WaitFrame(engine->appState.Session).predictedDisplayTime;
 
 	if (needsRecenter)
 	{
-		VR_Recenter(engine, frameState.predictedDisplayTime);
+		VR_Recenter(engine, lastPredictedDisplayTime);
 	}
 
 	VR_BeginFrame(engine->appState.Session);
 
-	XrView views[2];
-	uint32_t viewCount = 2;
 	const XrViewState viewState = VR_LocateViews(
-		engine->appState.Session, 
-		frameState.predictedDisplayTime, 
-		engine->appState.CurrentSpace, 
-		views, 
+		engine->appState.Session,
+		lastPredictedDisplayTime,
+		engine->appState.CurrentSpace,
+		views,
 		&viewCount);
 
 	// Update HMD position/views
@@ -156,16 +185,18 @@ void VR_DrawFrame( VR_Engine* engine )
 
 	// [Input] poll actions, update controller state, issue action commands
 	IN_VRSyncActions(engine);
-	IN_VRUpdateControllers(engine, frameState.predictedDisplayTime);
+	IN_VRUpdateControllers(engine, lastPredictedDisplayTime);
 
-	const uint32_t swapchainImageIndex = VR_Swapchains_Acquire(swapchains);
+	VR_SwapchainInfos* swapchains = &engine->appState.Renderer.Swapchains;
+
+	swapchainImageIndex = VR_Swapchains_Acquire(swapchains);
 	VR_Swapchains_BindFramebuffers(swapchains, swapchainImageIndex);
 	VR_ClearFrameBuffer(swapchains->color.width, swapchains->color.height);
 
 	// Set renderer params
 	XrMatrix4x4f vrMatrixMono, vrMatrixProjection;
 	const XrFovf monoFov = { -hudScale, hudScale, hudScale, -hudScale };
-	const XrFovf projectionFov = 
+	const XrFovf projectionFov =
 	{
 		fov.angleLeft / vr.weapon_zoomLevel,
 		fov.angleRight / vr.weapon_zoomLevel,
@@ -175,9 +206,11 @@ void VR_DrawFrame( VR_Engine* engine )
 	XrMatrix4x4f_CreateProjectionFov(&vrMatrixMono, GRAPHICS_OPENGL, monoFov, 1.0f, 0.0f);
 	XrMatrix4x4f_CreateProjectionFov(&vrMatrixProjection, GRAPHICS_OPENGL, projectionFov, 1.0f, 0.0f);
 	re.SetVRHeadsetParms(vrMatrixProjection.m, vrMatrixMono.m, swapchains->framebuffers[swapchainImageIndex]);
+}
 
-	// Do the actual rendering here
-	SCR_UpdateScreenImpl();
+void VR_Renderer_EndFrame(VR_Engine* engine)
+{
+	VR_SwapchainInfos* swapchains = &engine->appState.Renderer.Swapchains;
 
 	// Draw Virtual Screen if needed
 	const int use_virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen() || ((cl.snap.ps.pm_flags & PMF_FOLLOW) && (vr.follow_mode == VRFM_FIRSTPERSON));
@@ -194,7 +227,7 @@ void VR_DrawFrame( VR_Engine* engine )
 
 	VR_Swapchains_Release(swapchains);
 	VR_Swapchains_BindFramebuffers(NULL, 0);
-	
+
 	// Blit left eye's view to main FBO (desktop window)
 	VR_Swapchains_BlitXRToMainFbo(swapchains, swapchainImageIndex, VR_GetDesktopViewConfiguration());
 
@@ -205,18 +238,12 @@ void VR_DrawFrame( VR_Engine* engine )
 		viewCount,
 		fov,
 		engine->appState.CurrentSpace,
-		frameState.predictedDisplayTime);
-
-		frameFinished = qtrue;
-
-	if (needRecenter)
-	{
-		VR_Recenter(engine, frameState.predictedDisplayTime);
-		needRecenter = qfalse;
-	}
+		lastPredictedDisplayTime);
 
 	// Flip desktop window's buffer
 	GLimp_EndFrame();
+
+	frameStarted = qfalse;
 }
 
 void VR_Recenter(VR_Engine* engine, XrTime predictedDisplayTime)

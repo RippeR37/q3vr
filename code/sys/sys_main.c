@@ -889,7 +889,7 @@ int main( int argc, char **argv )
 #else
 	while( 1 )
 	{
-		Com_Frame( );
+		VR_ProcessFrame( engine );
 	}
 #endif
 

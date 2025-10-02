@@ -1241,6 +1241,7 @@ void GLimp_InitVR(void)
 		VR_EnterVR(engine);
 		VR_InitRenderer(engine);
     VR_InitSessionInput(engine);
+		VR_Renderer_RestoreState(engine);
 	}
 }
 

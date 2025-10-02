@@ -584,11 +584,6 @@ text to the screen.
 ==================
 */
 void SCR_UpdateScreen( void ) {
-  // VR_DrawFrame() will call SCR_UpdateScreenImpl() internally
-  VR_DrawFrame(VR_GetEngine());
-}
-
-void SCR_UpdateScreenImpl( void ) {
 	static int	recursive;
 
 	if ( !scr_initialized ) {
