@@ -1,5 +1,7 @@
 #include "vr_spaces.h"
 
+#include <stdlib.h>
+
 #include "vr_macros.h"
 #include "vr_types.h"
 

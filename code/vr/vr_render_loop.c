@@ -1,5 +1,7 @@
 #include "vr_render_loop.h"
 
+#include <string.h>
+
 #include "vr_macros.h"
 
 XrFrameState VR_WaitFrame(XrSession session)

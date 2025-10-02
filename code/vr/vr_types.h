@@ -16,6 +16,8 @@
 #elif defined(__ANDROID__)
 #define XR_USE_PLATFORM_ANDROID
 #else
+#include <X11/Xlib.h>
+#include <GL/glx.h>
 #define XR_USE_PLATFORM_XLIB
 #endif
 #include <openxr/openxr.h>

@@ -51,12 +51,8 @@ void SinCos( float radians, float *sine, float *cosine )
 	}
 #else
   // I think, better use math.h function, instead of ^
-#if defined (__linux__) && !defined (__ANDROID__)
-    sincosf(radians, sine, cosine);
-#else
     *sine = sinf(radians);
     *cosine = cosf(radians);
-#endif
 #endif
 }
 
