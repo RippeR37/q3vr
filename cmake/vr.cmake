@@ -18,4 +18,5 @@ set(VR_SOURCES
     ${SOURCE_DIR}/vr/vr_virtual_screen.c
 )
 
-list(APPEND VR_LIBRARIES opengl32)
+find_package(OpenGL REQUIRED)
+list(APPEND VR_LIBRARIES ${OPENGL_LIBRARIES})

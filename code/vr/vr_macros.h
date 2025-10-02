@@ -2,6 +2,7 @@
 #define __VR_MACROS
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "vr_debug.h"
 

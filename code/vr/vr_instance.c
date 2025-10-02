@@ -1,6 +1,9 @@
 #include "vr_instance.h"
 
+#include <string.h>
 #include <stdio.h>
+
+#include "../qcommon/q_shared.h"
 
 #include "vr_macros.h"
 
@@ -8,11 +11,11 @@ XrResult VR_CreateInstance(const char* app_name, XrVersion api_version, uint32_t
 {
 	XrApplicationInfo appInfo;
 	memset(&appInfo, 0, sizeof(appInfo));
-	strncpy_s(appInfo.applicationName, XR_MAX_APPLICATION_NAME_SIZE, app_name, strlen(app_name));
+	Q_strncpyz(appInfo.applicationName, app_name, sizeof(appInfo.applicationName));
 	appInfo.applicationVersion = 1;
-	strncpy_s(appInfo.engineName, XR_MAX_ENGINE_NAME_SIZE, app_name, strlen(app_name));
+	Q_strncpyz(appInfo.engineName, app_name, sizeof(appInfo.engineName));
 	appInfo.engineVersion = 1;
-	appInfo.apiVersion = api_version; // XR_MAKE_VERSION(1, 0, 0); // XR_CURRENT_API_VERSION;
+	appInfo.apiVersion = api_version;
 
 	XrInstanceCreateInfo instanceCreateInfo;
 	memset(&instanceCreateInfo, 0, sizeof(instanceCreateInfo));
