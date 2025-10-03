@@ -1887,16 +1887,20 @@ static void CG_PlayerPowerups( centity_t *cent, refEntity_t *torso ) {
 		value = cg.snap->ps.stats[STAT_HOLDABLE_ITEM];
 
 		if (!value || trap_Cvar_VariableValue( "vr_showItemInHand" ) == 0.0f) {
-			if (cg.predictedPlayerState.pm_type != PM_INTERMISSION && cg.predictedPlayerState.pm_type != PM_SPECTATOR && !(trap_Key_GetCatcher() & KEYCATCH_UI)) {
-				if (cg_vr_showOffhand.integer) {
-					vec3_t offset;
-					VectorSet(offset, 0, 0, -3);
-					float scale = 0.113f;
-					if (!trap_Cvar_VariableValue( "vr_righthanded" )) {
-						scale = -scale;
-					}
-					CG_TrailItem( cent, cgs.media.vrHandModel, offset, scale );
+			const qboolean shouldRenderOffhand =
+				(cg.predictedPlayerState.pm_type != PM_INTERMISSION) &&
+				(cg.predictedPlayerState.pm_type != PM_SPECTATOR) &&
+				!((cg.snap->ps.pm_flags & PMF_FOLLOW) && (vr->follow_mode == VRFM_FIRSTPERSON)) &&
+				!(trap_Key_GetCatcher() & KEYCATCH_UI);
+
+			if (shouldRenderOffhand && cg_vr_showOffhand.integer) {
+				vec3_t offset;
+				VectorSet(offset, 0, 0, -3);
+				float scale = 0.113f;
+				if (!trap_Cvar_VariableValue( "vr_righthanded" )) {
+					scale = -scale;
 				}
+				CG_TrailItem( cent, cgs.media.vrHandModel, offset, scale );
 			}
 		} else {
 			CG_RegisterItemVisuals( value );
