@@ -36,7 +36,8 @@ qboolean needRecenter = qtrue;
 XrFovf fov = { 0 };
 XrView views[2];
 uint32_t viewCount = 2;
-uint32_t swapchainImageIndex = 0;
+uint32_t swapchainColorIndex = 0;
+uint32_t swapchainDepthIndex = 0;
 
 void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter);
 void VR_Renderer_EndFrame(VR_Engine* engine);
@@ -189,8 +190,8 @@ void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter)
 
 	VR_SwapchainInfos* swapchains = &engine->appState.Renderer.Swapchains;
 
-	swapchainImageIndex = VR_Swapchains_Acquire(swapchains);
-	VR_Swapchains_BindFramebuffers(swapchains, swapchainImageIndex);
+	VR_Swapchains_Acquire(swapchains, &swapchainColorIndex, &swapchainDepthIndex);
+	VR_Swapchains_BindFramebuffers(swapchains, swapchainColorIndex, swapchainDepthIndex);
 	VR_ClearFrameBuffer(swapchains->color.width, swapchains->color.height);
 
 	// Set renderer params
@@ -205,7 +206,7 @@ void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter)
 	};
 	XrMatrix4x4f_CreateProjectionFov(&vrMatrixMono, GRAPHICS_OPENGL, monoFov, 1.0f, 0.0f);
 	XrMatrix4x4f_CreateProjectionFov(&vrMatrixProjection, GRAPHICS_OPENGL, projectionFov, 1.0f, 0.0f);
-	re.SetVRHeadsetParms(vrMatrixProjection.m, vrMatrixMono.m, swapchains->framebuffers[swapchainImageIndex]);
+	re.SetVRHeadsetParms(vrMatrixProjection.m, vrMatrixMono.m, swapchains->framebuffers[swapchainColorIndex]);
 }
 
 void VR_Renderer_EndFrame(VR_Engine* engine)
@@ -216,7 +217,7 @@ void VR_Renderer_EndFrame(VR_Engine* engine)
 	const int use_virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen() || ((cl.snap.ps.pm_flags & PMF_FOLLOW) && (vr.follow_mode == VRFM_FIRSTPERSON));
 	if (use_virtual_screen)
 	{
-		VR_DrawVirtualScreen(swapchains, swapchainImageIndex, fov, views, viewCount);
+		VR_DrawVirtualScreen(swapchains, swapchainColorIndex, fov, views, viewCount);
 		vr.menuYaw = VR_VirtualScreen_GetCurrentYaw();
 	}
 	else
@@ -226,10 +227,10 @@ void VR_Renderer_EndFrame(VR_Engine* engine)
 	}
 
 	VR_Swapchains_Release(swapchains);
-	VR_Swapchains_BindFramebuffers(NULL, 0);
+	VR_Swapchains_BindFramebuffers(NULL, 0, 0);
 
 	// Blit left eye's view to main FBO (desktop window)
-	VR_Swapchains_BlitXRToMainFbo(swapchains, swapchainImageIndex, VR_GetDesktopViewConfiguration());
+	VR_Swapchains_BlitXRToMainFbo(swapchains, swapchainColorIndex, VR_GetDesktopViewConfiguration());
 
 	VR_EndFrame(
 		engine->appState.Session,
