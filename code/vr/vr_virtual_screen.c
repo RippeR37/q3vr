@@ -496,64 +496,6 @@ void _VR_GetVirtualScreenViewMatrix(XrMatrix4x4f* result, XrVector3f* translatio
 	XrMatrix4x4f_Invert(result, &viewMatrix);
 }
 
-void _VR_GetVirtualScreenProjectionMatrix(XrMatrix4x4f* result, XrFovf fov, float nearZ, float farZ)
-{
-	const float tanAngleLeft = tanf(fov.angleLeft);
-	const float tanAngleRight = tanf(fov.angleRight);
-	const float tanAngleDown = tanf(fov.angleDown);
-	const float tanAngleUp = tanf(fov.angleUp);
-	const float tanAngleWidth = tanAngleRight - tanAngleLeft;
-	const float tanAngleHeight = (tanAngleUp - tanAngleDown);
-	const float offsetZ = nearZ;
-
-	if (farZ <= nearZ)
-	{
-		// place the far plane at infinity
-		result->m[0] = 2 / tanAngleWidth;
-		result->m[4] = 0;
-		result->m[8] = (tanAngleRight + tanAngleLeft) / tanAngleWidth;
-		result->m[12] = 0;
-
-		result->m[1] = 0;
-		result->m[5] = 2 / tanAngleHeight;
-		result->m[9] = (tanAngleUp + tanAngleDown) / tanAngleHeight;
-		result->m[13] = 0;
-
-		result->m[2] = 0;
-		result->m[6] = 0;
-		result->m[10] = -1;
-		result->m[14] = -(nearZ + offsetZ);
-
-		result->m[3] = 0;
-		result->m[7] = 0;
-		result->m[11] = -1;
-		result->m[15] = 0;
-	}
-	else
-	{
-		// normal projection
-		result->m[0] = 2 / tanAngleWidth;
-		result->m[4] = 0;
-		result->m[8] = (tanAngleRight + tanAngleLeft) / tanAngleWidth;
-		result->m[12] = 0;
-
-		result->m[1] = 0;
-		result->m[5] = 2 / tanAngleHeight;
-		result->m[9] = (tanAngleUp + tanAngleDown) / tanAngleHeight;
-		result->m[13] = 0;
-
-		result->m[2] = 0;
-		result->m[6] = 0;
-		result->m[10] = -(farZ + offsetZ) / (farZ - nearZ);
-		result->m[14] = -(farZ * (nearZ + offsetZ)) / (farZ - nearZ);
-
-		result->m[3] = 0;
-		result->m[7] = 0;
-		result->m[11] = -1;
-		result->m[15] = 0;
-	}
-}
-
 void VR_VirtualScreen_ResetPosition(void)
 {
 	positionsInitialized = 0;
@@ -591,7 +533,7 @@ void VR_VirtualScreen_Draw(XrFovf fov, XrPosef* left, XrPosef* right, GLuint vir
 
 	_VR_GetVirtualScreenViewMatrix(&view[0], &left->position, &left->orientation);
 	_VR_GetVirtualScreenViewMatrix(&view[1], &right->position, &right->orientation);
-	_VR_GetVirtualScreenProjectionMatrix(&projection, fov, 0.0f, 100.0f);
+	XrMatrix4x4f_CreateProjectionFov(&projection, GRAPHICS_OPENGL, fov, 0.01f, 100.0f);
 
 	// Floor
 	{
