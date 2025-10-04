@@ -403,7 +403,7 @@ void VR_DestroySwapchains(VR_SwapchainInfos* swapchains)
 	VR_DestroySwapchain(&swapchains->depth);
 }
 
-void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex)
+void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swapchainColorIndex, uint32_t swapchainDepthIndex)
 {
 	if (!swapchains)
 	{
@@ -412,9 +412,15 @@ void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swap
 	}
 
 	CHECK(
-		swapchainImageIndex < swapchains->color.imageCount, 
+		swapchainColorIndex < swapchains->color.imageCount,
 		"Invalid swapchainImageIndex value - out of bounds");
-	qglBindFramebuffer(GL_DRAW_FRAMEBUFFER, swapchains->framebuffers[swapchainImageIndex]);
+	CHECK(
+		swapchainDepthIndex < swapchains->depth.imageCount,
+		"Invalid swapchainImageIndex value - out of bounds");
+
+	qglBindFramebuffer(GL_DRAW_FRAMEBUFFER, swapchains->framebuffers[swapchainColorIndex]);
+	qglFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, swapchains->color.images[swapchainColorIndex], 0, 0, 2);
+	qglFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, swapchains->depth.images[swapchainDepthIndex], 0, 0, 2);
 }
 
 void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrDesktopViewConfiguration viewConfig)
@@ -481,16 +487,16 @@ void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t
 		GL_NEAREST);
 }
 
-uint32_t VR_Swapchains_Acquire(VR_SwapchainInfos* swapchainInfos)
+void VR_Swapchains_Acquire(VR_SwapchainInfos* swapchainInfos, uint32_t* colorIndex, uint32_t* depthIndex)
 {
 	XrSwapchain swapchains[2] = {swapchainInfos->color.swapchain, swapchainInfos->depth.swapchain};
-	uint32_t swapchainImageIndex = 0;
+	uint32_t* indexPtrs[2] = {colorIndex, depthIndex};
 	for (uint32_t idx = 0; idx < 2; ++idx)
 	{
 		XrSwapchainImageAcquireInfo acquireInfo = {XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO, NULL};
 
 		XR_CHECK(
-			xrAcquireSwapchainImage(swapchains[idx], &acquireInfo, &swapchainImageIndex),
+			xrAcquireSwapchainImage(swapchains[idx], &acquireInfo, indexPtrs[idx]),
 			"Failed to acquire swapchain image");
 
 		XrSwapchainImageWaitInfo waitInfo;
@@ -501,8 +507,6 @@ uint32_t VR_Swapchains_Acquire(VR_SwapchainInfos* swapchainInfos)
 			!XR_FAILED(xrWaitSwapchainImage(swapchains[idx], &waitInfo)), 
 			"Failed to wait for swapchain image");
 	}
-
-	return swapchainImageIndex;
 }
 
 void VR_Swapchains_Release(VR_SwapchainInfos* swapchainInfos)
