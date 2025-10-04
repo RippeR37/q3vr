@@ -79,7 +79,7 @@ const char* floorVertexShaderSource =
 	"void main()\n"
 	"{\n"
 	"    gl_Position = (proj * (view[gl_ViewID_OVR] * (model * vec4(aPos.xzy, 1.0))));\n"
-	"    Pos = (model * vec4(aPos, 1.0)).xy;\n"
+	"    Pos = aTexCoord - vec2(0.5);"
 	"}\n";
 const char* floorFragmentShaderSource =
 	"#version 330 core\n"
@@ -91,7 +91,7 @@ const char* floorFragmentShaderSource =
 	"\n"
 	"void main()\n"
 	"{\n"
-	"    vec2 P = Pos;\n"
+	"    vec2 P = Pos * 30.0;\n"
 	"\n"
 	"    vec2 f = fract(P);\n"
 	"    vec2 d = min(f, 1.0 - f);\n"
@@ -479,6 +479,10 @@ void _VR_GetVirtualScreenFloorModelMatrix(XrMatrix4x4f* model)
 	XrVector3f translation = { 0.0f, 0.0f, 0.0f };
 	XrQuaternionf rotation = { 0.0f, 0.0f, 0.0f, 1.0f };
 	XrVector3f scale = { 30.0f, 30.0f, -30.0f };
+
+	// Align the floor with actual stage space instead of initial HMD rotation
+	XrVector3f upAxis = { 0.0f, 1.0f, 0.0f };
+	XrQuaternionf_CreateFromAxisAngle(&rotation, &upAxis, -vr.recenterYaw);
 	
 	XrMatrix4x4f_CreateTranslationRotationScale(model, &translation, &rotation, &scale);
 }
