@@ -380,6 +380,11 @@ typedef struct {
 	animation_t		animations[MAX_TOTALANIMATIONS];
 
 	sfxHandle_t		sounds[MAX_CUSTOM_SOUNDS];
+
+	vec3_t			headColor;
+	vec3_t			bodyColor;
+	vec3_t			legsColor;
+	qboolean		coloredSkin;
 } clientInfo_t;
 
 

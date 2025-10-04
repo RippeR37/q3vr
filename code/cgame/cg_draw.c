@@ -311,6 +311,59 @@ void CG_Draw3DModel( float x, float y, float w, float h, qhandle_t model, qhandl
 
 /*
 ================
+CG_Draw3DModelColor
+
+================
+*/
+void CG_Draw3DModelColor( float x, float y, float w, float h, qhandle_t model, qhandle_t skin, vec3_t origin, vec3_t angles, vec3_t color ) {
+	refdef_t		refdef;
+	refEntity_t		ent;
+
+	if ( !cg_draw3dIcons.integer || !cg_drawIcons.integer ) {
+		return;
+	}
+
+	CG_SetHUDFlags(HUD_FLAGS_DRAWMODEL);
+	CG_AdjustFrom640( &x, &y, &w, &h );
+	CG_RemoveHUDFlags(HUD_FLAGS_DRAWMODEL);
+
+	memset( &refdef, 0, sizeof( refdef ) );
+
+	memset( &ent, 0, sizeof( ent ) );
+	AnglesToAxis( angles, ent.axis );
+	VectorCopy( origin, ent.origin );
+	ent.hModel = model;
+	ent.customSkin = skin;
+	ent.renderfx = RF_NOSHADOW;		// no stencil shadows
+
+	refdef.rdflags = RDF_NOWORLDMODEL;
+
+	AxisClear( refdef.viewaxis );
+
+	refdef.fov_x = 30;
+	refdef.fov_y = 30;
+
+	refdef.x = x;
+	refdef.y = y;
+	refdef.width = w;
+	refdef.height = h;
+
+	refdef.time = cg.time;
+
+	refdef.isHUD = qtrue;
+
+	ent.shaderRGBA[0] = color[0] * 255;
+	ent.shaderRGBA[1] = color[1] * 255;
+	ent.shaderRGBA[2] = color[2] * 255;
+	ent.shaderRGBA[3] = 255;
+
+	trap_R_ClearScene();
+	trap_R_AddRefEntityToScene( &ent );
+	trap_R_RenderScene( &refdef );
+}
+
+/*
+================
 CG_DrawHead
 
 Used for both the status bar and the scoreboard
@@ -345,7 +398,7 @@ void CG_DrawHead( float x, float y, float w, float h, int clientNum, vec3_t head
 		// allow per-model tweaking
 		VectorAdd( origin, ci->headOffset, origin );
 
-		CG_Draw3DModel( x, y, w, h, ci->headModel, ci->headSkin, origin, headAngles );
+		CG_Draw3DModelColor( x, y, w, h, ci->headModel, ci->headSkin, origin, headAngles, ci->headColor );
 	} else if ( cg_drawIcons.integer ) {
 		CG_DrawPic( x, y, w, h, ci->modelIcon );
 	}
