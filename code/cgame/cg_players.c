@@ -1109,12 +1109,33 @@ void CG_NewClientInfo( int clientNum ) {
 		char newSkin[MAX_QPATH];
 		char *skin;
 		qboolean pm_model;
+		qboolean allowNativeModel;
 		team_t myTeam;
 		int myClientNum;
 		const char *colors;
 
-		myClientNum = cg.clientNum;
-		myTeam = cgs.clientinfo[myClientNum].team;
+		if ( cg.snap ) {
+			myClientNum = cg.snap->ps.clientNum;
+			myTeam = cgs.clientinfo[myClientNum].team;
+		} else {
+			myClientNum = cg.clientNum;
+			myTeam = TEAM_SPECTATOR;
+		}
+
+		// "join" team if spectating
+		if ( myTeam == TEAM_SPECTATOR && cg.snap ) {
+			myTeam = cg.snap->ps.persistant[ PERS_TEAM ];
+		}
+
+		allowNativeModel = qfalse;
+		if ( cgs.gametype < GT_TEAM ) {
+			if ( !cg.snap || ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_FREE && cg.snap->ps.clientNum == clientNum ) ) {
+				if ( cg.demoPlayback || ( cg.snap && cg.snap->ps.pm_flags & PMF_FOLLOW ) ) {
+					allowNativeModel = qtrue;
+				}
+			}
+		}
+
 		pm_model = ( Q_stricmp( cg_enemyModel.string, PM_SKIN ) == 0 ) ? qtrue : qfalse;
 
 		if ( cg_forceModel.integer || cg_enemyModel.string[0] || cg_teamModel.string[0] )
@@ -1223,7 +1244,7 @@ void CG_NewClientInfo( int clientNum ) {
 					CG_SetColorInfo( colors, &newInfo );
 					newInfo.coloredSkin = qtrue;
 
-				} else if ( cg_enemyModel.string[0] && myClientNum != clientNum && cgs.gametype != GT_SINGLE_PLAYER ) {
+				} else if ( cg_enemyModel.string[0] && myClientNum != clientNum && !allowNativeModel && cgs.gametype != GT_SINGLE_PLAYER ) {
 
 					Q_strncpyz( newInfo.modelName, cg_enemyModel.string, sizeof( newInfo.modelName ) );
 
@@ -1281,7 +1302,7 @@ void CG_NewClientInfo( int clientNum ) {
 
 		// Apply team color overrides if specified
 		if ( cg_teamColors.string[0] && newInfo.team != TEAM_SPECTATOR ) {
-			if ( ( cgs.gametype >= GT_TEAM && newInfo.team == myTeam && clientNum != myClientNum ) || cg.demoPlayback ) {
+			if ( allowNativeModel || ( ( newInfo.team == TEAM_RED || newInfo.team == TEAM_BLUE ) && newInfo.team == myTeam && ( clientNum != myClientNum || cg.demoPlayback ) ) ) {
 				int len;
 				colors = CG_GetTeamColors( cg_teamColors.string, newInfo.team );
 				len = strlen( colors );
