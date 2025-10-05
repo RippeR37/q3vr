@@ -667,6 +667,10 @@ typedef struct {
 	char			testModelName[MAX_QPATH];
 	qboolean		testGun;
 
+	// follow killer
+	int				followTime;
+	int				followClient;
+
 } cg_t;
 
 
@@ -1201,6 +1205,7 @@ extern	vmCvar_t		cg_paused;
 extern	vmCvar_t		cg_blood;
 extern	vmCvar_t		cg_predictItems;
 extern	vmCvar_t		cg_deferPlayers;
+extern	vmCvar_t		cg_followKiller;
 extern	vmCvar_t		cg_drawFriend;
 extern	vmCvar_t		cg_teamChatsOnly;
 #ifdef MISSIONPACK
