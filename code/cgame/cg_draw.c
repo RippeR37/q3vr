@@ -831,6 +831,34 @@ static float CG_DrawFPS( float y ) {
 
 /*
 =================
+CG_DrawSpeedMeter
+=================
+*/
+static float CG_DrawSpeedMeter( float y ) {
+	char		*s;
+	int			w;
+
+	/* speed meter can get in the way of the scoreboard */
+	if ( cg.scoreBoardShowing ) {
+		return y;
+	}
+
+	s = va( "%1.0fups", cg.xyspeed );
+	w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH;
+
+	if ( cg_drawSpeed.integer == 1 ) {
+		/* top right corner of screen */
+		CG_DrawBigString( 635 - w, y + 2, s, 1.0F);
+		return y + BIGCHAR_HEIGHT + 4;
+	} else {
+		/* center of screen (under crosshair) */
+		CG_DrawBigString( 320 - w / 2, 300, s, 1.0F);
+		return y;
+	}
+}
+
+/*
+=================
 CG_DrawTimer
 =================
 */
@@ -1051,6 +1079,9 @@ static void CG_DrawUpperRight( void )
 	}
 	if (cg_drawFPS.integer && (cg.stereoView == STEREO_CENTER || cg.stereoView == STEREO_RIGHT)) {
 		y = CG_DrawFPS( y );
+	}
+	if ( cg_drawSpeed.integer ) {
+		y = CG_DrawSpeedMeter( y );
 	}
 	if ( cg_drawTimer.integer ) {
 		y = CG_DrawTimer( y );

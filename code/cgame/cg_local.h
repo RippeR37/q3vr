@@ -1144,6 +1144,7 @@ extern	vmCvar_t		cg_megagibs;
 extern	vmCvar_t		cg_hitSounds;
 extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
+extern	vmCvar_t		cg_drawSpeed;
 extern	vmCvar_t		cg_drawSnapshot;
 extern	vmCvar_t		cg_draw3dIcons;
 extern	vmCvar_t		cg_debugWeaponAiming;
