@@ -75,7 +75,7 @@ vmCvar_t	g_blood;
 vmCvar_t	g_podiumDist;
 vmCvar_t	g_podiumDrop;
 vmCvar_t	g_allowVote;
-vmCvar_t	g_teamAutoJoin;
+vmCvar_t	g_autoJoin;
 vmCvar_t	g_teamForceBalance;
 vmCvar_t	g_banIPs;
 vmCvar_t	g_filterBan;
@@ -100,6 +100,8 @@ vmCvar_t	g_enableDust;
 vmCvar_t	g_enableBreath;
 vmCvar_t	g_proxMineTimeout;
 #endif
+vmCvar_t	g_rotation;
+vmCvar_t	g_mapname;
 
 static cvarTable_t		gameCvarTable[] = {
 	// don't override the cheat state set by the system
@@ -126,7 +128,7 @@ static cvarTable_t		gameCvarTable[] = {
 
 	{ &g_friendlyFire, "g_friendlyFire", "0", CVAR_ARCHIVE, 0, qtrue  },
 
-	{ &g_teamAutoJoin, "g_teamAutoJoin", "0", CVAR_ARCHIVE  },
+	{ &g_autoJoin, "g_autoJoin", "1", CVAR_ARCHIVE, 0, qfalse },
 	{ &g_teamForceBalance, "g_teamForceBalance", "0", CVAR_ARCHIVE  },
 
 	{ &g_warmup, "g_warmup", "20", CVAR_ARCHIVE, 0, qtrue  },
@@ -186,7 +188,10 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_localTeamPref, "g_localTeamPref", "", 0, 0, qfalse },
 
 	{ &sv_fps, "sv_fps", "40", CVAR_SYSTEMINFO, 0, qfalse },
-	{ &g_unlagged, "g_unlagged", "1", CVAR_SERVERINFO | CVAR_ARCHIVE, 0, qfalse }
+	{ &g_unlagged, "g_unlagged", "1", CVAR_SERVERINFO | CVAR_ARCHIVE, 0, qfalse },
+
+	{ &g_rotation, "g_rotation", "0", CVAR_ARCHIVE, 0, qfalse },
+	{ &g_mapname, "mapname", "", CVAR_SERVERINFO | CVAR_ROM, 0, qfalse }
 
 };
 
@@ -374,6 +379,10 @@ void G_RegisterCvars( void ) {
 	}
 
 	level.warmupModificationCount = g_warmup.modificationCount;
+
+	// force g_doWarmup to 1
+	trap_Cvar_Register( NULL, "g_doWarmup", "1", CVAR_ROM );
+	trap_Cvar_Set( "g_doWarmup", "1" );
 }
 
 /*
@@ -518,6 +527,15 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	}
 
 	G_RemapTeamShaders();
+
+	if ( g_gametype.integer != GT_SINGLE_PLAYER ) {
+		// launch rotation system on first map load
+		if ( trap_Cvar_VariableIntegerValue( SV_ROTATION ) == 0 ) {
+			trap_Cvar_Set( SV_ROTATION, "1" );
+			level.denyMapRestart = qtrue;
+			ParseMapRotation();
+		}
+	}
 
 	trap_SetConfigstring( CS_INTERMISSION, "" );
 
@@ -1084,14 +1102,15 @@ void ExitLevel (void) {
 		return;	
 	}
 
-	trap_Cvar_VariableStringBuffer( "nextmap", nextmap, sizeof(nextmap) );
-	trap_Cvar_VariableStringBuffer( "d1", d1, sizeof(d1) );
+	if ( !ParseMapRotation() ) {
+		char val[ MAX_CVAR_VALUE_STRING ];
 
-	if( !Q_stricmp( nextmap, "map_restart 0" ) && Q_stricmp( d1, "" ) ) {
-		trap_Cvar_Set( "nextmap", "vstr d2" );
-		trap_SendConsoleCommand( EXEC_APPEND, "vstr d1\n" );
-	} else {
-		trap_SendConsoleCommand( EXEC_APPEND, "vstr nextmap\n" );
+		trap_Cvar_VariableStringBuffer( "nextmap", val, sizeof( val ) );
+
+		if ( !val[0] || !Q_stricmpn( val, "map_restart ", 12 ) )
+			G_LoadMap( NULL );
+		else
+			trap_SendConsoleCommand( EXEC_APPEND, "vstr nextmap\n" );
 	}
 
 	level.changemap = NULL;
@@ -1471,6 +1490,131 @@ FUNCTIONS CALLED EVERY FRAME
 ========================================================================
 */
 
+static void ClearBodyQue( void ) {
+	int	i;
+	gentity_t	*ent;
+
+	for ( i = 0 ; i < BODY_QUEUE_SIZE ; i++ ) {
+		ent = level.bodyQue[ i ];
+		if ( ent->r.linked || ent->physicsObject ) {
+			trap_UnlinkEntity( ent );
+			ent->physicsObject = qfalse;
+		}
+	}
+}
+
+
+static void G_WarmupEnd( void )
+{
+	gclient_t *client;
+	gentity_t *ent;
+	int i, t;
+
+	// remove corpses
+	ClearBodyQue();
+
+	// return flags
+	Team_ResetFlags();
+
+	memset( level.teamScores, 0, sizeof( level.teamScores ) );
+
+	level.warmupTime = 0;
+	level.startTime = level.time;
+
+	trap_SetConfigstring( CS_SCORES1, "0" );
+	trap_SetConfigstring( CS_SCORES2, "0" );
+	trap_SetConfigstring( CS_WARMUP, "" );
+	trap_SetConfigstring( CS_LEVEL_START_TIME, va( "%i", level.startTime ) );
+
+	client = level.clients;
+	for ( i = 0; i < level.maxclients; i++, client++ ) {
+
+		if ( client->pers.connected != CON_CONNECTED )
+			continue;
+
+		// reset player awards
+		client->ps.persistant[PERS_IMPRESSIVE_COUNT] = 0;
+		client->ps.persistant[PERS_EXCELLENT_COUNT] = 0;
+		client->ps.persistant[PERS_DEFEND_COUNT] = 0;
+		client->ps.persistant[PERS_ASSIST_COUNT] = 0;
+		client->ps.persistant[PERS_GAUNTLET_FRAG_COUNT] = 0;
+
+		client->ps.persistant[PERS_SCORE] = 0;
+		client->ps.persistant[PERS_CAPTURES] = 0;
+
+		client->ps.persistant[PERS_ATTACKER] = ENTITYNUM_NONE;
+		client->ps.persistant[PERS_ATTACKEE_ARMOR] = 0;
+		client->damage.enemy = client->damage.team = 0;
+
+		client->ps.stats[STAT_CLIENTS_READY] = 0;
+		client->ps.stats[STAT_HOLDABLE_ITEM] = 0;
+
+		memset( &client->ps.powerups, 0, sizeof( client->ps.powerups ) );
+
+		ClientUserinfoChanged( i ); // set max.health etc.
+
+		if ( client->sess.sessionTeam != TEAM_SPECTATOR ) {
+			ClientSpawn( level.gentities + i );
+		}
+
+		trap_SendServerCommand( i, "map_restart" );
+	}
+
+	// respawn items, remove projectiles, etc.
+	ent = level.gentities + MAX_CLIENTS;
+	for ( i = MAX_CLIENTS; i < level.num_entities ; i++, ent++ ) {
+
+		if ( !ent->inuse || ent->freeAfterEvent )
+			continue;
+
+		if ( ent->tag == TAG_DONTSPAWN ) {
+			ent->nextthink = 0;
+			continue;
+		}
+
+		if ( ent->s.eType == ET_ITEM && ent->item ) {
+
+			// already processed in Team_ResetFlags()
+			if ( ent->item->giTag == PW_NEUTRALFLAG || ent->item->giTag == PW_REDFLAG || ent->item->giTag == PW_BLUEFLAG )
+				continue;
+
+			// remove dropped items
+			if ( ent->flags & FL_DROPPED_ITEM ) {
+				ent->nextthink = level.time;
+				continue;
+			}
+
+			// respawn picked up items
+			t = SpawnTime( ent, qtrue );
+			if ( t != 0 ) {
+				// hide items with defined spawn time
+				ent->s.eFlags |= EF_NODRAW;
+				ent->r.svFlags |= SVF_NOCLIENT;
+				ent->r.contents = 0;
+				ent->activator = NULL;
+				ent->think = RespawnItem;
+			} else {
+				t = FRAMETIME;
+				if ( ent->activator ) {
+					ent->activator = NULL;
+					ent->think = RespawnItem;
+				}
+			}
+			if ( ent->random ) {
+				t += (crandom() * ent->random) * 1000;
+				if ( t < FRAMETIME ) {
+					t = FRAMETIME;
+				}
+			}
+			ent->nextthink = level.time + t;
+
+		} else if ( ent->s.eType == ET_MISSILE ) {
+			// remove all launched missiles
+			G_FreeEntity( ent );
+		}
+	}
+}
+
 
 /*
 =============
@@ -1516,9 +1660,8 @@ void CheckTournament( void ) {
 		// if all players have arrived, start the countdown
 		if ( level.warmupTime < 0 ) {
 			if ( level.numPlayingClients == 2 ) {
-				// fudge by -1 to account for extra delays
-				if ( g_warmup.integer > 1 ) {
-					level.warmupTime = level.time + ( g_warmup.integer - 1 ) * 1000;
+				if ( g_warmup.integer > 0 ) {
+					level.warmupTime = level.time + g_warmup.integer * 1000;
 				} else {
 					level.warmupTime = 0;
 				}
@@ -1530,10 +1673,7 @@ void CheckTournament( void ) {
 
 		// if the warmup time has counted down, restart
 		if ( level.time > level.warmupTime ) {
-			level.warmupTime += 10000;
-			trap_Cvar_Set( "g_restarted", "1" );
-			trap_SendConsoleCommand( EXEC_APPEND, "map_restart 0\n" );
-			level.restarted = qtrue;
+			G_WarmupEnd();
 			return;
 		}
 	} else if ( g_gametype.integer != GT_SINGLE_PLAYER && level.warmupTime != 0 ) {
@@ -1572,9 +1712,8 @@ void CheckTournament( void ) {
 
 		// if all players have arrived, start the countdown
 		if ( level.warmupTime < 0 ) {
-			// fudge by -1 to account for extra delays
-			if ( g_warmup.integer > 1 ) {
-				level.warmupTime = level.time + ( g_warmup.integer - 1 ) * 1000;
+			if ( g_warmup.integer > 0 ) {
+				level.warmupTime = level.time + g_warmup.integer * 1000;
 			} else {
 				level.warmupTime = 0;
 			}
@@ -1585,10 +1724,7 @@ void CheckTournament( void ) {
 
 		// if the warmup time has counted down, restart
 		if ( level.time > level.warmupTime ) {
-			level.warmupTime += 10000;
-			trap_Cvar_Set( "g_restarted", "1" );
-			trap_SendConsoleCommand( EXEC_APPEND, "map_restart 0\n" );
-			level.restarted = qtrue;
+			G_WarmupEnd();
 			return;
 		}
 	}

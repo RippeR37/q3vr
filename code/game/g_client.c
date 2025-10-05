@@ -950,7 +950,8 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 
 	// read or initialize the session data
 	if ( firstTime || level.newSession ) {
-		G_InitSessionData( client, userinfo );
+		value = Info_ValueForKey( userinfo, "team" );
+		G_InitSessionData( client, value, isBot );
 	}
 	G_ReadSessionData( client );
 
