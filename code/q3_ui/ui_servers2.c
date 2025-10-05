@@ -32,16 +32,24 @@ MULTIPLAYER MENU (SERVER BROWSER)
 #include "ui_local.h"
 
 
-#define MAX_GLOBALSERVERS		128
+#define REFRESH_DELAY			10	  // in ms
+#define MAX_RESPONSE_TIME		10000 // in ms
+#define MAX_GLOBALSERVERS		4096
+#define MAX_PINGLISTSIZE		256   // MAX_PINGREQUESTS*8
 #define MAX_PINGREQUESTS		32
 #define MAX_ADDRESSLENGTH		64
-#define MAX_HOSTNAMELENGTH		22
-#define MAX_MAPNAMELENGTH		16
-#define MAX_LISTBOXITEMS		128
-#define MAX_LOCALSERVERS		128
+#define MAX_HOSTNAMELENGTH		26
+#define MAX_MAPNAMELENGTH		11
+#define MAX_GAMENAMELENGTH		8
+#define MAX_LISTBOXITEMS		512
+#define MAX_LOCALSERVERS		512
 #define MAX_STATUSLENGTH		64
 #define MAX_LEAGUELENGTH		28
-#define MAX_LISTBOXWIDTH		68
+#define MAX_LISTBOXWIDTH		MAX_HOSTNAMELENGTH + 1 + MAX_MAPNAMELENGTH + 1 + 5 /*players/max*/ + 1 + MAX_GAMENAMELENGTH + 1 + 3 /*netname*/ + 1 + 3 /*ping*/
+
+#define MAX_LISTBOXWIDTH_BUF	MAX_LISTBOXWIDTH + 2 /*color ping */ + 1 /*zero termination*/
+
+#define FILTER_CAPTION_CHARS	13
 
 #define ART_BACK0				"menu/art/back_0"
 #define ART_BACK1				"menu/art/back_1"
@@ -80,6 +88,7 @@ MULTIPLAYER MENU (SERVER BROWSER)
 #define ID_PUNKBUSTER 24
 #define ID_EXCLUDE_BOTS		25
 #define ID_SAVE			26
+#define ID_FILTER		27
 
 #define GR_LOGO				30
 #define GR_LETTERS			31
@@ -204,7 +213,7 @@ typedef struct servernode_s {
 } servernode_t; 
 
 typedef struct {
-	char			buff[MAX_LISTBOXWIDTH];
+	char			buff[MAX_LISTBOXWIDTH_BUF];
 	servernode_t*	servernode;
 } table_t;
 
@@ -236,12 +245,14 @@ typedef struct {
 	menubitmap_s		create;
 	menubitmap_s		go;
 
-	pinglist_t			pinglist[MAX_PINGREQUESTS];
+	menufield_s			filter;
+
+	pinglist_t			pinglist[MAX_PINGLISTSIZE];
 	table_t				table[MAX_LISTBOXITEMS];
 	char*				items[MAX_LISTBOXITEMS];
 	int					numqueriedservers;
 	int					*numservers;
-	servernode_t		*serverlist;	
+	servernode_t		*serverlist;
 	int					currentping;
 	qboolean			refreshservers;
 	int					nextpingtime;
@@ -249,6 +260,8 @@ typedef struct {
 	int					refreshtime;
 	char				favoriteaddresses[MAX_FAVORITESERVERS][MAX_ADDRESSLENGTH];
 	int					numfavoriteaddresses;
+
+	char				serverfilter[ MAX_EDIT_LINE ];
 
 	menulist_s		punkbuster;
 	menubitmap_s	pblogo;
@@ -269,6 +282,76 @@ static int				g_sortkey;
 static int				g_emptyservers;
 static int				g_fullservers;
 static int				g_excludebots;
+
+static void ArenaServers_UpdateList( void );
+static void ArenaServers_UpdatePicture( void );
+
+/*
+=================
+ArenaServers_DrawFilter
+=================
+*/
+static void ArenaServers_DrawFilter( void *self ) {
+	menufield_s		*f;
+	qboolean		focus;
+	int				style;
+	char			*txt;
+	char			c;
+	float			*color;
+	int				basex, x, y;
+
+	f = (menufield_s*)self;
+	basex = f->generic.x;
+	y = f->generic.y;
+	focus = (f->generic.parent->cursor == f->generic.menuPosition);
+
+	style = UI_LEFT|UI_SMALLFONT;
+	color = text_color_normal;
+
+	if( focus ) {
+		style |= UI_PULSE;
+		color = text_color_highlight;
+	}
+
+	UI_DrawString( basex, y, "Filter Name:", style, color );
+
+	basex += FILTER_CAPTION_CHARS * SMALLCHAR_WIDTH;
+	//y += PROP_HEIGHT;
+	txt = f->field.buffer;
+	x = basex;
+
+	if ( strcmp( g_arenaservers.serverfilter, f->field.buffer) ) {
+		strcpy( g_arenaservers.serverfilter, f->field.buffer );
+		ArenaServers_UpdateList();
+		ArenaServers_UpdatePicture();
+	}
+
+	// mark input by color depending from filter result
+	if ( !g_arenaservers.list.numitems && f->field.buffer[0] && *g_arenaservers.numservers )
+		color = g_color_table[ ColorIndex( COLOR_RED ) ];
+	else
+		color = g_color_table[ ColorIndex( COLOR_WHITE ) ];
+
+	while ( (c = *txt) != '\0' ) {
+		UI_DrawChar( x, y, c, style, color );
+		x += SMALLCHAR_WIDTH;
+		txt++;
+	}
+
+	// draw cursor if we have focus
+	if ( focus ) {
+		if ( trap_Key_GetOverstrikeMode() ) {
+			c = 11;
+		} else {
+			c = 10;
+		}
+
+		style &= ~UI_PULSE;
+		style |= UI_BLINK;
+
+		UI_DrawChar( basex + f->field.cursor * SMALLCHAR_WIDTH, y, c, style, color );
+	}
+}
 
 
 /*
@@ -442,7 +525,7 @@ static void ArenaServers_UpdatePicture( void ) {
 		servernodeptr = g_arenaservers.table[g_arenaservers.list.curvalue].servernode;
 		Com_sprintf( picname, sizeof(picname), "levelshots/%s.tga", servernodeptr->mapname );
 		g_arenaservers.mappic.generic.name = picname;
-	
+
 	}
 
 	// force shader update during draw
@@ -452,10 +535,11 @@ static void ArenaServers_UpdatePicture( void ) {
 
 /*
 =================
-ArenaServers_UpdateMenu
+ArenaServers_UpdateList
 =================
 */
-static void ArenaServers_UpdateMenu( void ) {
+static void ArenaServers_UpdateList( void )
+{
 	int				i;
 	int				j;
 	int				count;
@@ -464,6 +548,105 @@ static void ArenaServers_UpdateMenu( void ) {
 	table_t*		tableptr;
 	char			*pingColor;
 
+	// build list box strings - apply culling filters
+	servernodeptr = g_arenaservers.serverlist;
+	count         = *g_arenaservers.numservers;
+	for( i = 0, j = 0; i < count; i++, servernodeptr++ ) {
+		tableptr = &g_arenaservers.table[j];
+		tableptr->servernode = servernodeptr;
+		buff = tableptr->buff;
+
+		// can only cull valid results
+		if( !g_emptyservers && !(g_excludebots ? servernodeptr->g_humanplayers : servernodeptr->numclients)) {
+			continue;
+		}
+
+		if( !g_fullservers && ( servernodeptr->numclients == servernodeptr->maxclients ) ) {
+			continue;
+		}
+
+		if ( g_arenaservers.serverfilter[0] && !Q_stristr( servernodeptr->hostname, g_arenaservers.serverfilter ) ) {
+			continue;
+		}
+
+		switch( g_gametype ) {
+		case GAMES_ALL:
+			break;
+
+		case GAMES_FFA:
+			if( servernodeptr->gametype != GT_FFA ) {
+				continue;
+			}
+			break;
+
+		case GAMES_TEAMPLAY:
+			if( servernodeptr->gametype != GT_TEAM ) {
+				continue;
+			}
+			break;
+
+		case GAMES_TOURNEY:
+			if( servernodeptr->gametype != GT_TOURNAMENT ) {
+				continue;
+			}
+			break;
+
+		case GAMES_CTF:
+			if( servernodeptr->gametype != GT_CTF ) {
+				continue;
+			}
+			break;
+		}
+
+		if( servernodeptr->pingtime < servernodeptr->minPing ) {
+			pingColor = S_COLOR_BLUE;
+		}
+		else if( servernodeptr->maxPing && servernodeptr->pingtime > servernodeptr->maxPing ) {
+			pingColor = S_COLOR_BLUE;
+		}
+		else if( servernodeptr->pingtime < 200 ) {
+			pingColor = S_COLOR_GREEN;
+		}
+		else if( servernodeptr->pingtime < 400 ) {
+			pingColor = S_COLOR_YELLOW;
+		}
+		else {
+			pingColor = S_COLOR_RED;
+		}
+
+		if (uis.demoversion && !servernodeptr->demo)
+		{
+			Com_sprintf( buff, MAX_LISTBOXWIDTH_BUF, S_COLOR_MID_GREY "%-*.*s %-*.*s %2d/%2d %-*.*s %3s %s%3d",
+										MAX_HOSTNAMELENGTH, MAX_HOSTNAMELENGTH, servernodeptr->hostname,
+										MAX_MAPNAMELENGTH, MAX_MAPNAMELENGTH, servernodeptr->mapname,
+										(g_excludebots ? servernodeptr->g_humanplayers : servernodeptr->numclients), servernodeptr->maxclients,
+										MAX_GAMENAMELENGTH, MAX_GAMENAMELENGTH, servernodeptr->gamename,
+										netnames[servernodeptr->nettype], pingColor, servernodeptr->pingtime );
+		}
+		else
+		{
+			Com_sprintf( buff, MAX_LISTBOXWIDTH_BUF, "%-*.*s %-*.*s %2d/%2d %-*.*s %3s %s%3d",
+										MAX_HOSTNAMELENGTH, MAX_HOSTNAMELENGTH, servernodeptr->hostname,
+										MAX_MAPNAMELENGTH, MAX_MAPNAMELENGTH, servernodeptr->mapname,
+										(g_excludebots ? servernodeptr->g_humanplayers : servernodeptr->numclients), servernodeptr->maxclients,
+										MAX_GAMENAMELENGTH, MAX_GAMENAMELENGTH, servernodeptr->gamename,
+										netnames[servernodeptr->nettype], pingColor, servernodeptr->pingtime );
+		}
+		j++;
+	}
+
+	g_arenaservers.list.numitems = j;
+	g_arenaservers.list.curvalue = 0;
+	g_arenaservers.list.top      = 0;
+}
+
+
+/*
+=================
+ArenaServers_UpdateMenu
+=================
+*/
+static void ArenaServers_UpdateMenu( void ) {
 	if( g_arenaservers.numqueriedservers > 0 ) {
 		// servers found
 		if( g_arenaservers.refreshservers && ( g_arenaservers.currentping <= g_arenaservers.numqueriedservers ) ) {
@@ -561,88 +744,7 @@ static void ArenaServers_UpdateMenu( void ) {
 		g_arenaservers.go.generic.flags			|= QMF_GRAYED;
 	}
 
-	// build list box strings - apply culling filters
-	servernodeptr = g_arenaservers.serverlist;
-	count         = *g_arenaservers.numservers;
-	for( i = 0, j = 0; i < count; i++, servernodeptr++ ) {
-		tableptr = &g_arenaservers.table[j];
-		tableptr->servernode = servernodeptr;
-		buff = tableptr->buff;
-
-		// can only cull valid results
-		if( !g_emptyservers && !(g_excludebots ? servernodeptr->g_humanplayers : servernodeptr->numclients)) {
-			continue;
-		}
-
-		if( !g_fullservers && ( servernodeptr->numclients == servernodeptr->maxclients ) ) {
-			continue;
-		}
-
-		switch( g_gametype ) {
-		case GAMES_ALL:
-			break;
-
-		case GAMES_FFA:
-			if( servernodeptr->gametype != GT_FFA ) {
-				continue;
-			}
-			break;
-
-		case GAMES_TEAMPLAY:
-			if( servernodeptr->gametype != GT_TEAM ) {
-				continue;
-			}
-			break;
-
-		case GAMES_TOURNEY:
-			if( servernodeptr->gametype != GT_TOURNAMENT ) {
-				continue;
-			}
-			break;
-
-		case GAMES_CTF:
-			if( servernodeptr->gametype != GT_CTF ) {
-				continue;
-			}
-			break;
-		}
-
-		if( servernodeptr->pingtime < servernodeptr->minPing ) {
-			pingColor = S_COLOR_BLUE;
-		}
-		else if( servernodeptr->maxPing && servernodeptr->pingtime > servernodeptr->maxPing ) {
-			pingColor = S_COLOR_BLUE;
-		}
-		else if( servernodeptr->pingtime < 200 ) {
-			pingColor = S_COLOR_GREEN;
-		}
-		else if( servernodeptr->pingtime < 400 ) {
-			pingColor = S_COLOR_YELLOW;
-		}
-		else {
-			pingColor = S_COLOR_RED;
-		}
-
-		if (uis.demoversion && !servernodeptr->demo)
-		{
-			Com_sprintf( buff, MAX_LISTBOXWIDTH, S_COLOR_MID_GREY "%-20.20s %-12.12s %2d/%2d %-8.8s %4s%s%3d " S_COLOR_YELLOW "%s",
-										servernodeptr->hostname, servernodeptr->mapname, (g_excludebots ? servernodeptr->g_humanplayers : servernodeptr->numclients),
-										servernodeptr->maxclients, servernodeptr->gamename,
-										netnames[servernodeptr->nettype], pingColor, servernodeptr->pingtime, servernodeptr->bPB ? "Yes" : "No" );
-		}
-		else
-		{
-			Com_sprintf( buff, MAX_LISTBOXWIDTH, "%-20.20s %-12.12s %2d/%2d %-8.8s %4s%s%3d " S_COLOR_YELLOW "%s",
-										servernodeptr->hostname, servernodeptr->mapname, (g_excludebots ? servernodeptr->g_humanplayers : servernodeptr->numclients),
-										servernodeptr->maxclients, servernodeptr->gamename,
-										netnames[servernodeptr->nettype], pingColor, servernodeptr->pingtime, servernodeptr->bPB ? "Yes" : "No" );
-		}
-		j++;
-	}
-
-	g_arenaservers.list.numitems = j;
-	g_arenaservers.list.curvalue = 0;
-	g_arenaservers.list.top      = 0;
+	ArenaServers_UpdateList();
 
 	// update picture
 	ArenaServers_UpdatePicture();
@@ -746,6 +848,43 @@ static void ArenaServers_Remove( void )
 }
 
 
+static qboolean UI_CleanStr( char *dst, int size, const char *src )
+{
+	char	*max = dst + size - 1;
+	int		c;
+	qboolean filtered = qfalse;
+
+	while ( (c = *src) != '\0' ) {
+		if ( c <= ' ' ) {
+			filtered = qtrue;
+			src+=1; continue;
+		}
+		if ( Q_IsColorString( src ) && *(src+2) <= ' ' ) {
+			filtered = qtrue;
+			src+=2; continue;
+		}
+		break;
+	}
+
+	while ( (c = *src) != '\0' ) {
+		if ( Q_IsColorString( src ) ) {
+			filtered = qtrue;
+			src += 2;
+			continue;
+		} else if ( c >= ' ' && c <= '~' ) {
+			*dst = c; dst++;
+			if ( dst >= max )
+				break;
+		}
+		src++;
+	}
+
+	*dst = '\0';
+
+	return filtered;
+}
+
+
 /*
 =================
 ArenaServers_Insert
@@ -775,9 +914,11 @@ static void ArenaServers_Insert( char* adrstr, char* info, int pingtime )
 
 	Q_strncpyz( servernodeptr->adrstr, adrstr, MAX_ADDRESSLENGTH );
 
-	Q_strncpyz( servernodeptr->hostname, Info_ValueForKey( info, "hostname"), MAX_HOSTNAMELENGTH );
-	Q_CleanStr( servernodeptr->hostname );
-	Q_strupr( servernodeptr->hostname );
+	if ( UI_CleanStr( servernodeptr->hostname, sizeof( servernodeptr->hostname ), Info_ValueForKey( info, "hostname" ) ) ) {
+		// some servers abusing color sequences - lets filter them until completely cleaned
+		while ( UI_CleanStr( servernodeptr->hostname, sizeof( servernodeptr->hostname ), servernodeptr->hostname ) )
+			;
+	}
 
 	Q_strncpyz( servernodeptr->mapname, Info_ValueForKey( info, "mapname"), MAX_MAPNAMELENGTH );
 	Q_CleanStr( servernodeptr->mapname );
@@ -976,8 +1117,8 @@ static void ArenaServers_DoRefresh( void )
 		return;
 	}
 
-	// trigger at 10Hz intervals
-	g_arenaservers.nextpingtime = uis.realtime + 10;
+	// trigger after REFRESH_DELAY
+	g_arenaservers.nextpingtime = uis.realtime + REFRESH_DELAY;
 
 	// process ping results
 	maxPing = ArenaServers_MaxPing();
@@ -1119,8 +1260,8 @@ static void ArenaServers_StartRefresh( void )
 	*g_arenaservers.numservers       = 0;
 	g_arenaservers.numqueriedservers = 0;
 
-	// allow max 5 seconds for responses
-	g_arenaservers.refreshtime = uis.realtime + 5000;
+	// allow max MAX_RESPONSE_TIME for responses
+	g_arenaservers.refreshtime = uis.realtime + MAX_RESPONSE_TIME;
 
 	// place menu in zeroed state
 	ArenaServers_UpdateMenu();
@@ -1470,6 +1611,18 @@ static sfxHandle_t ArenaServers_MenuKey( int key ) {
 		ArenaServers_SaveChanges();
 	}
 
+	if ( key == '/' ) {
+		menucommon_s *item = Menu_ItemAtCursor( &g_arenaservers.menu );
+		if ( item == (menucommon_s *)&g_arenaservers.list ) {
+			// User pressed '/' while on the server list - switch to filter field
+			Menu_SetCursorToItem( (menuframework_s *)&g_arenaservers, &g_arenaservers.filter );
+			return menu_in_sound;
+		} else if ( item != (menucommon_s *)&g_arenaservers.filter ) {
+			// User pressed '/' on some other control - consume it
+			return menu_buzz_sound;
+		}
+		// else: user is already on filter field, let it pass through to default handler
+	}
 
 	return Menu_DefaultKey( &g_arenaservers.menu, key );
 }
@@ -1560,7 +1713,20 @@ static void ArenaServers_MenuInit( void ) {
 	g_arenaservers.excludebots.generic.x		= 320;
 	g_arenaservers.excludebots.generic.y		= y;
 
-	y += 2 * SMALLCHAR_HEIGHT;
+	g_arenaservers.filter.generic.type			= MTYPE_FIELD;
+	g_arenaservers.filter.generic.flags			= QMF_NODEFAULTINIT;
+	g_arenaservers.filter.generic.ownerdraw		= ArenaServers_DrawFilter;
+	g_arenaservers.filter.generic.id			= ID_FILTER;
+	g_arenaservers.filter.field.widthInChars	= 36;
+	g_arenaservers.filter.field.maxchars		= 36;
+	g_arenaservers.filter.generic.x				= 216;
+	g_arenaservers.filter.generic.y				= y + SMALLCHAR_HEIGHT;
+	g_arenaservers.filter.generic.left			= g_arenaservers.filter.generic.x;
+	g_arenaservers.filter.generic.right			= g_arenaservers.filter.generic.x + (g_arenaservers.filter.field.widthInChars + FILTER_CAPTION_CHARS )* SMALLCHAR_WIDTH + 1;
+	g_arenaservers.filter.generic.top			= g_arenaservers.filter.generic.y;
+	g_arenaservers.filter.generic.bottom		= g_arenaservers.filter.generic.y + SMALLCHAR_HEIGHT;
+
+	y += 3 * SMALLCHAR_HEIGHT - 10;
 	g_arenaservers.list.generic.type			= MTYPE_SCROLLLIST;
 	g_arenaservers.list.generic.flags			= QMF_HIGHLIGHT_IF_FOCUS;
 	g_arenaservers.list.generic.id				= ID_LIST;
@@ -1731,6 +1897,8 @@ static void ArenaServers_MenuInit( void ) {
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.showfull);
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.showempty );
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.excludebots );
+
+	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.filter );
 
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.mappic );
 	Menu_AddItem( &g_arenaservers.menu, (void*) &g_arenaservers.status );
