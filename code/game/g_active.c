@@ -775,7 +775,12 @@ void ClientThink_real( gentity_t *ent ) {
 	if ( ucmd->serverTime < level.time - 1000 ) {
 		ucmd->serverTime = level.time - 1000;
 //		G_Printf("serverTime >>>>>\n" );
-	} 
+	}
+
+	// unlagged
+	client->frameOffset = trap_Milliseconds() - level.frameStartTime;
+	client->lastCmdTime = ucmd->serverTime;
+	client->lastUpdateFrame = level.framenum;
 
 	msec = ucmd->serverTime - client->ps.commandTime;
 	// following others may result in bad times, but we still want
@@ -1110,6 +1115,9 @@ while a slow client may have multiple ClientEndFrame between ClientThink.
 void ClientEndFrame( gentity_t *ent ) {
 	int			i;
 
+	// unlagged
+	int			frames;
+
 	if ( ent->client->sess.sessionTeam == TEAM_SPECTATOR ) {
 		SpectatorClientEndFrame( ent );
 		return;
@@ -1172,6 +1180,16 @@ void ClientEndFrame( gentity_t *ent ) {
 
 	ent->client->ps.stats[STAT_HEALTH] = ent->health;	// FIXME: get rid of ent->health...
 
+	// unlagged
+	frames = level.framenum - ent->client->lastUpdateFrame - 1;
+	if ( frames > 0 && g_smoothClients.integer ) {
+		G_PredictPlayerMove( ent, (float)frames / sv_fps.value );
+		SnapVector( ent->s.pos.trBase );
+	}
+
+	// unlagged
+	G_StoreHistory( ent );
+
 	G_SetClientSound (ent);
 
 	// set the latest infor
@@ -1187,5 +1205,3 @@ void ClientEndFrame( gentity_t *ent ) {
 //	i = trap_AAS_PointReachabilityAreaIndex( ent->client->ps.origin );
 //	ent->client->areabits[i >> 3] |= 1 << (i & 7);
 }
-
-

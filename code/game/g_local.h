@@ -248,6 +248,14 @@ typedef struct {
 	qboolean	teamInfo;			// send team overlay updates?
 } clientPersistant_t;
 
+// unlagged
+#define NUM_CLIENT_HISTORY 18
+
+typedef struct {
+	vec3_t		mins, maxs;
+	vec3_t		currentOrigin;
+	int			leveltime;
+} clientHistory_t;
 
 // this structure is cleared on each ClientSpawn(),
 // except for 'client->pers' and 'client->sess'
@@ -317,6 +325,14 @@ struct gclient_s {
 #endif
 
 	char		*areabits;
+
+	// unlagged
+	clientHistory_t	history[ NUM_CLIENT_HISTORY ];
+	clientHistory_t	saved;
+
+	int			historyHead;
+	int			frameOffset;
+	int			lastUpdateFrame;
 };
 
 
@@ -407,6 +423,9 @@ typedef struct {
 #ifdef MISSIONPACK
 	int			portalSequence;
 #endif
+
+	// unlagged
+	int			frameStartTime;
 } level_locals_t;
 
 
@@ -668,6 +687,18 @@ void Svcmd_AddBot_f( void );
 void Svcmd_BotList_f( void );
 void BotInterbreedEndMatch( void );
 
+//
+// g_unlagged.c
+//
+void G_ResetHistory( gentity_t *ent );
+void G_StoreHistory( gentity_t *ent );
+void G_TimeShiftAllClients( int time, gentity_t *skip );
+void G_UnTimeShiftAllClients( gentity_t *skip );
+void G_DoTimeShiftFor( gentity_t *ent );
+void G_UndoTimeShiftFor( gentity_t *ent );
+void G_UnTimeShiftClient( gentity_t *client );
+void G_PredictPlayerMove( gentity_t *ent, float frametime );
+
 // ai_main.c
 #define MAX_FILEPATH			144
 
@@ -700,6 +731,8 @@ extern	vmCvar_t	g_cheats;
 extern	vmCvar_t	g_maxclients;			// allow this many total, including spectators
 extern	vmCvar_t	g_maxGameClients;		// allow this many active
 extern	vmCvar_t	g_restarted;
+extern	vmCvar_t	sv_fps;
+extern	vmCvar_t	g_unlagged;
 
 extern	vmCvar_t	g_dmflags;
 extern	vmCvar_t	g_fraglimit;

@@ -533,6 +533,8 @@ gentity_t *fire_plasma (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.weapon = WP_PLASMAGUN;
 	bolt->r.ownerNum = self->s.number;
 	bolt->parent = self;
+	// unlagged
+	bolt->s.otherEntityNum = self->s.number;
 	bolt->damage = 20;
 	bolt->splashDamage = 15;
 	bolt->splashRadius = 20;
@@ -575,6 +577,8 @@ gentity_t *fire_grenade (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.eFlags = EF_BOUNCE_HALF;
 	bolt->r.ownerNum = self->s.number;
 	bolt->parent = self;
+	// unlagged
+	bolt->s.otherEntityNum = self->s.number;
 	bolt->damage = 100;
 	bolt->splashDamage = 100;
 	bolt->splashRadius = 150;
@@ -616,6 +620,8 @@ gentity_t *fire_bfg (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.weapon = WP_BFG;
 	bolt->r.ownerNum = self->s.number;
 	bolt->parent = self;
+	// unlagged
+	bolt->s.otherEntityNum = self->s.number;
 	bolt->damage = 100;
 	bolt->splashDamage = 100;
 	bolt->splashRadius = 120;
@@ -656,6 +662,8 @@ gentity_t *fire_rocket (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.weapon = WP_ROCKET_LAUNCHER;
 	bolt->r.ownerNum = self->s.number;
 	bolt->parent = self;
+	// unlagged
+	bolt->s.otherEntityNum = self->s.number;
 	bolt->damage = 100;
 	bolt->splashDamage = 100;
 	bolt->splashRadius = 120;

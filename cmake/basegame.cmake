@@ -64,6 +64,7 @@ set(GAME_SOURCES
     ${SOURCE_DIR}/game/g_target.c
     ${SOURCE_DIR}/game/g_team.c
     ${SOURCE_DIR}/game/g_trigger.c
+    ${SOURCE_DIR}/game/g_unlagged.c
     ${SOURCE_DIR}/game/g_utils.c
     ${SOURCE_DIR}/game/g_weapon.c
 )

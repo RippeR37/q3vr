@@ -1238,6 +1238,10 @@ void ClientSpawn(gentity_t *ent) {
 		ClientEndFrame( ent );
 	}
 
+	// unlagged
+	G_ResetHistory( ent );
+	client->saved.leveltime = 0;
+
 	// clear entity state values
 	BG_PlayerStateToEntityState( &client->ps, &ent->s, qtrue );
 }
