@@ -44,14 +44,15 @@ CONTROLS OPTIONS MENU
 #define ID_TWOHANDED			129
 #define ID_DIRECTIONMODE		130
 #define ID_SNAPTURN				131
-#define ID_RIGHTHANDED			132
-#define ID_WEAPONPITCH			133
-#define ID_WEAPONSELECTORMODE	134
-#define ID_UTURN				135
-#define ID_CONTROLSCHEMA		136
-#define ID_SWITCHTHUMBSTICKS	137
+#define ID_SENSITIVITY			132
+#define ID_RIGHTHANDED			133
+#define ID_WEAPONPITCH			134
+#define ID_WEAPONSELECTORMODE	135
+#define ID_UTURN				136
+#define ID_CONTROLSCHEMA		137
+#define ID_SWITCHTHUMBSTICKS	138
 
-#define ID_BACK					138
+#define ID_BACK					139
 
 #define	NUM_DIRECTIONMODE		2
 
@@ -68,6 +69,7 @@ typedef struct {
 	menulist_s			twohanded;
 	menulist_s          directionmode;
 	menulist_s          snapturn;
+	menuslider_s		sensitivity;
 	menuradiobutton_s   uturn;
 	menuradiobutton_s	righthanded;
 	menuslider_s 		weaponpitch;
@@ -87,6 +89,7 @@ static void Controls3_SetMenuItems( void ) {
 	s_controls3.twohanded.curvalue		    = trap_Cvar_VariableValue( "vr_twoHandedWeapons" );
 	s_controls3.directionmode.curvalue		= (int)trap_Cvar_VariableValue( "vr_directionMode" )  % NUM_DIRECTIONMODE;
 	s_controls3.snapturn.curvalue			= (int)trap_Cvar_VariableValue( "vr_snapturn" ) / 45;
+	s_controls3.sensitivity.curvalue  = UI_ClampCvar( 50, 150, trap_Cvar_VariableValue( "sensitivity" ) );
 	s_controls3.uturn.curvalue				= trap_Cvar_VariableValue( "vr_uturn" ) != 0;
 	s_controls3.righthanded.curvalue		= trap_Cvar_VariableValue( "vr_righthanded" ) != 0;
 	s_controls3.weaponpitch.curvalue		= trap_Cvar_VariableValue( "vr_weaponPitch" )  + 25;
@@ -120,6 +123,10 @@ static void Controls3_MenuEvent( void* ptr, int notification ) {
 
 		case ID_SNAPTURN:
 			trap_Cvar_SetValue( "vr_snapturn", s_controls3.snapturn.curvalue * 45 );
+			break;
+
+		case ID_SENSITIVITY:
+			trap_Cvar_SetValue( "sensitivity", s_controls3.sensitivity.curvalue );
 			break;
 
 		case ID_RIGHTHANDED:
@@ -233,6 +240,25 @@ static void Controls3_MenuEvent( void* ptr, int notification ) {
 			UI_PopMenu();
 			break;
 	}
+
+	if ((int)trap_Cvar_VariableValue( "vr_snapturn" ) == 0)
+	{
+		s_controls3.sensitivity.generic.flags &= ~QMF_GRAYED;
+	}
+	else
+	{
+		s_controls3.sensitivity.generic.flags |= QMF_GRAYED;
+	}
+}
+
+static void Controls3_SensitivityStatusBar( void *self )
+{
+	const int currentValue = (int)UI_ClampCvar( 25, 150, trap_Cvar_VariableValue( "sensitivity" ) );
+
+	char buf[128] = { 0 };
+	Com_sprintf( buf, sizeof(buf), "Current value: %d (default: 100)", currentValue);
+
+	UI_DrawString(SCREEN_WIDTH * 0.50, SCREEN_HEIGHT * 0.75, buf, UI_SMALLFONT|UI_CENTER, colorWhite );
 }
 
 static void Controls3_MenuInit( void ) {
@@ -358,6 +384,23 @@ static void Controls3_MenuInit( void ) {
 	s_controls3.snapturn.numitems				= 3;
 
 	y += BIGCHAR_HEIGHT+2;
+	s_controls3.sensitivity.generic.type       = MTYPE_SLIDER;
+	s_controls3.sensitivity.generic.x          = VR_X_POS;
+	s_controls3.sensitivity.generic.y          = y;
+	s_controls3.sensitivity.generic.flags      = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_controls3.sensitivity.generic.name       = "Smooth turn speed:";
+	s_controls3.sensitivity.generic.id         = ID_SENSITIVITY;
+	s_controls3.sensitivity.generic.callback   = Controls3_MenuEvent;
+	s_controls3.sensitivity.minvalue           = 50;
+	s_controls3.sensitivity.maxvalue           = 150;
+	s_controls3.sensitivity.generic.statusbar  = Controls3_SensitivityStatusBar;
+
+	if ((int)trap_Cvar_VariableValue( "vr_snapturn" ) > 0)
+	{
+		s_controls3.sensitivity.generic.flags |= QMF_GRAYED;
+	}
+
+	y += BIGCHAR_HEIGHT+2;
 	s_controls3.uturn.generic.type			= MTYPE_RADIOBUTTON;
 	s_controls3.uturn.generic.flags			= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
 	s_controls3.uturn.generic.x				= VR_X_POS;
@@ -437,6 +480,7 @@ static void Controls3_MenuInit( void ) {
 	Menu_AddItem( &s_controls3.menu, &s_controls3.twohanded );
 	Menu_AddItem( &s_controls3.menu, &s_controls3.directionmode );
 	Menu_AddItem( &s_controls3.menu, &s_controls3.snapturn );
+	Menu_AddItem( &s_controls3.menu, &s_controls3.sensitivity );
 	Menu_AddItem( &s_controls3.menu, &s_controls3.uturn );
 	Menu_AddItem( &s_controls3.menu, &s_controls3.righthanded );
 	Menu_AddItem( &s_controls3.menu, &s_controls3.weaponpitch );
