@@ -113,15 +113,31 @@ foreach(LIBRARY IN LISTS CLIENT_DEPLOY_LIBRARIES)
 
     install(FILES ${LIBRARY} DESTINATION
         # install() requires a relative path hence:
-        $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>,${CMAKE_BINARY_DIR}/$<CONFIG>>)
+        $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>,${CMAKE_BINARY_DIR}/$<CONFIG>>
+				COMPONENT game_engine)
 endforeach()
 
 # Copy assets to output dir
 add_custom_command(TARGET ${CLIENT_BINARY} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
-    "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/")
+    "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+		"${CMAKE_SOURCE_DIR}/assets/third_party/point_release_v1.32"
+		"$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+		"${CMAKE_SOURCE_DIR}/assets/third_party/demo"
+		"$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/"
+)
 
 install(FILES "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3" DESTINATION
-    # install() requires a relative path hence:
-    $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>)
+    $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
+		COMPONENT game_engine)
+install(
+    DIRECTORY "${CMAKE_SOURCE_DIR}/assets/third_party/point_release_v1.32/" DESTINATION
+		$<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
+		COMPONENT point_release_patch)
+install(
+    DIRECTORY "${CMAKE_SOURCE_DIR}/assets/third_party/demo/" DESTINATION
+		$<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
+		COMPONENT q3a_demo)

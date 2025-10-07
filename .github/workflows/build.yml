@@ -29,12 +29,22 @@ jobs:
         echo "VERSION=$(cat build/version.txt)" >> $GITHUB_ENV
         cpack --config build/CPackConfig.cmake -B build/installer --verbose
         mv build/installer/*.deb build/Release
-    - name: Upload
+    - name: Upload portable
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ github.event.repository.name }}-linux-${{ env.VERSION }}
+        name: ${{ github.event.repository.name }}-linux-${{ env.VERSION }}-portable
         path: |
-          build/Release/**/*
+          build/Release/**/*.so
+          build/Release/**/q3vr
+          build/Release/**/*.qvm
+          build/Release/**/*.pk3
+          build/Release/**/*.txt
+    - name: Upload installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.repository.name }}-linux-${{ env.VERSION }}-installer
+        path: |
+          build/Release/**/q3vr-*-installer.deb
   windows-msvc:
     name: Windows MSVC
     runs-on: windows-2022
@@ -62,7 +72,7 @@ jobs:
           build/Release/**/q3vr.exe
           build/Release/**/*.qvm
           build/Release/**/*.pk3
-          build/Release/**/COPYING.txt
+          build/Release/**/*.txt
     - name: Upload installer
       uses: actions/upload-artifact@v4
       with:
@@ -91,7 +101,7 @@ jobs:
           build/Release/**/q3vr.exe
           build/Release/**/*.qvm
           build/Release/**/*.pk3
-          build/Release/**/COPYING.txt
+          build/Release/**/*.txt
     - name: Upload installer
       uses: actions/upload-artifact@v4
       with:

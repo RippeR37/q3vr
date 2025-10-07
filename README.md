@@ -33,14 +33,10 @@ for VR.
 
 To download and set up the game:
 
-* Go to [Releases](https://github.com/RippeR37/q3vr/releases) page, download the
-  most recent release and install or extract it to directory of your choice
-* Download [latest Release Point (v1.32) PAK files](https://files.ioquake3.org/quake3-latest-pk3s.zip)
-  and extract them to `baseq3/` subdirectory
-  * Be sure to read [EULA](https://ioquake3.org/extras/patch-data/) first
-  * There should already be `pakQ3VR.pk3` file in that directory
-* Place `pak0.pk3` file from original game in `baseq3/` subdirectory
-  * If you don't own the full game, you can also use [`pak0.pk3` from the demo](https://github.com/Team-Beef-Studios/ioq3quest/raw/dba25f1d528253ad9ff8638931726d06bffcf0b0/android/app/src/main/assets/pak0.pk3)
+* Go to [Releases](https://github.com/RippeR37/q3vr/releases) page and download
+  the most recent release and install (or extract) to directory of your choosing
+* If you own full version of the game, place `pak0.pk3` file from original game
+  in the `baseq3/` subdirectory
 
 then any time you want to play simply:
 
@@ -181,10 +177,6 @@ cmake --build build --config Release
 ```
 
 Check out [GitHub Actions workflow](.github/workflows/build.yml) for reference.
-
-> [!NOTE]
-> Currently only Windows is officially supported. Other platforms _may_ be
-> supported in the future.
 
 
 ## Contributions

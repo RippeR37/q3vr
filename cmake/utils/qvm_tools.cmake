@@ -86,6 +86,6 @@ function(add_qvm MODULE_NAME)
     add_custom_target(${TARGET_NAME} ALL DEPENDS ${QVM_FILE})
 
     if(ARG_OUTPUT_DIRECTORY)
-        install(FILES ${QVM_FILE} DESTINATION ${ARG_OUTPUT_DIRECTORY})
+        install(FILES ${QVM_FILE} DESTINATION ${ARG_OUTPUT_DIRECTORY} COMPONENT game_engine)
     endif()
 endfunction()
