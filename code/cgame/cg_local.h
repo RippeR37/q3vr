@@ -1302,8 +1302,24 @@ void CG_RemoveHUDFlags(int flags);
 void CG_AdjustFrom640( float *x, float *y, float *w, float *h );
 void CG_FillRect( float x, float y, float width, float height, const float *color );
 void CG_DrawPic( float x, float y, float width, float height, qhandle_t hShader );
-void CG_DrawString( float x, float y, const char *string, 
-				   float charWidth, float charHeight, const float *modulate );
+
+#define USE_NEW_FONT_RENDERER
+
+// flags for CG_DrawString
+enum {
+	DS_SHADOW       = 0x1,
+	DS_FORCE_COLOR  = 0x2,
+	DS_PROPORTIONAL = 0x4,
+	DS_CENTER       = 0x8,	// alignment
+	DS_RIGHT        = 0x10	// alignment
+};
+
+void CG_DrawString( float x, float y, const char *string, const vec4_t color,
+				   float charWidth, float charHeight, int maxChars, int flags );
+#ifdef USE_NEW_FONT_RENDERER
+void CG_LoadFonts( void );
+void CG_SelectFont( int index );
+#endif
 
 
 void CG_DrawStringExt( int x, int y, const char *string, const float *setColor, 

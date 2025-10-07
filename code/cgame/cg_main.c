@@ -1998,6 +1998,10 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum ) {
 
 	CG_RegisterGraphics();
 
+#ifdef USE_NEW_FONT_RENDERER
+	CG_LoadFonts();
+#endif
+
 	CG_LoadingString( "clients" );
 
 	CG_RegisterClients();		// if low on memory, some clients will be deferred

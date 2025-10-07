@@ -554,17 +554,15 @@ void CG_DrawTeamBackground( int x, int y, int w, int h, float alpha, int team )
 
 	hcolor[3] = alpha;
 	if ( team == TEAM_RED ) {
-		hcolor[0] = 1;
-		hcolor[1] = 0;
-		hcolor[2] = 0;
+		hcolor[0] = 1.0f;
+		hcolor[1] = 0.0f;
+		hcolor[2] = 0.0f;
 	} else if ( team == TEAM_BLUE ) {
-		hcolor[0] = 0;
-		hcolor[1] = 0;
-		hcolor[2] = 1;
+		hcolor[0] = 0.0f;
+		hcolor[1] = 0.1f;
+		hcolor[2] = 1.0f;
 	} else {
-		hcolor[0] = 0;
-		hcolor[1] = 0;
-		hcolor[2] = 0;
+		return;
 	}
 	trap_R_SetColor( hcolor );
 	CG_DrawPic( x, y, w, h, cgs.media.teamStatusBar );
@@ -651,9 +649,14 @@ static void CG_DrawStatusBar( void ) {
 					color = 1;	// red
 				}
 			}
+#ifdef USE_NEW_FONT_RENDERER
+			CG_SelectFont( 1 );
+			CG_DrawString( CHAR_WIDTH*3, 432, va( "%i", value ), colors[ color ], CHAR_WIDTH, CHAR_HEIGHT, 0, DS_RIGHT | DS_PROPORTIONAL );
+			CG_SelectFont( 0 );
+#else
 			trap_R_SetColor( colors[color] );
-			
 			CG_DrawField (0, 432, 3, value);
+#endif
 			trap_R_SetColor( NULL );
 
 			// if we didn't draw a 3D icon, draw a 2D icon for ammo
@@ -673,18 +676,24 @@ static void CG_DrawStatusBar( void ) {
 	//
 	value = ps->stats[STAT_HEALTH];
 	if ( value > 100 ) {
-		trap_R_SetColor( colors[3] );		// white
+		color = 3;	// white
 	} else if (value > 25) {
-		trap_R_SetColor( colors[0] );	// green
+		color = 0;	// yellow
 	} else if (value > 0) {
-		color = (cg.time >> 8) & 1;	// flash
-		trap_R_SetColor( colors[color] );
+		color = (cg.time >> 8) & 1;	// red/yellow flashing
 	} else {
-		trap_R_SetColor( colors[1] );	// red
+		color = 1;	// red
 	}
 
+#ifdef USE_NEW_FONT_RENDERER
+	CG_SelectFont( 1 );
+	CG_DrawString( 185 + CHAR_WIDTH*3, 432, va( "%i", value ), colors[ color ], CHAR_WIDTH, CHAR_HEIGHT, 0, DS_RIGHT | DS_PROPORTIONAL );
+	CG_SelectFont( 0 );
+#else
+	trap_R_SetColor( colors[color] );
 	// stretch the health up when taking damage
 	CG_DrawField ( 185, 432, 3, value);
+#endif
 	CG_ColorForHealth( hcolor );
 	trap_R_SetColor( hcolor );
 
@@ -694,8 +703,14 @@ static void CG_DrawStatusBar( void ) {
 	//
 	value = ps->stats[STAT_ARMOR];
 	if (value > 0 ) {
+#ifdef USE_NEW_FONT_RENDERER
+		CG_SelectFont( 1 );
+		CG_DrawString( 370 + CHAR_WIDTH*3, 432, va( "%i", value ), colors[ color ], CHAR_WIDTH, CHAR_HEIGHT, 0, DS_RIGHT | DS_PROPORTIONAL );
+		CG_SelectFont( 0 );
+#else
 		trap_R_SetColor( colors[0] );
 		CG_DrawField (370, 432, 3, value);
+#endif
 		trap_R_SetColor( NULL );
 		// if we didn't draw a 3D icon, draw a 2D icon for armor
 		if ( !cg_draw3dIcons.integer && cg_drawIcons.integer ) {
