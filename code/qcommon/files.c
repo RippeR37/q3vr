@@ -3498,14 +3498,15 @@ static void FS_CheckPak0( void )
 		curpack = path->pack;
 		pakBasename = curpack->pakBasename;
 
+#if 0
 		if(!Q_stricmpn( curpack->pakGamename, "demoq3", MAX_OSPATH )
 				&& !Q_stricmpn( pakBasename, "pak0", MAX_OSPATH ))
+#endif
+		if(!Q_stricmpn( pakBasename, "pak0", MAX_OSPATH ) 
+				&& curpack->checksum == DEMO_PAK0_CHECKSUM)
 		{
-			if(curpack->checksum == DEMO_PAK0_CHECKSUM)
-			{
-				Cvar_Set("demoversion", "1.0");
-				founddemo = qtrue;
-      }
+			Cvar_Set("demoversion", "1.0");
+			founddemo = qtrue;
 		}
 
 		else if(!Q_stricmpn( curpack->pakGamename, BASEGAME, MAX_OSPATH )

@@ -253,7 +253,7 @@ static void Controls3_MenuEvent( void* ptr, int notification ) {
 
 static void Controls3_SensitivityStatusBar( void *self )
 {
-	const int currentValue = (int)UI_ClampCvar( 25, 150, trap_Cvar_VariableValue( "sensitivity" ) );
+	const int currentValue = (int)UI_ClampCvar( 50, 150, trap_Cvar_VariableValue( "sensitivity" ) );
 
 	char buf[128] = { 0 };
 	Com_sprintf( buf, sizeof(buf), "Current value: %d (default: 100)", currentValue);
