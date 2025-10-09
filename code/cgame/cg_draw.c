@@ -1850,6 +1850,10 @@ static void CG_DrawLagometer( void ) {
 		CG_DrawBigString( x, y, "snc", 1.0 );
 	}
 
+	if ( !cg.demoPlayback ) {
+		CG_DrawString( x+1, y, va( "%ims", cg.meanPing ), colorWhite, 5, 10, 0, DS_PROPORTIONAL );
+	}
+
 	CG_DrawDisconnect();
 }
 
@@ -2922,6 +2926,26 @@ static void CG_EmptySceneHackHackHack( void )
 	trap_R_RenderScene( &refdef );
 }
 
+static void CG_CalculatePing( void ) {
+	int count, i, v;
+
+	cg.meanPing = 0;
+
+	for ( i = 0, count = 0; i < LAG_SAMPLES; i++ ) {
+
+		v = lagometer.snapshotSamples[i];
+		if ( v >= 0 ) {
+			cg.meanPing += v;
+			count++;
+		}
+
+	}
+
+	if ( count ) {
+		cg.meanPing /= count;
+	}
+}
+
 /*
 =====================
 CG_DrawActive
@@ -2934,6 +2958,10 @@ void CG_DrawActive( void ) {
 	if ( !cg.snap ) {
 		CG_DrawInformation();
 		return;
+	}
+
+	if ( !cg.demoPlayback ) {
+		CG_CalculatePing();
 	}
 
 	// optionally draw the tournement scoreboard instead

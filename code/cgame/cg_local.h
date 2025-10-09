@@ -667,6 +667,9 @@ typedef struct {
 	char			testModelName[MAX_QPATH];
 	qboolean		testGun;
 
+	// lagometer
+	int				meanPing;
+
 	// follow killer
 	int				followTime;
 	int				followClient;
