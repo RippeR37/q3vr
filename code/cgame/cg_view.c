@@ -1053,6 +1053,14 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	// update cg.predictedPlayerState
 	CG_PredictPlayerState();
 
+	// follow killer
+	if ( cg.followTime && cg.followTime < cg.time ) {
+		cg.followTime = 0;
+		if ( !cg.demoPlayback ) {
+			trap_SendConsoleCommand( va( "follow %i\n", cg.followClient ) );
+		}
+	}
+
 	// decide on third person view
 	cg.renderingThirdPerson = cg.predictedPlayerState.pm_type == PM_SPECTATOR ||
 			cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY) ||

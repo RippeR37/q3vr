@@ -31,6 +31,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define	GIB_HEALTH			-40
 #define	ARMOR_PROTECTION	0.66
 
+#define	HEALTH_SOFT_LIMIT	100
+#define	AMMO_HARD_LIMIT		200
+
 #define	MAX_ITEMS			256
 
 #define	RANK_TIED_FLAG		0x4000
@@ -451,6 +454,10 @@ typedef enum {
 
 } entity_event_t;
 
+typedef enum {
+	TAG_NONE = 0,
+	TAG_DONTSPAWN,
+} tag_t;
 
 typedef enum {
 	GTS_RED_CAPTURE,

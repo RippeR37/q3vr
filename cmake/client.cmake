@@ -141,3 +141,12 @@ install(
     DIRECTORY "${CMAKE_SOURCE_DIR}/assets/third_party/demo/" DESTINATION
 		$<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
 		COMPONENT q3a_demo)
+
+add_custom_command(TARGET ${CLIENT_BINARY} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/assets/pak8a.pk3"
+    "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/")
+
+install(FILES "${CMAKE_SOURCE_DIR}/assets/pak8a.pk3" DESTINATION
+    # install() requires a relative path hence:
+    $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>)

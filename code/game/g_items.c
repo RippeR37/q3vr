@@ -36,15 +36,70 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 
-#define	RESPAWN_ARMOR		25
-#define	RESPAWN_HEALTH		35
-#define	RESPAWN_AMMO		40
-#define	RESPAWN_HOLDABLE	60
-#define	RESPAWN_MEGAHEALTH	35//120
-#define	RESPAWN_POWERUP		120
+// initial spawn times after warmup
+// in vq3 most of the items appears in one frame but we will delay that a bit
+// to reduce peak bandwidth and get some nice transition effects
+#define	SPAWN_WEAPONS		333
+#define	SPAWN_ARMOR			1200
+#define	SPAWN_HEALTH		900
+#define	SPAWN_AMMO			600
+#define	SPAWN_HOLDABLE		2500
+#define	SPAWN_MEGAHEALTH	10000
+#define	SPAWN_POWERUP		45000
+
+// periodic respawn times
+// g_weaponRespawn.integer || g_weaponTeamRespawn.integer
+#define	RESPAWN_ARMOR		25000
+#define	RESPAWN_HEALTH		35000
+#define	RESPAWN_AMMO		40000
+#define	RESPAWN_HOLDABLE	60000
+#define	RESPAWN_MEGAHEALTH	35000 //120000
+#define	RESPAWN_POWERUP		120000
 
 
 //======================================================================
+
+int SpawnTime( gentity_t *ent, qboolean firstSpawn )
+{
+	if ( !ent->item )
+		return 0;
+
+	switch( ent->item->giType ) {
+	case IT_WEAPON:
+		if ( firstSpawn )
+			return SPAWN_WEAPONS;
+		if ( g_gametype.integer == GT_TEAM )
+			return g_weaponTeamRespawn.value * 1000;
+		else
+			return g_weaponRespawn.value * 1000 ;
+
+	case IT_AMMO:
+		return firstSpawn ? SPAWN_AMMO : RESPAWN_AMMO;
+
+	case IT_ARMOR:
+		return firstSpawn ? SPAWN_ARMOR : RESPAWN_ARMOR;
+
+	case IT_HEALTH:
+		if ( ent->item->quantity == 100 ) // mega health respawns slow
+			return firstSpawn ? SPAWN_MEGAHEALTH : RESPAWN_MEGAHEALTH;
+		else
+			return firstSpawn ? SPAWN_HEALTH : RESPAWN_HEALTH;
+
+	case IT_POWERUP:
+		return firstSpawn ? SPAWN_POWERUP : RESPAWN_POWERUP;
+
+#ifdef MISSIONPACK
+	case IT_PERSISTANT_POWERUP:
+		return -1;
+#endif
+
+	case IT_HOLDABLE:
+		return firstSpawn ? SPAWN_HOLDABLE : RESPAWN_HOLDABLE;
+
+	default: // IT_BAD and others
+		return 0;
+	}
+}
 
 int Pickup_Powerup( gentity_t *ent, gentity_t *other ) {
 	int			quantity;
@@ -112,7 +167,7 @@ int Pickup_Powerup( gentity_t *ent, gentity_t *other ) {
 		// anti-reward
 		client->ps.persistant[PERS_PLAYEREVENTS] ^= PLAYEREVENT_DENIEDREWARD;
 	}
-	return RESPAWN_POWERUP;
+	return SpawnTime( ent, qfalse ); // return RESPAWN_POWERUP;
 }
 
 //======================================================================
@@ -200,7 +255,7 @@ int Pickup_Holdable( gentity_t *ent, gentity_t *other ) {
 		other->client->ps.eFlags |= EF_KAMIKAZE;
 	}
 
-	return RESPAWN_HOLDABLE;
+	return SpawnTime( ent, qfalse ); // return RESPAWN_HOLDABLE;
 }
 
 
@@ -209,8 +264,8 @@ int Pickup_Holdable( gentity_t *ent, gentity_t *other ) {
 void Add_Ammo (gentity_t *ent, int weapon, int count)
 {
 	ent->client->ps.ammo[weapon] += count;
-	if ( ent->client->ps.ammo[weapon] > 200 ) {
-		ent->client->ps.ammo[weapon] = 200;
+	if ( ent->client->ps.ammo[weapon] > AMMO_HARD_LIMIT ) {
+		ent->client->ps.ammo[weapon] = AMMO_HARD_LIMIT;
 	}
 }
 
@@ -226,7 +281,7 @@ int Pickup_Ammo (gentity_t *ent, gentity_t *other)
 
 	Add_Ammo (other, ent->item->giTag, quantity);
 
-	return RESPAWN_AMMO;
+	return SpawnTime( ent, qfalse ); // return RESPAWN_AMMO;
 }
 
 //======================================================================
@@ -264,12 +319,7 @@ int Pickup_Weapon (gentity_t *ent, gentity_t *other) {
 	if (ent->item->giTag == WP_GRAPPLING_HOOK)
 		other->client->ps.ammo[ent->item->giTag] = -1; // unlimited ammo
 
-	// team deathmatch has slow weapon respawns
-	if ( g_gametype.integer == GT_TEAM ) {
-		return g_weaponTeamRespawn.integer;
-	}
-
-	return g_weaponRespawn.integer;
+	return SpawnTime( ent, qfalse );
 }
 
 
@@ -305,11 +355,7 @@ int Pickup_Health (gentity_t *ent, gentity_t *other) {
 	}
 	other->client->ps.stats[STAT_HEALTH] = other->health;
 
-	if ( ent->item->quantity == 100 ) {		// mega health respawns slow
-		return RESPAWN_MEGAHEALTH;
-	}
-
-	return RESPAWN_HEALTH;
+	return SpawnTime( ent, qfalse );
 }
 
 //======================================================================
@@ -337,7 +383,7 @@ int Pickup_Armor( gentity_t *ent, gentity_t *other ) {
 	}
 #endif
 
-	return RESPAWN_ARMOR;
+	return SpawnTime( ent, qfalse );
 }
 
 //======================================================================
@@ -363,8 +409,10 @@ void RespawnItem( gentity_t *ent ) {
 		}
 		master = ent->teammaster;
 
-		for (count = 0, ent = master; ent; ent = ent->teamchain, count++)
-			;
+		for (count = 0, ent = master; ent; ent = ent->teamchain, count++) {
+			// reset spawn timers on all teamed entities
+			ent->nextthink = 0;
+		}
 
 		choice = rand() % count;
 
@@ -445,11 +493,9 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 	switch( ent->item->giType ) {
 	case IT_WEAPON:
 		respawn = Pickup_Weapon(ent, other);
-//		predict = qfalse;
 		break;
 	case IT_AMMO:
 		respawn = Pickup_Ammo(ent, other);
-//		predict = qfalse;
 		break;
 	case IT_ARMOR:
 		respawn = Pickup_Armor(ent, other);
@@ -459,7 +505,11 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 		break;
 	case IT_POWERUP:
 		respawn = Pickup_Powerup(ent, other);
-		predict = qfalse;
+		// allow prediction for some powerups
+		if ( ent->item->giTag >= PW_QUAD && ent->item->giTag <= PW_FLIGHT )
+			predict = qtrue;
+		else
+			predict = qfalse;
 		break;
 #ifdef MISSIONPACK
 	case IT_PERSISTANT_POWERUP:
@@ -522,13 +572,14 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 	// non zero wait overrides respawn time
 	if ( ent->wait ) {
 		respawn = ent->wait;
+		respawn *= 1000;
 	}
 
 	// random can be used to vary the respawn time
 	if ( ent->random ) {
-		respawn += crandom() * ent->random;
-		if ( respawn < 1 ) {
-			respawn = 1;
+		respawn += (crandom() * ent->random) * 1000;
+		if ( respawn < 1000 ) {
+			respawn = 1000;
 		}
 	}
 
@@ -545,14 +596,14 @@ void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace) {
 	ent->r.contents = 0;
 
 	// ZOID
-	// A negative respawn times means to never respawn this item (but don't 
-	// delete it).  This is used by items that are respawned by third party 
+	// A negative respawn times means to never respawn this item (but don't
+	// delete it).  This is used by items that are respawned by third party
 	// events such as ctf flags
 	if ( respawn <= 0 ) {
 		ent->nextthink = 0;
 		ent->think = 0;
 	} else {
-		ent->nextthink = level.time + respawn * 1000;
+		ent->nextthink = level.time + respawn;
 		ent->think = RespawnItem;
 	}
 	trap_LinkEntity( ent );
@@ -890,8 +941,11 @@ void G_SpawnItem (gentity_t *ent, gitem_t *item) {
 	G_SpawnFloat( "wait", "0", &ent->wait );
 
 	RegisterItem( item );
-	if ( G_ItemDisabled(item) )
+
+	if ( G_ItemDisabled( item ) ) {
+		ent->tag = TAG_DONTSPAWN;
 		return;
+	}
 
 	ent->item = item;
 	// some movers spawn on the second frame, so delay item

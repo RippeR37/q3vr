@@ -311,6 +311,59 @@ void CG_Draw3DModel( float x, float y, float w, float h, qhandle_t model, qhandl
 
 /*
 ================
+CG_Draw3DModelColor
+
+================
+*/
+void CG_Draw3DModelColor( float x, float y, float w, float h, qhandle_t model, qhandle_t skin, vec3_t origin, vec3_t angles, vec3_t color ) {
+	refdef_t		refdef;
+	refEntity_t		ent;
+
+	if ( !cg_draw3dIcons.integer || !cg_drawIcons.integer ) {
+		return;
+	}
+
+	CG_SetHUDFlags(HUD_FLAGS_DRAWMODEL);
+	CG_AdjustFrom640( &x, &y, &w, &h );
+	CG_RemoveHUDFlags(HUD_FLAGS_DRAWMODEL);
+
+	memset( &refdef, 0, sizeof( refdef ) );
+
+	memset( &ent, 0, sizeof( ent ) );
+	AnglesToAxis( angles, ent.axis );
+	VectorCopy( origin, ent.origin );
+	ent.hModel = model;
+	ent.customSkin = skin;
+	ent.renderfx = RF_NOSHADOW;		// no stencil shadows
+
+	refdef.rdflags = RDF_NOWORLDMODEL;
+
+	AxisClear( refdef.viewaxis );
+
+	refdef.fov_x = 30;
+	refdef.fov_y = 30;
+
+	refdef.x = x;
+	refdef.y = y;
+	refdef.width = w;
+	refdef.height = h;
+
+	refdef.time = cg.time;
+
+	refdef.isHUD = qtrue;
+
+	ent.shaderRGBA[0] = color[0] * 255;
+	ent.shaderRGBA[1] = color[1] * 255;
+	ent.shaderRGBA[2] = color[2] * 255;
+	ent.shaderRGBA[3] = 255;
+
+	trap_R_ClearScene();
+	trap_R_AddRefEntityToScene( &ent );
+	trap_R_RenderScene( &refdef );
+}
+
+/*
+================
 CG_DrawHead
 
 Used for both the status bar and the scoreboard
@@ -345,7 +398,7 @@ void CG_DrawHead( float x, float y, float w, float h, int clientNum, vec3_t head
 		// allow per-model tweaking
 		VectorAdd( origin, ci->headOffset, origin );
 
-		CG_Draw3DModel( x, y, w, h, ci->headModel, ci->headSkin, origin, headAngles );
+		CG_Draw3DModelColor( x, y, w, h, ci->headModel, ci->headSkin, origin, headAngles, ci->headColor );
 	} else if ( cg_drawIcons.integer ) {
 		CG_DrawPic( x, y, w, h, ci->modelIcon );
 	}
@@ -501,17 +554,15 @@ void CG_DrawTeamBackground( int x, int y, int w, int h, float alpha, int team )
 
 	hcolor[3] = alpha;
 	if ( team == TEAM_RED ) {
-		hcolor[0] = 1;
-		hcolor[1] = 0;
-		hcolor[2] = 0;
+		hcolor[0] = 1.0f;
+		hcolor[1] = 0.0f;
+		hcolor[2] = 0.0f;
 	} else if ( team == TEAM_BLUE ) {
-		hcolor[0] = 0;
-		hcolor[1] = 0;
-		hcolor[2] = 1;
+		hcolor[0] = 0.0f;
+		hcolor[1] = 0.1f;
+		hcolor[2] = 1.0f;
 	} else {
-		hcolor[0] = 0;
-		hcolor[1] = 0;
-		hcolor[2] = 0;
+		return;
 	}
 	trap_R_SetColor( hcolor );
 	CG_DrawPic( x, y, w, h, cgs.media.teamStatusBar );
@@ -598,9 +649,14 @@ static void CG_DrawStatusBar( void ) {
 					color = 1;	// red
 				}
 			}
+#ifdef USE_NEW_FONT_RENDERER
+			CG_SelectFont( 1 );
+			CG_DrawString( CHAR_WIDTH*3, 432, va( "%i", value ), colors[ color ], CHAR_WIDTH, CHAR_HEIGHT, 0, DS_RIGHT | DS_PROPORTIONAL );
+			CG_SelectFont( 0 );
+#else
 			trap_R_SetColor( colors[color] );
-			
 			CG_DrawField (0, 432, 3, value);
+#endif
 			trap_R_SetColor( NULL );
 
 			// if we didn't draw a 3D icon, draw a 2D icon for ammo
@@ -620,18 +676,24 @@ static void CG_DrawStatusBar( void ) {
 	//
 	value = ps->stats[STAT_HEALTH];
 	if ( value > 100 ) {
-		trap_R_SetColor( colors[3] );		// white
+		color = 3;	// white
 	} else if (value > 25) {
-		trap_R_SetColor( colors[0] );	// green
+		color = 0;	// yellow
 	} else if (value > 0) {
-		color = (cg.time >> 8) & 1;	// flash
-		trap_R_SetColor( colors[color] );
+		color = (cg.time >> 8) & 1;	// red/yellow flashing
 	} else {
-		trap_R_SetColor( colors[1] );	// red
+		color = 1;	// red
 	}
 
+#ifdef USE_NEW_FONT_RENDERER
+	CG_SelectFont( 1 );
+	CG_DrawString( 185 + CHAR_WIDTH*3, 432, va( "%i", value ), colors[ color ], CHAR_WIDTH, CHAR_HEIGHT, 0, DS_RIGHT | DS_PROPORTIONAL );
+	CG_SelectFont( 0 );
+#else
+	trap_R_SetColor( colors[color] );
 	// stretch the health up when taking damage
 	CG_DrawField ( 185, 432, 3, value);
+#endif
 	CG_ColorForHealth( hcolor );
 	trap_R_SetColor( hcolor );
 
@@ -641,8 +703,14 @@ static void CG_DrawStatusBar( void ) {
 	//
 	value = ps->stats[STAT_ARMOR];
 	if (value > 0 ) {
+#ifdef USE_NEW_FONT_RENDERER
+		CG_SelectFont( 1 );
+		CG_DrawString( 370 + CHAR_WIDTH*3, 432, va( "%i", value ), colors[ color ], CHAR_WIDTH, CHAR_HEIGHT, 0, DS_RIGHT | DS_PROPORTIONAL );
+		CG_SelectFont( 0 );
+#else
 		trap_R_SetColor( colors[0] );
 		CG_DrawField (370, 432, 3, value);
+#endif
 		trap_R_SetColor( NULL );
 		// if we didn't draw a 3D icon, draw a 2D icon for armor
 		if ( !cg_draw3dIcons.integer && cg_drawIcons.integer ) {
@@ -774,6 +842,34 @@ static float CG_DrawFPS( float y ) {
 	}
 
 	return y + BIGCHAR_HEIGHT + 4;
+}
+
+/*
+=================
+CG_DrawSpeedMeter
+=================
+*/
+static float CG_DrawSpeedMeter( float y ) {
+	char		*s;
+	int			w;
+
+	/* speed meter can get in the way of the scoreboard */
+	if ( cg.scoreBoardShowing ) {
+		return y;
+	}
+
+	s = va( "%1.0fups", cg.xyspeed );
+	w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH;
+
+	if ( cg_drawSpeed.integer == 1 ) {
+		/* top right corner of screen */
+		CG_DrawBigString( 635 - w, y + 2, s, 1.0F);
+		return y + BIGCHAR_HEIGHT + 4;
+	} else {
+		/* center of screen (under crosshair) */
+		CG_DrawBigString( 320 - w / 2, 300, s, 1.0F);
+		return y;
+	}
 }
 
 /*
@@ -998,6 +1094,9 @@ static void CG_DrawUpperRight( void )
 	}
 	if (cg_drawFPS.integer && (cg.stereoView == STEREO_CENTER || cg.stereoView == STEREO_RIGHT)) {
 		y = CG_DrawFPS( y );
+	}
+	if ( cg_drawSpeed.integer ) {
+		y = CG_DrawSpeedMeter( y );
 	}
 	if ( cg_drawTimer.integer ) {
 		y = CG_DrawTimer( y );
@@ -1749,6 +1848,10 @@ static void CG_DrawLagometer( void ) {
 
 	if ( cg_nopredict.integer || cg_synchronousClients.integer ) {
 		CG_DrawBigString( x, y, "snc", 1.0 );
+	}
+
+	if ( !cg.demoPlayback ) {
+		CG_DrawString( x+1, y, va( "%ims", cg.meanPing ), colorWhite, 5, 10, 0, DS_PROPORTIONAL );
 	}
 
 	CG_DrawDisconnect();
@@ -2823,6 +2926,26 @@ static void CG_EmptySceneHackHackHack( void )
 	trap_R_RenderScene( &refdef );
 }
 
+static void CG_CalculatePing( void ) {
+	int count, i, v;
+
+	cg.meanPing = 0;
+
+	for ( i = 0, count = 0; i < LAG_SAMPLES; i++ ) {
+
+		v = lagometer.snapshotSamples[i];
+		if ( v >= 0 ) {
+			cg.meanPing += v;
+			count++;
+		}
+
+	}
+
+	if ( count ) {
+		cg.meanPing /= count;
+	}
+}
+
 /*
 =====================
 CG_DrawActive
@@ -2835,6 +2958,10 @@ void CG_DrawActive( void ) {
 	if ( !cg.snap ) {
 		CG_DrawInformation();
 		return;
+	}
+
+	if ( !cg.demoPlayback ) {
+		CG_CalculatePing();
 	}
 
 	// optionally draw the tournement scoreboard instead

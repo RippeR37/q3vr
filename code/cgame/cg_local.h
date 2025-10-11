@@ -380,6 +380,11 @@ typedef struct {
 	animation_t		animations[MAX_TOTALANIMATIONS];
 
 	sfxHandle_t		sounds[MAX_CUSTOM_SOUNDS];
+
+	vec3_t			headColor;
+	vec3_t			bodyColor;
+	vec3_t			legsColor;
+	qboolean		coloredSkin;
 } clientInfo_t;
 
 
@@ -662,6 +667,13 @@ typedef struct {
 	char			testModelName[MAX_QPATH];
 	qboolean		testGun;
 
+	// lagometer
+	int				meanPing;
+
+	// follow killer
+	int				followTime;
+	int				followClient;
+
 } cg_t;
 
 
@@ -911,6 +923,7 @@ typedef struct {
 	sfxHandle_t oneFragSound;
 
 	sfxHandle_t hitSound;
+	sfxHandle_t hitSounds[4];
 	sfxHandle_t hitSoundHighArmor;
 	sfxHandle_t hitSoundLowArmor;
 	sfxHandle_t hitTeamSound;
@@ -1131,8 +1144,10 @@ extern	vmCvar_t		cg_shadows;
 extern	vmCvar_t		cg_playerShadow;
 extern	vmCvar_t		cg_gibs;
 extern	vmCvar_t		cg_megagibs;
+extern	vmCvar_t		cg_hitSounds;
 extern	vmCvar_t		cg_drawTimer;
 extern	vmCvar_t		cg_drawFPS;
+extern	vmCvar_t		cg_drawSpeed;
 extern	vmCvar_t		cg_drawSnapshot;
 extern	vmCvar_t		cg_draw3dIcons;
 extern	vmCvar_t		cg_debugWeaponAiming;
@@ -1194,6 +1209,7 @@ extern	vmCvar_t		cg_paused;
 extern	vmCvar_t		cg_blood;
 extern	vmCvar_t		cg_predictItems;
 extern	vmCvar_t		cg_deferPlayers;
+extern	vmCvar_t		cg_followKiller;
 extern	vmCvar_t		cg_drawFriend;
 extern	vmCvar_t		cg_teamChatsOnly;
 #ifdef MISSIONPACK
@@ -1289,8 +1305,24 @@ void CG_RemoveHUDFlags(int flags);
 void CG_AdjustFrom640( float *x, float *y, float *w, float *h );
 void CG_FillRect( float x, float y, float width, float height, const float *color );
 void CG_DrawPic( float x, float y, float width, float height, qhandle_t hShader );
-void CG_DrawString( float x, float y, const char *string, 
-				   float charWidth, float charHeight, const float *modulate );
+
+#define USE_NEW_FONT_RENDERER
+
+// flags for CG_DrawString
+enum {
+	DS_SHADOW       = 0x1,
+	DS_FORCE_COLOR  = 0x2,
+	DS_PROPORTIONAL = 0x4,
+	DS_CENTER       = 0x8,	// alignment
+	DS_RIGHT        = 0x10	// alignment
+};
+
+void CG_DrawString( float x, float y, const char *string, const vec4_t color,
+				   float charWidth, float charHeight, int maxChars, int flags );
+#ifdef USE_NEW_FONT_RENDERER
+void CG_LoadFonts( void );
+void CG_SelectFont( int index );
+#endif
 
 
 void CG_DrawStringExt( int x, int y, const char *string, const float *setColor, 

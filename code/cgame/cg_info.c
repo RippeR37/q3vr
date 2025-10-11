@@ -197,6 +197,14 @@ void CG_DrawInformation( void ) {
 			UI_CENTER|UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
 		y += PROP_HEIGHT;
 
+		// unlagged server
+		s = Info_ValueForKey( info, "g_unlagged" );
+		if ( s[0] == '1' ) {
+			UI_DrawProportionalString( 320, y, "Unlagged",
+				UI_CENTER|UI_SMALLFONT|UI_DROPSHADOW, colorWhite );
+			y += PROP_HEIGHT;
+		}
+
 		// pure server
 		s = Info_ValueForKey( sysInfo, "sv_pure" );
 		if ( s[0] == '1' ) {

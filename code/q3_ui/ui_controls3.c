@@ -223,14 +223,14 @@ static void Controls3_MenuEvent( void* ptr, int notification ) {
 			{
 				if (s_controls3.switchthumbsticks.curvalue) {
 					trap_Cvar_Set("vr_button_map_A", "+button2"); // Use Item
-					trap_Cvar_Set("vr_button_map_B", "togglemenu"); // Menu
+					trap_Cvar_Set("vr_button_map_B", "+button3"); // Taunt
 					trap_Cvar_Set("vr_button_map_X", "+moveup"); // Jump
 					trap_Cvar_Set("vr_button_map_Y", "+movedown"); // Crouch
 				} else {
 					trap_Cvar_Set("vr_button_map_A", "+moveup"); // Jump
 					trap_Cvar_Set("vr_button_map_B", "+movedown"); // Crouch
 					trap_Cvar_Set("vr_button_map_X", "+button2"); // Use Item
-					trap_Cvar_Set("vr_button_map_Y", "togglemenu"); // Menu
+					trap_Cvar_Set("vr_button_map_Y", "+button3"); // Taunt
 				}
 			}
 			trap_Cvar_SetValue( "vr_switchThumbsticks", s_controls3.switchthumbsticks.curvalue );

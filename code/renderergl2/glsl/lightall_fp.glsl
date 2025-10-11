@@ -517,5 +517,10 @@ void main()
 
 #endif
 
-	gl_FragColor.a = alpha;
+	// For alpha-tested surfaces, output fully opaque alpha
+	// This ensures HUD elements render correctly without transparency artifacts
+	if (u_AlphaTest == 2 || u_AlphaTest == 3)
+		gl_FragColor.a = 1.0;
+	else
+		gl_FragColor.a = alpha;
 }

@@ -173,6 +173,8 @@ struct gentity_s {
 	float		wait;
 	float		random;
 
+	tag_t		tag;
+
 	gitem_t		*item;			// for bonus items
 };
 
@@ -248,6 +250,14 @@ typedef struct {
 	qboolean	teamInfo;			// send team overlay updates?
 } clientPersistant_t;
 
+// unlagged
+#define NUM_CLIENT_HISTORY 18
+
+typedef struct {
+	vec3_t		mins, maxs;
+	vec3_t		currentOrigin;
+	int			leveltime;
+} clientHistory_t;
 
 // this structure is cleared on each ClientSpawn(),
 // except for 'client->pers' and 'client->sess'
@@ -317,6 +327,21 @@ struct gclient_s {
 #endif
 
 	char		*areabits;
+
+	// unlagged
+	clientHistory_t	history[ NUM_CLIENT_HISTORY ];
+	clientHistory_t	saved;
+
+	int			historyHead;
+	int			frameOffset;
+	int			lastUpdateFrame;
+
+	// hitsounds
+	struct {
+		int		team;
+		int		enemy;
+		int		amount;
+	} damage;
 };
 
 
@@ -353,6 +378,7 @@ typedef struct {
 										// we changed gametype
 
 	qboolean	restarted;				// waiting for a map_restart to fire
+	qboolean	denyMapRestart;			// prevent map_restart optimization
 
 	int			numConnectedClients;
 	int			numNonSpectatorClients;	// includes connecting clients
@@ -407,6 +433,9 @@ typedef struct {
 #ifdef MISSIONPACK
 	int			portalSequence;
 #endif
+
+	// unlagged
+	int			frameStartTime;
 } level_locals_t;
 
 
@@ -583,6 +612,14 @@ void G_ProcessIPBans(void);
 qboolean G_FilterPacket (char *from);
 
 //
+// g_rotation.c
+//
+#define SV_ROTATION "sessionMapIndex"
+qboolean ParseMapRotation( void );
+void G_LoadMap( const char *map );
+qboolean G_MapExist( const char *map );
+
+//
 // g_weapon.c
 //
 void FireWeapon( gentity_t *ent );
@@ -643,7 +680,7 @@ void Svcmd_GameMem_f( void );
 // g_session.c
 //
 void G_ReadSessionData( gclient_t *client );
-void G_InitSessionData( gclient_t *client, char *userinfo );
+void G_InitSessionData( gclient_t *client, const char *team, qboolean isBot );
 
 void G_InitWorldSession( void );
 void G_WriteSessionData( void );
@@ -667,6 +704,18 @@ qboolean G_BotConnect( int clientNum, qboolean restart );
 void Svcmd_AddBot_f( void );
 void Svcmd_BotList_f( void );
 void BotInterbreedEndMatch( void );
+
+//
+// g_unlagged.c
+//
+void G_ResetHistory( gentity_t *ent );
+void G_StoreHistory( gentity_t *ent );
+void G_TimeShiftAllClients( int time, gentity_t *skip );
+void G_UnTimeShiftAllClients( gentity_t *skip );
+void G_DoTimeShiftFor( gentity_t *ent );
+void G_UndoTimeShiftFor( gentity_t *ent );
+void G_UnTimeShiftClient( gentity_t *client );
+void G_PredictPlayerMove( gentity_t *ent, float frametime );
 
 // ai_main.c
 #define MAX_FILEPATH			144
@@ -700,6 +749,8 @@ extern	vmCvar_t	g_cheats;
 extern	vmCvar_t	g_maxclients;			// allow this many total, including spectators
 extern	vmCvar_t	g_maxGameClients;		// allow this many active
 extern	vmCvar_t	g_restarted;
+extern	vmCvar_t	sv_fps;
+extern	vmCvar_t	g_unlagged;
 
 extern	vmCvar_t	g_dmflags;
 extern	vmCvar_t	g_fraglimit;
@@ -725,7 +776,7 @@ extern	vmCvar_t	g_warmup;
 extern	vmCvar_t	g_doWarmup;
 extern	vmCvar_t	g_blood;
 extern	vmCvar_t	g_allowVote;
-extern	vmCvar_t	g_teamAutoJoin;
+extern	vmCvar_t	g_autoJoin;
 extern	vmCvar_t	g_teamForceBalance;
 extern	vmCvar_t	g_banIPs;
 extern	vmCvar_t	g_filterBan;
@@ -745,6 +796,8 @@ extern	vmCvar_t	g_enableBreath;
 extern	vmCvar_t	g_singlePlayer;
 extern	vmCvar_t	g_proxMineTimeout;
 extern	vmCvar_t	g_localTeamPref;
+extern	vmCvar_t	g_rotation;
+extern	vmCvar_t	g_mapname;
 
 void	trap_Print( const char *text );
 void	trap_Error( const char *text ) Q_NO_RETURN;

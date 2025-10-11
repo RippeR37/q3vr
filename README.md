@@ -111,13 +111,15 @@ These are the default mappings:
 | `SECONDARYTHUMBSTICK` | `"+scores"` | Player list |
 | `PRIMARYTRACKPAD` | `"+scores"` | Player list |
 | `SECONDARYTRACKPAD` | `"togglemenu"` | Menu/back |
+| `PRIMARYTHUMBREST` | `"+alt"` | Enable alternative bindings |
+| `SECONDARYTHUMBREST` | `"+alt"` | Enable alternative bindings |
 | `PRIMARYGRIP` | `"+weapon_select"` | Opens weapon selection wheel (if enabled) |
 | `SECONDARYGRIP` | `"+weapon_stabilise"` | Triggers weapon stabilization (if enabled) |
 | `RTHUMBLEFT` | `"turnleft"` | Snap/smooth turn left |
 | `RTHUMBRIGHT` | `"turnright"` | Snap/smooth turn right |
 | `RTHUMBFORWARD` | `""` |  |
 | `RTHUMBBACK` | `""` |  |
-| `Y` | `"togglemenu"` | Menu/back |
+| `Y` | `"+button3"` | Taunt |
 | `X` | `"+button2"` | Use item |
 | `B` | `"+movedown"` | Crouch |
 | `A` | `"+moveup"` | Jump |

@@ -34,6 +34,10 @@ displayContextDef_t cgDC;
 vr_clientinfo_t *vr;
 
 int forceModelModificationCount = -1;
+int enemyModelModificationCount = -1;
+int enemyColorsModificationCount = -1;
+int teamModelModificationCount = -1;
+int teamColorsModificationCount = -1;
 
 void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum );
 void CG_Shutdown( void );
@@ -109,8 +113,15 @@ vmCvar_t	cg_shadows;
 vmCvar_t	cg_playerShadow;
 vmCvar_t	cg_gibs;
 vmCvar_t	cg_megagibs;
+vmCvar_t	cg_hitSounds;
+vmCvar_t	cg_enemyModel;
+vmCvar_t	cg_enemyColors;
+vmCvar_t	cg_teamModel;
+vmCvar_t	cg_teamColors;
+vmCvar_t	cg_deadBodyDarken;
 vmCvar_t	cg_drawTimer;
 vmCvar_t	cg_drawFPS;
+vmCvar_t	cg_drawSpeed;
 vmCvar_t	cg_drawSnapshot;
 vmCvar_t	cg_draw3dIcons;
 vmCvar_t	cg_drawIcons;
@@ -170,6 +181,7 @@ vmCvar_t	cg_paused;
 vmCvar_t	cg_blood;
 vmCvar_t	cg_predictItems;
 vmCvar_t	cg_deferPlayers;
+vmCvar_t	cg_followKiller;
 vmCvar_t	cg_drawTeamOverlay;
 vmCvar_t	cg_teamOverlayUserinfo;
 vmCvar_t	cg_drawFriend;
@@ -240,8 +252,15 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_draw2D, "cg_draw2D", "1", CVAR_ARCHIVE  },
 	{ &cg_drawStatus, "cg_drawStatus", "1", CVAR_ARCHIVE  },
 #endif
+	{ &cg_hitSounds, "cg_hitSounds", "0", CVAR_ARCHIVE  },
+	{ &cg_enemyModel, "cg_enemyModel", "", CVAR_ARCHIVE  },
+	{ &cg_enemyColors, "cg_enemyColors", "", CVAR_ARCHIVE  },
+	{ &cg_teamModel, "cg_teamModel", "", CVAR_ARCHIVE  },
+	{ &cg_teamColors, "cg_teamColors", "", CVAR_ARCHIVE  },
+	{ &cg_deadBodyDarken, "cg_deadBodyDarken", "1", CVAR_ARCHIVE  },
 	{ &cg_drawTimer, "cg_drawTimer", "0", CVAR_ARCHIVE  },
 	{ &cg_drawFPS, "cg_drawFPS", "0", CVAR_ARCHIVE  },
+	{ &cg_drawSpeed, "cg_drawSpeed", "0", CVAR_ARCHIVE  },
 	{ &cg_drawSnapshot, "cg_drawSnapshot", "0", CVAR_ARCHIVE  },
 	{ &cg_draw3dIcons, "cg_draw3dIcons", "1", CVAR_ARCHIVE  },
 	{ &cg_debugWeaponAiming, "cg_debugWeaponAiming", "0", CVAR_ARCHIVE  },
@@ -298,6 +317,7 @@ static cvarTable_t cvarTable[] = {
 #else
 	{ &cg_deferPlayers, "cg_deferPlayers", "1", CVAR_ARCHIVE },
 #endif
+	{ &cg_followKiller, "cg_followKiller", "0", CVAR_ARCHIVE },
 	{ &cg_drawTeamOverlay, "cg_drawTeamOverlay", "0", CVAR_ARCHIVE },
 	{ &cg_teamOverlayUserinfo, "teamoverlay", "0", CVAR_ROM | CVAR_USERINFO },
 	{ &cg_stats, "cg_stats", "0", 0 },
@@ -374,6 +394,10 @@ void CG_RegisterCvars( void ) {
 	cgs.localServer = atoi( var );
 
 	forceModelModificationCount = cg_forceModel.modificationCount;
+	enemyModelModificationCount = cg_enemyModel.modificationCount;
+	enemyColorsModificationCount = cg_enemyColors.modificationCount;
+	teamModelModificationCount = cg_teamModel.modificationCount;
+	teamColorsModificationCount = cg_teamColors.modificationCount;
 
 	trap_Cvar_Register(NULL, "model", DEFAULT_MODEL, CVAR_USERINFO | CVAR_ARCHIVE );
 	trap_Cvar_Register(NULL, "headmodel", DEFAULT_MODEL, CVAR_USERINFO | CVAR_ARCHIVE );
@@ -428,8 +452,17 @@ void CG_UpdateCvars( void ) {
 	}
 
 	// if force model changed
-	if ( forceModelModificationCount != cg_forceModel.modificationCount ) {
+	if ( forceModelModificationCount != cg_forceModel.modificationCount
+		|| enemyModelModificationCount != cg_enemyModel.modificationCount
+		|| enemyColorsModificationCount != cg_enemyColors.modificationCount
+		|| teamModelModificationCount != cg_teamModel.modificationCount
+		|| teamColorsModificationCount != cg_teamColors.modificationCount ) {
+
 		forceModelModificationCount = cg_forceModel.modificationCount;
+		enemyModelModificationCount = cg_enemyModel.modificationCount;
+		enemyColorsModificationCount = cg_enemyColors.modificationCount;
+		teamModelModificationCount = cg_teamModel.modificationCount;
+		teamColorsModificationCount = cg_teamColors.modificationCount;
 		CG_ForceModelChange();
 	}
 }
@@ -673,6 +706,11 @@ static void CG_RegisterSounds( void ) {
 
 	cgs.media.talkSound = trap_S_RegisterSound( "sound/player/talk.wav", qfalse );
 	cgs.media.landSound = trap_S_RegisterSound( "sound/player/land1.wav", qfalse);
+
+	cgs.media.hitSounds[0] = trap_S_RegisterSound( "sound/feedback/hit25.wav", qfalse );
+	cgs.media.hitSounds[1] = trap_S_RegisterSound( "sound/feedback/hit50.wav", qfalse );
+	cgs.media.hitSounds[2] = trap_S_RegisterSound( "sound/feedback/hit75.wav", qfalse );
+	cgs.media.hitSounds[3] = trap_S_RegisterSound( "sound/feedback/hit100.wav", qfalse );
 
 	cgs.media.hitSound = trap_S_RegisterSound( "sound/feedback/hit.wav", qfalse );
 #ifdef MISSIONPACK
@@ -1959,6 +1997,10 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum ) {
 	CG_LoadingString( "graphics" );
 
 	CG_RegisterGraphics();
+
+#ifdef USE_NEW_FONT_RENDERER
+	CG_LoadFonts();
+#endif
 
 	CG_LoadingString( "clients" );
 
