@@ -192,4 +192,8 @@ void VR_InitCvars( void )
 	Cvar_Get ("vr_button_map_PRIMARYTRACKPAD_ALT", "", CVAR_ARCHIVE); // unmapped
 	Cvar_Get ("vr_button_map_SECONDARYTRACKPAD", "togglemenu", CVAR_ARCHIVE); // unmapped
 	Cvar_Get ("vr_button_map_SECONDARYTRACKPAD_ALT", "", CVAR_ARCHIVE); // unmapped
+	Cvar_Get ("vr_button_map_PRIMARYTHUMBREST", "+alt", CVAR_ARCHIVE); // Alt modifier
+	Cvar_Get ("vr_button_map_PRIMARYTHUMBREST_ALT", "", CVAR_ARCHIVE); // unmapped
+	Cvar_Get ("vr_button_map_SECONDARYTHUMBREST", "+alt", CVAR_ARCHIVE); // Alt modifier
+	Cvar_Get ("vr_button_map_SECONDARYTHUMBREST_ALT", "", CVAR_ARCHIVE); // unmapped
 }
