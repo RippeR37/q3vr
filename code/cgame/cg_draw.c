@@ -2656,6 +2656,13 @@ void CG_DrawTimedMenus( void ) {
 /*
 ==============
 CG_DrawWeapReticle
+
+Draws the railgun scope reticle overlay.
+
+Note: There is an empirically-determined 25-pixel Y offset correction applied in virtual
+640x480 coordinate space. This offset is necessary to align the reticle with the actual
+weapon firing position in VR. The root cause of this offset in the rendering pipeline
+is currently unknown, but the correction has been verified to produce accurate alignment.
 ==============
 */
 static void CG_DrawWeapReticle( void )
@@ -2667,7 +2674,11 @@ static void CG_DrawWeapReticle( void )
 	float X_WIDTH=640;
 	float Y_HEIGHT=480;
 
-	float x = (X_WIDTH * indent), y = (Y_HEIGHT * indent), w = (X_WIDTH * (1-(2*indent))) / 2.0f, h = (Y_HEIGHT * (1-(2*indent))) / 2;
+	// Y offset correction for VR alignment (in virtual 640x480 space)
+	// Discovered with INCREDIBLY SCIENTIFIC METHOD of "guessing until it looked right"
+	#define RETICLE_Y_OFFSET 25
+
+	float x = (X_WIDTH * indent), y = (Y_HEIGHT * indent) - RETICLE_Y_OFFSET, w = (X_WIDTH * (1-(2*indent))) / 2.0f, h = (Y_HEIGHT * (1-(2*indent))) / 2;
 
 	CG_AdjustFrom640( &x, &y, &w, &h );
 
@@ -2675,8 +2686,8 @@ static void CG_DrawWeapReticle( void )
 	CG_FillRect( 0, 0, (X_WIDTH * indent), Y_HEIGHT, black );
 	CG_FillRect( X_WIDTH * (1 - indent), 0, (X_WIDTH * indent), Y_HEIGHT, black );
 	// top/bottom
-	CG_FillRect( X_WIDTH * indent, 0, X_WIDTH * (1-indent), Y_HEIGHT * indent, black );
-	CG_FillRect( X_WIDTH * indent, Y_HEIGHT * (1-indent), X_WIDTH * (1-indent), Y_HEIGHT * indent, black );
+	CG_FillRect( X_WIDTH * indent, 0, X_WIDTH * (1-indent), (Y_HEIGHT * indent) - RETICLE_Y_OFFSET, black );
+	CG_FillRect( X_WIDTH * indent, Y_HEIGHT * (1-indent) - RETICLE_Y_OFFSET, X_WIDTH * (1-indent), (Y_HEIGHT * indent), black );
 
 	{
 		// center
@@ -2687,12 +2698,14 @@ static void CG_DrawWeapReticle( void )
 			trap_R_DrawStretchPic( x + w, y + h, w, h, 1, 1, 0, 0, cgs.media.reticleShader );  // br
 		}
 
-		// hairs
-		CG_FillRect( 84, 239, 177, 2, light_color );   // left
-		CG_FillRect( 320, 242, 1, 58, light_color );   // center top
-		CG_FillRect( 319, 300, 2, 178, light_color );  // center bot
-		CG_FillRect( 380, 239, 177, 2, light_color );  // right
+		// hairs (using same Y offset correction as the reticle frame)
+		CG_FillRect( 84, 239 - RETICLE_Y_OFFSET, 177, 2, light_color );   // left
+		CG_FillRect( 320, 242 - RETICLE_Y_OFFSET, 1, 58, light_color );   // center top
+		CG_FillRect( 319, 300 - RETICLE_Y_OFFSET, 2, 178, light_color );  // center bot
+		CG_FillRect( 380, 239 - RETICLE_Y_OFFSET, 177, 2, light_color );  // right
 	}
+
+	#undef RETICLE_Y_OFFSET
 }
 
 /*
