@@ -41,6 +41,8 @@ XrAction moveOnLeftJoystickAction;
 XrAction moveOnRightJoystickAction;
 XrAction thumbstickLeftClickAction;
 XrAction thumbstickRightClickAction;
+XrAction thumbrestLeftTouchAction;
+XrAction thumbrestRightTouchAction;
 XrAction vibrateLeftFeedback;
 XrAction vibrateRightFeedback;
 XrActionSet runningActionSet;
@@ -586,6 +588,8 @@ void VR_InitInstanceInput( VR_Engine* engine )
 	moveOnRightJoystickAction = CreateAction(runningActionSet, XR_ACTION_TYPE_VECTOR2F_INPUT, "move_on_right_joy", "Move on right Joy", 0, NULL);
 	thumbstickLeftClickAction = CreateAction(runningActionSet, XR_ACTION_TYPE_BOOLEAN_INPUT, "thumbstick_left", "Thumbstick left", 0, NULL);
 	thumbstickRightClickAction = CreateAction(runningActionSet, XR_ACTION_TYPE_BOOLEAN_INPUT, "thumbstick_right", "Thumbstick right", 0, NULL);
+	thumbrestLeftTouchAction = CreateAction(runningActionSet, XR_ACTION_TYPE_BOOLEAN_INPUT, "thumbrest_left_touch", "Thumbrest Left Touch", 0, NULL);
+	thumbrestRightTouchAction = CreateAction(runningActionSet, XR_ACTION_TYPE_BOOLEAN_INPUT, "thumbrest_right_touch", "Thumbrest Right Touch", 0, NULL);
 	vibrateLeftFeedback = CreateAction(runningActionSet, XR_ACTION_TYPE_VIBRATION_OUTPUT, "vibrate_left_feedback", "Vibrate Left Controller Feedback", 0, NULL);
 	vibrateRightFeedback = CreateAction(runningActionSet, XR_ACTION_TYPE_VIBRATION_OUTPUT, "vibrate_right_feedback", "Vibrate Right Controller Feedback", 0, NULL);
 
@@ -628,14 +632,14 @@ void VR_InitInstanceInput( VR_Engine* engine )
 
 		const XrPath interactionProfiles[] =
 		{
-			interactionProfilePathValveIndex,
 			interactionProfilePathOculusTouch,
+			interactionProfilePathValveIndex,
 			interactionProfilePathKHRSimple,
 		};
 		const char* interactionProfileNames[] =
 		{
-			"Valve Index",
 			"Oculus Quest",
+			"Valve Index",
 			"Simple",
 		};
 		const size_t profilesCount = sizeof(interactionProfiles)/sizeof(interactionProfiles[0]);
@@ -703,6 +707,8 @@ void VR_InitInstanceInput( VR_Engine* engine )
 				bindings[currBinding++] = ActionSuggestedBinding(moveOnRightJoystickAction, "/user/hand/right/input/thumbstick");
 				bindings[currBinding++] = ActionSuggestedBinding(thumbstickLeftClickAction, "/user/hand/left/input/thumbstick/click");
 				bindings[currBinding++] = ActionSuggestedBinding(thumbstickRightClickAction, "/user/hand/right/input/thumbstick/click");
+				bindings[currBinding++] = ActionSuggestedBinding(thumbrestLeftTouchAction, "/user/hand/left/input/thumbrest/touch");
+				bindings[currBinding++] = ActionSuggestedBinding(thumbrestRightTouchAction, "/user/hand/right/input/thumbrest/touch");
 				bindings[currBinding++] = ActionSuggestedBinding(vibrateLeftFeedback, "/user/hand/left/output/haptic");
 				bindings[currBinding++] = ActionSuggestedBinding(vibrateRightFeedback, "/user/hand/right/output/haptic");
 				bindings[currBinding++] = ActionSuggestedBinding(handPoseLeftAction, "/user/hand/left/input/aim/pose");
@@ -763,6 +769,8 @@ void VR_InitSessionInput( VR_Engine* engine )
 		moveOnRightJoystickAction,
 		thumbstickLeftClickAction,
 		thumbstickRightClickAction,
+		thumbrestLeftTouchAction,
+		thumbrestRightTouchAction,
 		vibrateLeftFeedback,
 		vibrateRightFeedback,
 		handPoseLeftAction,
@@ -1463,6 +1471,29 @@ static void IN_VRButtons( qboolean isRightController, uint32_t buttons )
 	{
 		IN_HandleInactiveInput(&controller->buttons, VR_Button_Y, "Y", 0, qfalse);
 	}
+
+	if (isRightController == !vr_righthanded->integer)
+	{
+		if (buttons & VR_Button_Thumbrest)
+		{
+			IN_HandleActiveInput(&controller->buttons, VR_Button_Thumbrest, "SECONDARYTHUMBREST", 0, qfalse);
+		}
+		else
+		{
+			IN_HandleInactiveInput(&controller->buttons, VR_Button_Thumbrest, "SECONDARYTHUMBREST", 0, qfalse);
+		}
+	}
+	else
+	{
+		if (buttons & VR_Button_Thumbrest)
+		{
+			IN_HandleActiveInput(&controller->buttons, VR_Button_Thumbrest, "PRIMARYTHUMBREST", 0, qfalse);
+		}
+		else
+		{
+			IN_HandleInactiveInput(&controller->buttons, VR_Button_Thumbrest, "PRIMARYTHUMBREST", 0, qfalse);
+		}
+	}
 }
 
 void VR_ProcessInputActions( void )
@@ -1479,6 +1510,7 @@ void VR_ProcessInputActions( void )
 	if (GetActionStateFloat(gripLeftAction).currentState > 0.5f) lButtons |= VR_Button_GripTrigger;
 	if (GetActionStateFloat(trackpadLeftAction).currentState > 0.3f) lButtons |= VR_Button_Trackpad;
 	if (GetActionStateBoolean(thumbstickLeftClickAction).currentState) lButtons |= VR_Button_LThumb;
+	if (GetActionStateBoolean(thumbrestLeftTouchAction).currentState) lButtons |= VR_Button_Thumbrest;
 	IN_VRButtons(qfalse, lButtons);
 	uint32_t rButtons = 0;
 	if (GetActionStateBoolean(buttonAAction).currentState) rButtons |= VR_Button_A;
@@ -1486,6 +1518,7 @@ void VR_ProcessInputActions( void )
 	if (GetActionStateFloat(gripRightAction).currentState > 0.5f) rButtons |= VR_Button_GripTrigger;
 	if (GetActionStateFloat(trackpadRightAction).currentState > 0.3f) rButtons |= VR_Button_Trackpad;
 	if (GetActionStateBoolean(thumbstickRightClickAction).currentState) rButtons |= VR_Button_RThumb;
+	if (GetActionStateBoolean(thumbrestRightTouchAction).currentState) rButtons |= VR_Button_Thumbrest;
 	IN_VRButtons(qtrue, rButtons);
 
 	//index finger click

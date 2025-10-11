@@ -160,7 +160,7 @@ void VR_InitCvars( void )
 	if (switchThumbsticks)
 	{
 		Cvar_Get ("vr_button_map_A", "+button2", CVAR_ARCHIVE); // Use Item
-		Cvar_Get ("vr_button_map_B", "togglemenu", CVAR_ARCHIVE); // Menu
+		Cvar_Get ("vr_button_map_B", "+button3", CVAR_ARCHIVE); // Taunt
 		Cvar_Get ("vr_button_map_X", "+moveup", CVAR_ARCHIVE); // Jump
 		Cvar_Get ("vr_button_map_Y", "+movedown", CVAR_ARCHIVE); // Crouch
 	}
@@ -169,7 +169,7 @@ void VR_InitCvars( void )
 		Cvar_Get ("vr_button_map_A", "+moveup", CVAR_ARCHIVE); // Jump
 		Cvar_Get ("vr_button_map_B", "+movedown", CVAR_ARCHIVE); // Crouch
 		Cvar_Get ("vr_button_map_X", "+button2", CVAR_ARCHIVE); // Use Item
-		Cvar_Get ("vr_button_map_Y", "togglemenu", CVAR_ARCHIVE); // Menu
+		Cvar_Get ("vr_button_map_Y", "+button3", CVAR_ARCHIVE); // Taunt
 	}
 
 	//Remaining button mapping (buttons not affected by schemas)
@@ -192,4 +192,8 @@ void VR_InitCvars( void )
 	Cvar_Get ("vr_button_map_PRIMARYTRACKPAD_ALT", "", CVAR_ARCHIVE); // unmapped
 	Cvar_Get ("vr_button_map_SECONDARYTRACKPAD", "togglemenu", CVAR_ARCHIVE); // unmapped
 	Cvar_Get ("vr_button_map_SECONDARYTRACKPAD_ALT", "", CVAR_ARCHIVE); // unmapped
+	Cvar_Get ("vr_button_map_PRIMARYTHUMBREST", "+alt", CVAR_ARCHIVE); // Alt modifier
+	Cvar_Get ("vr_button_map_PRIMARYTHUMBREST_ALT", "", CVAR_ARCHIVE); // unmapped
+	Cvar_Get ("vr_button_map_SECONDARYTHUMBREST", "+alt", CVAR_ARCHIVE); // Alt modifier
+	Cvar_Get ("vr_button_map_SECONDARYTHUMBREST_ALT", "", CVAR_ARCHIVE); // unmapped
 }

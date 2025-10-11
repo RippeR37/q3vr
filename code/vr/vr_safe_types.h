@@ -44,6 +44,7 @@ typedef enum
 	// button on Left Quest Controller
 	VR_Button_Back        = 0x00200000, //< Back button on the Go Controller (only set when
 	// a short press comes up)
+	VR_Button_Thumbrest   = 0x01000000, //< Thumbrest touch sensor
 	VR_Button_GripTrigger = 0x04000000, //< grip trigger engaged
 	VR_Button_Trackpad    = 0x08000000, //< trackpad engaged
 	VR_Button_Trigger     = 0x20000000, //< Index Trigger engaged
