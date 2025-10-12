@@ -560,6 +560,35 @@ void Con_DrawInput (void) {
 
 /*
 ================
+Con_DrawChar_Scaled
+
+Helper to draw a character with optional scaling for HUD buffer
+================
+*/
+static void Con_DrawChar_Scaled(int x, int y, int scale, int ch) {
+	int row, col;
+	float frow, fcol;
+	float size;
+
+	ch &= 255;
+
+	if (ch == ' ') {
+		return;
+	}
+
+	row = ch >> 4;
+	col = ch & 15;
+
+	frow = row * 0.0625f;
+	fcol = col * 0.0625f;
+	size = 0.0625f;
+
+	re.DrawStretchPic(x, y, SMALLCHAR_WIDTH * scale, SMALLCHAR_HEIGHT * scale,
+		fcol, frow, fcol + size, frow + size, cls.charSetShader);
+}
+
+/*
+================
 Con_DrawNotify
 
 Draws the last few lines of output transparently over the game top
@@ -579,6 +608,8 @@ void Con_DrawNotify (void)
 
 	re.HUDBufferStart(qfalse);
 
+	// When drawing to 1280x960 HUD buffer, use 2x scale
+	int charScale = (vr_currentHudDrawStatus->integer == 1) ? 2 : 1;
 	int xadjust = (vr_currentHudDrawStatus->integer != 1) ? 500 : 10;
 	int yadjust = (vr_currentHudDrawStatus->integer != 1) ? 600 : 10;
 
@@ -610,13 +641,13 @@ void Con_DrawNotify (void)
 
 			if (vr_showConsoleMessages->integer)
 			{
-				SCR_DrawSmallChar(
-						cl_conXOffset->integer + con.xadjust + (x + 1) * SMALLCHAR_WIDTH + xadjust,
-						v + yadjust, text[x] & 0xff);
+				Con_DrawChar_Scaled(
+						cl_conXOffset->integer + con.xadjust + (x + 1) * SMALLCHAR_WIDTH * charScale + xadjust,
+						v + yadjust, charScale, text[x] & 0xff);
 			}
 		}
 
-		v += SMALLCHAR_HEIGHT;
+		v += SMALLCHAR_HEIGHT * charScale;
 	}
 
 	re.SetColor( NULL );
