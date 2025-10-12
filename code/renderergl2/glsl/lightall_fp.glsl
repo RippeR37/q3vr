@@ -46,6 +46,8 @@ uniform vec4      u_CubeMapInfo;
 #endif
 
 uniform int       u_AlphaTest;
+uniform int       u_IsDrawingHUD;
+uniform int       u_Is2DDraw;
 
 varying vec4      var_TexCoords;
 
@@ -517,10 +519,14 @@ void main()
 
 #endif
 
-	// For alpha-tested surfaces, output fully opaque alpha
-	// This ensures HUD elements render correctly without transparency artifacts
-	if (u_AlphaTest == 2 || u_AlphaTest == 3)
-		gl_FragColor.a = 1.0;
+	// When rendering 3D models to HUD, ensure minimum alpha so they're visible
+	// Text/2D UI should keep original alpha for proper blending
+	if (u_IsDrawingHUD != 0 && u_Is2DDraw == 0)
+	{
+		gl_FragColor.a = max(alpha, 0.5);
+	}
 	else
+	{
 		gl_FragColor.a = alpha;
+	}
 }
