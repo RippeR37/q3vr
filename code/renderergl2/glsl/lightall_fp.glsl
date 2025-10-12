@@ -521,9 +521,13 @@ void main()
 
 	// When rendering 3D models to HUD, ensure minimum alpha so they're visible
 	// Text/2D UI should keep original alpha for proper blending
+	// For alpha-tested surfaces (custom enemy models), output fully opaque
 	if (u_IsDrawingHUD != 0 && u_Is2DDraw == 0)
 	{
-		gl_FragColor.a = max(alpha, 0.5);
+		if (u_AlphaTest == 2 || u_AlphaTest == 3)
+			gl_FragColor.a = 1.0;
+		else
+			gl_FragColor.a = max(alpha, 0.5);
 	}
 	else
 	{
