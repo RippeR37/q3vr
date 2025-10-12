@@ -1778,7 +1778,7 @@ void GLSL_PrepareUniformBuffers(void)
           orthoProjectionMatrix);
 
   float hudOrthoProjectionMatrix[16];
-  Mat4Ortho(0, 640, 480, 0, 0, 1, hudOrthoProjectionMatrix);
+  Mat4Ortho(0, 1280, 960, 0, 0, 1, hudOrthoProjectionMatrix);
   GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[HUDBUFFER_ORTHO_PROJECTION],
           hudOrthoProjectionMatrix);
 
