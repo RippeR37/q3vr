@@ -669,6 +669,96 @@ static void CG_DamageBlendBlob( void ) {
 	trap_R_AddRefEntityToScene( &ent );
 }
 
+/*
+===============
+CG_DamageBorderVignette
+
+Modern damage indicator using red-tinted borders
+===============
+*/
+void CG_DamageBorderVignette( void ) {
+	int			t;
+	int			maxTime;
+	float		alpha;
+	float		damageIntensity;
+	int			x, y, w, h;
+
+	if (!cg_blood.integer) {
+		return;
+	}
+
+	if ( !cg.damageValue ) {
+		return;
+	}
+
+	maxTime = DAMAGE_TIME;
+	t = cg.time - cg.damageTime;
+	if ( t <= 0 || t >= maxTime ) {
+		return;
+	}
+
+	// Calculate fade alpha (1.0 to 0.0 over DAMAGE_TIME)
+	alpha = 1.0f - ((float)t / maxTime);
+
+	// Scale border thickness based on damage value
+	// cg.damageValue is clamped between 5 and 10 in CG_DamageFeedback (cg_playerstate.c)
+	// Normalize to 0-1 range: (value - min) / (max - min)
+	damageIntensity = (cg.damageValue - 5.0f) / 5.0f;
+	
+	// Damage intensity controls coverage area
+	float coverage = damageIntensity / 8.0f;
+	int percentX = (int)(coverage * cg.refdef.width);
+	int percentY = (int)(coverage * cg.refdef.height);
+
+	// Apply directional weighting to borders based on damage direction
+	// cg.damageX and cg.damageY are normalized direction values (-1 to 1)
+	// Positive damageX = damage from RIGHT, negative = damage from LEFT
+	// Positive damageY = damage from TOP, negative = damage from BOTTOM
+	// Redistribute border thickness: thicken damage side, thin opposite side
+	// At damageX=-1 (full left): left=2.0, right=0.0
+	// At damageX=0 (center): left=1.0, right=1.0
+	// At damageX=+1 (full right): left=0.0, right=2.0
+	float leftWeight = 1.0f - cg.damageX;   // Damage from left increases this
+	float rightWeight = 1.0f + cg.damageX;  // Damage from right increases this
+	float topWeight = 1.0f + cg.damageY;    // Damage from top increases this
+	float bottomWeight = 1.0f - cg.damageY; // Damage from bottom increases this
+
+	// Calculate weighted border dimensions
+	int leftBorder = (int)(percentX * leftWeight);
+	int rightBorder = (int)(percentX * rightWeight);
+	int topBorder = (int)(percentY * topWeight);
+	int bottomBorder = (int)(percentY * bottomWeight);
+
+	// Red color with fading alpha
+	vec4_t red = {1.0f, 0.0f, 0.0f, alpha * 0.8f};
+
+	trap_R_SetColor( red );
+
+	// Left
+	trap_R_DrawStretchPic( 0, 0, leftBorder, cg.refdef.height,
+		0, 0, 1, 1, cgs.media.whiteShader );
+	// Right
+	trap_R_DrawStretchPic( cg.refdef.width - rightBorder, 0, rightBorder, cg.refdef.height,
+		0, 0, 1, 1, cgs.media.whiteShader );
+	// Top
+	trap_R_DrawStretchPic( leftBorder, 0, cg.refdef.width - leftBorder - rightBorder, topBorder,
+		0, 0, 1, 1, cgs.media.whiteShader );
+	// Bottom
+	trap_R_DrawStretchPic( leftBorder, cg.refdef.height - bottomBorder,
+		cg.refdef.width - leftBorder - rightBorder, bottomBorder,
+		0, 0, 1, 1, cgs.media.whiteShader );
+
+	// Draw vignette shader in the center for fade effect
+	x = leftBorder;
+	y = topBorder;
+	w = cg.refdef.width - leftBorder - rightBorder;
+	h = cg.refdef.height - topBorder - bottomBorder;
+
+	trap_R_DrawStretchPic( x, y, w, h, 0, 0, 1, 1, cgs.media.vignetteShader );
+
+	trap_R_SetColor( NULL );
+}
+
 
 /*
 ===============
@@ -1069,9 +1159,13 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	// build cg.refdef
 	inwater = CG_CalcViewValues();
 
-	// first person blend blobs, done after AnglesToAxis
+	// first person damage indicators, done after AnglesToAxis
 	if ( !cg.renderingThirdPerson ) {
-		CG_DamageBlendBlob();
+		// Old blood splatter effect (only used if cg_damageEffect is 0)
+		if ( !cg_damageEffect.integer ) {
+			CG_DamageBlendBlob();
+		}
+		// Modern damage vignette is now called from CG_DrawScreen2D in cg_draw.c
 	}
 
 	// build the render lists

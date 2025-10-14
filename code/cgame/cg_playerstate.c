@@ -179,10 +179,6 @@ void CG_DamageFeedback( int yawByte, int pitchByte, int damage ) {
 		trap_HapticEvent("bullet", 0, 0, 100, yaw, 0);
 	}
 
-	// don't let the screen flashes vary as much
-	if ( kick > 10 ) {
-		kick = 10;
-	}
 	cg.damageValue = kick;
 	cg.v_dmg_time = cg.time + DAMAGE_TIME;
 	cg.damageTime = cg.snap->serverTime;
