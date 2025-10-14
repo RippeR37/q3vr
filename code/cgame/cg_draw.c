@@ -2904,6 +2904,11 @@ static void CG_DrawScreen2D(void)
 
         CG_DrawVignette();
 
+        // Draw modern damage indicator if enabled
+        if ( cg_damageEffect.integer && !cg.renderingThirdPerson ) {
+            CG_DamageBorderVignette();
+        }
+
         if(vr->weapon_zoomed) {
             CG_DrawWeapReticle();
         }

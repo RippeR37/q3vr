@@ -46,12 +46,14 @@ GAME OPTIONS MENU
 #define ID_IDENTIFYTARGET		131
 #define ID_FORCEMODEL			132
 #define ID_DRAWTEAMOVERLAY		133
-#define ID_LASERSIGHT		    134
-#define ID_HOLSTER2D		    135
-#define ID_GORE 			    136
-#define ID_SHOWINHAND		    137
-#define ID_SHOWCONSOLE			138
-#define ID_BACK					139
+#define ID_DRAWFFABACKGROUND	134
+#define ID_LASERSIGHT		    135
+#define ID_HOLSTER2D		    136
+#define ID_GORE 			    137
+#define ID_DAMAGEEFFECT		    138
+#define ID_SHOWINHAND		    139
+#define ID_SHOWCONSOLE			140
+#define ID_BACK					141
 
 #define	NUM_CROSSHAIRS			10
 #define	NUM_GORE    			4
@@ -74,6 +76,7 @@ typedef struct {
 	menulist_s			drawteamoverlay;
 	menuradiobutton_s	holster2d;
 	menulist_s 			gore;
+	menulist_s			damageeffect;
 	menuradiobutton_s	showinhand;
 	menuradiobutton_s	showconsole;
 	menubitmap_s		back;
@@ -102,6 +105,13 @@ static const char *s_gore[] =
 	NULL
 };
 
+static const char *s_damageeffect[] =
+{
+	"Classic",
+	"Modern",
+	NULL
+};
+
 static void Preferences_SetMenuItems( void ) {
 	s_preferences.crosshair.curvalue		= (int)trap_Cvar_VariableValue( "cg_drawCrosshair" ) % NUM_CROSSHAIRS;
 	s_preferences.lasersight.curvalue		= trap_Cvar_VariableValue( "vr_lasersight" ) != 0;
@@ -113,6 +123,7 @@ static void Preferences_SetMenuItems( void ) {
 	s_preferences.drawteamoverlay.curvalue	= Com_Clamp( 0, 3, trap_Cvar_VariableValue( "cg_drawTeamOverlay" ) );
 	s_preferences.holster2d.curvalue		= trap_Cvar_VariableValue( "cg_weaponSelectorSimple2DIcons" ) != 0;
 	s_preferences.gore.curvalue				= trap_Cvar_VariableValue( "vr_goreLevel" );
+	s_preferences.damageeffect.curvalue		= trap_Cvar_VariableValue( "cg_damageEffect" );
 	s_preferences.showinhand.curvalue		= trap_Cvar_VariableValue( "vr_showItemInHand" ) != 0;
 	s_preferences.showconsole.curvalue		= trap_Cvar_VariableValue( "vr_showConsoleMessages" ) != 0;
 }
@@ -205,6 +216,10 @@ static void Preferences_Event( void* ptr, int notification ) {
 				break;
 			}
 		}
+		break;
+
+	case ID_DAMAGEEFFECT:
+		trap_Cvar_SetValue( "cg_damageEffect", s_preferences.damageeffect.curvalue );
 		break;
 
 	case ID_SHOWINHAND:
@@ -452,6 +467,16 @@ static void Preferences_MenuInit( void ) {
 	s_preferences.gore.itemnames	        = s_gore;
 	s_preferences.gore.numitems			= NUM_GORE;
 
+	y += BIGCHAR_HEIGHT+2;
+	s_preferences.damageeffect.generic.type		= MTYPE_SPINCONTROL;
+	s_preferences.damageeffect.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_preferences.damageeffect.generic.x			= PREFERENCES_X_POS;
+	s_preferences.damageeffect.generic.y			= y;
+	s_preferences.damageeffect.generic.name		= "Blood Spatter Effect:";
+	s_preferences.damageeffect.generic.callback	= Preferences_Event;
+	s_preferences.damageeffect.generic.id		= ID_DAMAGEEFFECT;
+	s_preferences.damageeffect.itemnames	        = s_damageeffect;
+
 	s_preferences.back.generic.type	    = MTYPE_BITMAP;
 	s_preferences.back.generic.name     = ART_BACK0;
 	s_preferences.back.generic.flags    = QMF_LEFT_JUSTIFY|QMF_PULSEIFFOCUS;
@@ -477,6 +502,7 @@ static void Preferences_MenuInit( void ) {
 	Menu_AddItem( &s_preferences.menu, &s_preferences.drawteamoverlay );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.holster2d );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.gore );
+	Menu_AddItem( &s_preferences.menu, &s_preferences.damageeffect );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.showinhand );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.showconsole );
 
