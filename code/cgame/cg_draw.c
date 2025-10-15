@@ -2142,9 +2142,11 @@ static void CG_ScanForCrosshairEntity( void ) {
 	trace_t		trace;
 	vec3_t		start, end;
 	int			content;
-
-	VectorCopy( cg.refdef.vieworg, start );
-	VectorMA( start, 131072, cg.refdef.viewaxis[0], end );
+    vec3_t viewaxis[3];
+    vec3_t weaponangles;
+    CG_CalculateVRWeaponPosition(start, weaponangles);
+    AnglesToAxis(weaponangles, viewaxis);
+    VectorMA(start, 131072, viewaxis[0], end);
 
 	CG_Trace( &trace, start, vec3_origin, vec3_origin, end, 
 		cg.snap->ps.clientNum, CONTENTS_SOLID|CONTENTS_BODY );
@@ -2179,7 +2181,7 @@ static void CG_DrawCrosshairNames( void ) {
 	char		*name;
 	float		w;
 
-	if ( !cg_drawCrosshair.integer ) {
+	if ( trap_Cvar_VariableValue("vr_lasersight") == 0.0f && vr->no_crosshair ) {
 		return;
 	}
 	if ( !cg_drawCrosshairNames.integer ) {
