@@ -41,8 +41,7 @@ VR_Engine* VR_Init( void )
 	memset(&vr_engine, 0, sizeof(vr_engine));
 	memset(&vr, 0, sizeof(vr));
 
-	// For now default and stay always within first person spectator, 3rd person options are not working as they should...
-	vr.follow_mode = VRFM_FIRSTPERSON;
+	vr.follow_mode = VRFM_THIRDPERSON_1;
 
 	fprintf(stderr, "[OpenXR] Initilizing OpenXR instance and system...\n");
 

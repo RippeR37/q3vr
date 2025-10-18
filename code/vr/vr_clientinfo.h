@@ -28,6 +28,8 @@ typedef struct {
 	qboolean no_crosshair;
 
 	int realign; // used to realign the fake 6DoF playspace in a multiplayer game
+	qboolean recenter_follow_camera; // flag to trigger camera recentering in follow mode
+	float snapTurnYaw; // yaw rotation to apply (like CL_SnapTurn), set by cgame
 
 	int clientNum;
 	vec3_t clientviewangles; //orientation in the client - we use this in the cgame

@@ -214,7 +214,7 @@ void VR_Renderer_EndFrame(VR_Engine* engine)
 	VR_SwapchainInfos* swapchains = &engine->appState.Renderer.Swapchains;
 
 	// Draw Virtual Screen if needed
-	const int use_virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen() || ((cl.snap.ps.pm_flags & PMF_FOLLOW) && (vr.follow_mode == VRFM_FIRSTPERSON));
+	const int use_virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen() || (((cl.snap.ps.pm_flags & PMF_FOLLOW) || clc.demoplaying) && (vr.follow_mode == VRFM_FIRSTPERSON));
 	if (use_virtual_screen)
 	{
 		VR_DrawVirtualScreen(swapchains, swapchainColorIndex, fov, views, viewCount);
