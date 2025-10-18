@@ -18,4 +18,11 @@ void VR_ProcessFrame( VR_Engine* engine );
 // VR_ProcessFrame to proceed
 void VR_Renderer_RestoreState( VR_Engine* engine );
 
+// Internal frame management functions exposed for loading screen support
+void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter);
+void VR_Renderer_EndFrame(VR_Engine* engine);
+
+// Submit VR frame during loading if needed (returns qtrue if a frame was submitted)
+qboolean VR_Renderer_SubmitLoadingFrame(VR_Engine* engine);
+
 #endif
