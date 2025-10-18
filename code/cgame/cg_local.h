@@ -541,6 +541,11 @@ typedef struct {
 	// view origin in VR thirdperson
 	vec3_t 		vr_vieworigin;
 
+	// smooth follow camera control (spherical coordinates)
+	float		smoothFollow_distance;		// radius from player
+	float		smoothFollow_yaw;			// horizontal angle around player
+	float		smoothFollow_pitch;			// vertical angle (elevation)
+
 	// zoom key
 	qboolean	zoomed;
 	int			zoomTime;
@@ -1211,6 +1216,7 @@ extern	vmCvar_t		cg_damageEffect;
 extern	vmCvar_t		cg_predictItems;
 extern	vmCvar_t		cg_deferPlayers;
 extern	vmCvar_t		cg_followKiller;
+extern	vmCvar_t		cg_smoothFollow;
 extern	vmCvar_t		cg_drawFriend;
 extern	vmCvar_t		cg_teamChatsOnly;
 #ifdef MISSIONPACK

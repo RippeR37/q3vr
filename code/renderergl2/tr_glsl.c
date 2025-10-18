@@ -226,7 +226,7 @@ static void GLSL_ViewMatricesUniformBuffer(const float eyeView[2][16], const flo
           //make the HUD depths line up with the weapon wheel depth. I _know_ there
           //would be a proper calculation to do this exactly, but this is good enough
           //and I've just had enough messing about with this
-				  const int depthOffset = (5-powf(vr_hudDepth->integer, 0.7f)) * 16;
+				  const int depthOffset = (5-powf(vr_currentHudDepth->integer, 0.7f)) * 16;
           vec3_t translate;
           VectorSet(translate, depthOffset, 0, 0);
           Mat4Translation( translate, viewMatrices );

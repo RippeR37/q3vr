@@ -316,6 +316,13 @@ void CL_AdjustAngles( void ) {
 
 	cl.viewangles[YAW] -= vr.hmdorientation_delta[YAW];
 
+	// Apply snap turn if cgame requested it (for follow camera recentering)
+	if (vr.snapTurnYaw != 0.0f)
+	{
+		cl.viewangles[YAW] -= vr.snapTurnYaw;
+		vr.snapTurnYaw = 0.0f; // Clear after applying
+	}
+
 	//Make angles good
 	while (cl.viewangles[YAW] > 180.0f)
 	{

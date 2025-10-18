@@ -67,23 +67,21 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 	}
 	else  // scale to clearly visible portion of VR screen
 	{
-		float screenXScale = cgs.screenXScale / 2.8f;
-		float screenYScale = cgs.screenYScale / 2.3f;
+		qboolean isVirtualScreen = vr->virtual_screen || (((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && (vr->follow_mode == VRFM_FIRSTPERSON));
+		float screenXScale, screenYScale;
 
+		if (isVirtualScreen) {
+			screenXScale = cgs.screenXScale;
+			screenYScale = cgs.screenYScale;
+		} else {
+			screenXScale = cgs.screenXScale / 2.8f;
+			screenYScale = cgs.screenYScale / 2.3f;
+		}
+		
 		*x *= screenXScale;
 		*y *= screenYScale;
-		if (hudflags & HUD_FLAGS_DRAWMODEL)
-		{
-			*w *= (screenXScale * 2.0f);
-			*x -= (*w / 3);
-			*h *= (screenYScale * 2.0f);
-			*y -= (*h / 3);
-		}
-		else
-		{
-			*w *= screenXScale;
-			*h *= screenYScale;
-		}
+		*w *= screenXScale;
+		*h *= screenYScale;
 
 		*x += (cg.refdef.width - (640 * screenXScale)) / 2.0f;
 		*y += (cg.refdef.height - (480 * screenYScale)) / 2.0f - trap_Cvar_VariableValue("vr_hudYOffset");

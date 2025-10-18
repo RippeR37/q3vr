@@ -226,52 +226,206 @@ CG_OffsetVRThirdPersonView
 */
 static void CG_OffsetVRThirdPersonView( void ) {
 	float scale = 1.0f;
+	cg.refdef.vieworg[2] += cg.predictedPlayerState.viewheight;
+
+	// Track followed player changes for automatic camera recentering in follow mode
+	static int lastFollowedClient = -1;
+
+	// Detect when we switch to a different followed player (any follow mode, not death cam)
+	if (CG_IsThirdPersonFollowMode(VRFM_QUERY))
+	{
+		int currentClient = cg.snap->ps.clientNum;
+		if (lastFollowedClient != -1 && lastFollowedClient != currentClient)
+		{
+			vr->recenter_follow_camera = qtrue;
+		}
+		lastFollowedClient = currentClient;
+	}
+	else
+	{
+		lastFollowedClient = -1;  // Reset when not in follow mode
+	}
 
 	//Follow mode 1
- 	if ( cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_1))
+ 	if ( CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_1) )
 	{
 		scale *= SPECTATOR_WORLDSCALE_MULTIPLIER;
-		
-		//Check to see if the followed player has moved far enough away to mean we should update our location
-		vec3_t current;
-		VectorSubtract(cg.refdef.vieworg, cg.vr_vieworigin, current);
-		current[2] = 0;
-		if (VectorLength(current) > 400)
-		{
-			VectorCopy(cg.refdef.vieworg, cg.vr_vieworigin);
 
-			//Move behind the player
-			vec3_t angles;
-			vec3_t		forward, right, up;
-			VectorCopy(vr->clientviewangles, angles);
-			angles[PITCH] = 0;
-			AngleVectors( angles, forward, right, up );
-			VectorMA( cg.vr_vieworigin, -60, forward, cg.vr_vieworigin );
+		if (cg_smoothFollow.integer)
+		{
+			// Smooth follow with thumbstick camera controls
+			static qboolean initialized = qfalse;
+
+			// Handle camera recentering when B button is pressed or followed player changes
+			if (vr->recenter_follow_camera)
+			{
+				// Reset camera behind player at default distance and pitch
+				cg.smoothFollow_distance = 200.0f;
+				// Set yaw to place camera behind player (180 degrees from their facing)
+				cg.smoothFollow_yaw = cg.snap->ps.viewangles[YAW] + 180.0f;
+				cg.smoothFollow_pitch = 0.0f;
+				vr->recenter_follow_camera = qfalse;
+			}
+
+			// Initialize camera spherical coordinates on first use
+			if (!initialized) {
+				cg.smoothFollow_distance = 200.0f;
+				cg.smoothFollow_yaw = cg.snap->ps.viewangles[YAW] + 180.0f;
+				cg.smoothFollow_pitch = 0.0f;
+				initialized = qtrue;
+			}
+
+			// Primary thumbstick (right): controls camera rotation and height
+			// [0] = left/right (affects yaw), [1] = up/down (affects pitch)
+			int primaryThumb = vr->right_handed ? THUMB_RIGHT : THUMB_LEFT;
+			float yawInput = vr->thumbstick_location[primaryThumb][0];
+			float pitchInput = vr->thumbstick_location[primaryThumb][1];
+
+			// Secondary thumbstick (left): controls camera distance
+			// [1] = up/down (affects distance)
+			int secondaryThumb = vr->right_handed ? THUMB_LEFT : THUMB_RIGHT;
+			float distanceInput = vr->thumbstick_location[secondaryThumb][1];
+
+			// Update camera spherical coordinates based on thumbstick input
+			// Yaw: rotate around player (left/right on primary stick)
+			cg.smoothFollow_yaw += yawInput * 3.0f;  // degrees per frame
+
+			// Pitch: move up/down on sphere surface (up/down on primary stick)
+			cg.smoothFollow_pitch += pitchInput * 2.0f;  // degrees per frame
+			// Clamp pitch to prevent camera from going too high or low
+			// FIXME: It would be great to allow near-vertical rotation, but
+			// doing so makes it obvious that moving forward/backward with the
+			// HMD isn't getting closer to the player, but moving along the game's
+			// Y axis. Which is kinda nauseating, no matter how good your VR legs are.
+			if (cg.smoothFollow_pitch > 45.0f) cg.smoothFollow_pitch = 45.0f;
+			if (cg.smoothFollow_pitch < 0.0f) cg.smoothFollow_pitch = 0.0f;
+
+			// Distance: move closer/farther (up/down on secondary stick)
+			// Up = decrease distance, Down = increase distance
+			cg.smoothFollow_distance -= distanceInput * 2.0f;  // units per frame
+			// Clamp distance to reasonable range
+			if (cg.smoothFollow_distance < 60.0f) cg.smoothFollow_distance = 60.0f;
+			if (cg.smoothFollow_distance > 600.0f) cg.smoothFollow_distance = 600.0f;
+
+			// Convert spherical coordinates to Cartesian offset
+			// Camera orbits around player independently of player's facing direction
+			float absoluteYaw = cg.smoothFollow_yaw;
+			float pitch = cg.smoothFollow_pitch;
+
+			// Calculate camera position on sphere surface
+			vec3_t offset;
+			offset[0] = cg.smoothFollow_distance * cos(DEG2RAD(pitch)) * cos(DEG2RAD(absoluteYaw));
+			offset[1] = cg.smoothFollow_distance * cos(DEG2RAD(pitch)) * sin(DEG2RAD(absoluteYaw));
+			offset[2] = cg.smoothFollow_distance * sin(DEG2RAD(pitch));
+
+			VectorCopy(cg.refdef.vieworg, cg.vr_vieworigin);
+			VectorAdd(cg.vr_vieworigin, offset, cg.vr_vieworigin);
+
+			// Point camera at player: calculate direction vector from camera to player
+			vec3_t lookDir;
+			VectorSubtract(cg.refdef.vieworg, cg.vr_vieworigin, lookDir);
+			vectoangles(lookDir, vr->clientviewangles);
+		}
+		else
+		{
+			// Handle camera recentering when B button is pressed or followed player changes
+			qboolean needsRecenter = qfalse;
+			if (vr->recenter_follow_camera)
+			{
+				needsRecenter = qtrue;
+				vr->recenter_follow_camera = qfalse;
+			}
+
+			//Check to see if the followed player has moved far enough away to mean we should update our location
+			vec3_t current;
+			VectorSubtract(cg.refdef.vieworg, cg.vr_vieworigin, current);
+			current[2] = 0;
+			if (needsRecenter || VectorLength(current) > 400)
+			{
+				VectorCopy(cg.refdef.vieworg, cg.vr_vieworigin);
+
+				//Move behind the player
+				vec3_t angles;
+				vec3_t		forward, right, up;
+				VectorCopy(cg.snap->ps.viewangles, angles);
+				angles[PITCH] = 0;
+				AngleVectors( angles, forward, right, up );
+				VectorMA( cg.vr_vieworigin, -60, forward, cg.vr_vieworigin );
+
+				// Rotate view to face player
+				vec3_t lookDir, targetAngles;
+				VectorSubtract(cg.refdef.vieworg, cg.vr_vieworigin, lookDir);
+				vectoangles(lookDir, targetAngles);
+
+				// Current world yaw
+				float currentWorldYaw = vr->clientviewangles[YAW] - vr->hmdorientation[YAW];
+
+				// Calculate snap turn amount
+				float snapTurn = AngleSubtract(currentWorldYaw, targetAngles[YAW]);
+
+				// Request the client to apply this rotation
+				vr->snapTurnYaw = snapTurn;
+			}
 		}
 	}
 	//Death or follow mode 2
-	else if (CG_IsDeathCam() ||CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_2))
+	else if (CG_IsDeathCam() || CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_2))
 	{
 		scale *= SPECTATOR2_WORLDSCALE_MULTIPLIER;
+
+		// Handle camera recentering when B button is pressed or followed player changes
+		if (vr->recenter_follow_camera && CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_2))
+		{
+			// Reset camera to followed player's position
+			VectorCopy(cg.refdef.vieworg, cg.vr_vieworigin);
+
+			// Move camera behind and slightly above the player
+			vec3_t angles;
+			vec3_t forward, right, up;
+			VectorCopy(cg.snap->ps.viewangles, angles);
+			angles[PITCH] = 0;
+			AngleVectors(angles, forward, right, up);
+			VectorMA(cg.vr_vieworigin, -180, forward, cg.vr_vieworigin);
+			VectorMA(cg.vr_vieworigin, -100, up, cg.vr_vieworigin);
+
+			// Calculate rotation needed to point at player
+			vec3_t lookDir, targetAngles;
+			VectorSubtract(cg.refdef.vieworg, cg.vr_vieworigin, lookDir);
+			vectoangles(lookDir, targetAngles);
+
+			// Current world yaw
+			float currentWorldYaw = vr->clientviewangles[YAW] - vr->hmdorientation[YAW];
+
+			// Calculate snap turn amount (like thumbstick snap turn)
+			// CL_SnapTurn does: cl.viewangles[YAW] -= dxYaw
+			// We want to rotate from currentWorldYaw to targetAngles[YAW]
+			float snapTurn = AngleSubtract(currentWorldYaw, targetAngles[YAW]);
+
+			// Request the client to apply this rotation
+			vr->snapTurnYaw = snapTurn;
+
+			// Clear the flag
+			vr->recenter_follow_camera = qfalse;
+		}
 
 		//Move camera if the user is pushing thumbstick
 		vec3_t angles, forward, right, up;
 		VectorCopy(vr->offhandangles, angles);
-		float deltaYaw = CG_IsDeathCam() ? SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]) : 0.0f;
+		// Match the deltaYaw condition from CG_ConvertFromVR:
+		// Don't include delta if following another player or playing back a demo
+		float deltaYaw = (cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW)) ? 0.0f : SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]);
 		angles[YAW] += deltaYaw + (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);
 		AngleVectors(angles, forward, right, up);
 		VectorMA(cg.vr_vieworigin, vr->thumbstick_location[THUMB_LEFT][1] * 5.0f, forward, cg.vr_vieworigin);
 		VectorMA(cg.vr_vieworigin, vr->thumbstick_location[THUMB_LEFT][0] * 5.0f, right, cg.vr_vieworigin);
 	}
 
-	{
-		vec3_t position;
-		VectorCopy(vr->hmdposition, position);
-		CG_ConvertFromVR(position, NULL, position);
-		position[2] = 0;
-		VectorScale(position, scale, position);
-		VectorAdd(cg.vr_vieworigin, position, cg.refdef.vieworg);
-	}
+	vec3_t position;
+	VectorCopy(vr->hmdposition, position);
+	CG_ConvertFromVR(position, NULL, position);
+	position[2] -= PLAYER_HEIGHT;
+	VectorScale(position, scale, position);
+	VectorAdd(cg.vr_vieworigin, position, cg.refdef.vieworg);
 }
 
 /*
@@ -383,7 +537,7 @@ static void CG_OffsetFirstPersonView( void ) {
 	float			f;
 	vec3_t			predictedVelocity;
 	int				timeDelta;
-	
+
 	if ( cg.snap->ps.pm_type == PM_INTERMISSION ) {
 		return;
 	}
@@ -847,7 +1001,7 @@ static int CG_CalcViewValues( void ) {
 		}
 	}
 
-	if (CG_IsDeathCam() || cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+	if (CG_IsDeathCam() || (cg.demoPlayback && vr->follow_mode != VRFM_FIRSTPERSON) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
 	{
 		//If dead, or spectating, view the map from above
 		CG_OffsetVRThirdPersonView();
@@ -951,15 +1105,16 @@ static int CG_CalcViewValues( void ) {
 			angles[ROLL] = vr->hmdorientation[ROLL];
 			AnglesToAxis( angles, cg.refdef.viewaxis );
 		}
-		else if ( cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+		else if ( (cg.demoPlayback && vr->follow_mode != VRFM_FIRSTPERSON) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
 		{
-			//If we're following someone,
+			//If we're following someone in third person,
 			vec3_t angles;
 			VectorCopy(vr->hmdorientation, angles);
-			angles[YAW] = vr->clientviewangles[YAW];
+			angles[PITCH] += vr->clientviewangles[PITCH];
+			angles[YAW] += vr->clientviewangles[YAW];
 			AnglesToAxis(angles, cg.refdef.viewaxis);
 		}
-		else if (!(cg.snap->ps.pm_flags & PMF_FOLLOW && vr->follow_mode == VRFM_FIRSTPERSON))
+		else if (!(((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && vr->follow_mode == VRFM_FIRSTPERSON))
 		{
 			//We are connected to a multiplayer server, so make the appropriate adjustment to the view
 			//angles as we send orientation to the server that includes the weapon angles
@@ -981,15 +1136,16 @@ static int CG_CalcViewValues( void ) {
 			angles[YAW] = (cg.refdefViewAngles[YAW] - vr->hmdorientation[YAW]) + vr->weaponangles[YAW];
 			AnglesToAxis(angles, cg.refdef.viewaxis);
 		}
-		else if ( cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+		else if ( (cg.demoPlayback && vr->follow_mode != VRFM_FIRSTPERSON) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
 		{
-			//If we're following someone,
+			//If we're following someone in third person,
 			vec3_t angles;
 			VectorCopy(vr->hmdorientation, angles);
-			angles[YAW] = vr->clientviewangles[YAW];
+			angles[PITCH] += vr->clientviewangles[PITCH];
+			angles[YAW] += vr->clientviewangles[YAW];
 			AnglesToAxis(angles, cg.refdef.viewaxis);
 		}
-		else 
+		else
 		{
 			AnglesToAxis(cg.refdefViewAngles, cg.refdef.viewaxis);
 		}
@@ -1063,13 +1219,15 @@ static void CG_PlayBufferedSounds( void ) {
 
 qboolean CG_IsThirdPersonFollowMode( VR_FollowMode followMode )
 {
+	qboolean isFollowing = (cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback;
+
 	if (followMode == VRFM_QUERY)
 	{
-		return cg.snap->ps.pm_flags & PMF_FOLLOW &&
+		return isFollowing &&
 			   (vr->follow_mode == VRFM_THIRDPERSON_1 || vr->follow_mode == VRFM_THIRDPERSON_2);
 	}
 
-	return 	cg.snap->ps.pm_flags & PMF_FOLLOW && vr->follow_mode == followMode;
+	return 	isFollowing && vr->follow_mode == followMode;
 }
 
 qboolean CG_IsDeathCam( void )
@@ -1102,12 +1260,17 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	trap_Cvar_Set( "vr_thirdPersonSpectator", (CG_IsDeathCam() ||
                                              cg.demoPlayback ||
                                              CG_IsThirdPersonFollowMode(VRFM_QUERY) ? "1" : "0" ));
-
-	if (cg.demoPlayback || (cg.snap && (cg.snap->ps.pm_flags & PMF_FOLLOW) && (vr->follow_mode == VRFM_FIRSTPERSON)))
+	if ((cg.snap && ((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && (vr->follow_mode == VRFM_FIRSTPERSON))) {
+		// draw mode 1 won't work with virtual screen at the moment
+		trap_Cvar_SetValue( "vr_currentHudDrawStatus", 2 );
+	} else if (CG_IsDeathCam() ||
+		((cg.snap && (cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && (vr->follow_mode != VRFM_FIRSTPERSON)))
 	{
-    trap_Cvar_SetValue( "vr_currentHudDrawStatus", 2);
+		trap_Cvar_SetValue( "vr_currentHudDrawStatus", 1 );
+		trap_Cvar_SetValue( "vr_currentHudDepth", 1 );
 	} else {
 		trap_Cvar_SetValue( "vr_currentHudDrawStatus", trap_Cvar_VariableValue( "vr_hudDrawStatus" ));
+		trap_Cvar_SetValue( "vr_currentHudDepth", trap_Cvar_VariableValue( "vr_hudDepth" ));
 	}
 
 	// if we are only updating the screen as a loading
@@ -1153,7 +1316,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 
 	// decide on third person view
 	cg.renderingThirdPerson = cg.predictedPlayerState.pm_type == PM_SPECTATOR ||
-			cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_QUERY) ||
+			(cg.demoPlayback && vr->follow_mode != VRFM_FIRSTPERSON) || CG_IsThirdPersonFollowMode(VRFM_QUERY) ||
 			cg_thirdPerson.integer;
 
 	// build cg.refdef

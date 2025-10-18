@@ -1439,7 +1439,17 @@ static void IN_VRButtons( qboolean isRightController, uint32_t buttons )
 	{
 		if (!IN_InputActivated(&controller->buttons, VR_Button_B))
 		{
-			VR_VirtualScreen_ResetPosition();
+			// If in any third-person follow mode or playing demo, recenter camera
+			if (((cl.snap.ps.pm_flags & PMF_FOLLOW) || clc.demoplaying) &&
+			    (vr.follow_mode == VRFM_THIRDPERSON_1 || vr.follow_mode == VRFM_THIRDPERSON_2))
+			{
+				IN_ActivateInput(&controller->buttons, VR_Button_B);
+				vr.recenter_follow_camera = qtrue;
+			}
+			else
+			{
+				VR_VirtualScreen_ResetPosition();
+			}
 		}
 		IN_HandleActiveInput(&controller->buttons, VR_Button_B, "B", 0, qfalse);
 	}
@@ -1450,18 +1460,17 @@ static void IN_VRButtons( qboolean isRightController, uint32_t buttons )
 
 	if (buttons & VR_Button_X)
 	{
-		if (cl.snap.ps.pm_flags & PMF_FOLLOW)
+		if ((cl.snap.ps.pm_flags & PMF_FOLLOW) || clc.demoplaying)
 		{
-			// Switch follow mode
+			// Switch follow mode when following player or playing demo
 			if (!IN_InputActivated(&controller->buttons, VR_Button_X))
 			{
 				IN_ActivateInput(&controller->buttons, VR_Button_X);
-				// For now disable other follow modes, as they don't operate as they should
-				// vr.follow_mode = (vr.follow_mode+1) % VRFM_NUM_FOLLOWMODES;
-				// if (vr.follow_mode == VRFM_THIRDPERSON_1)
-				// {
+				vr.follow_mode = (vr.follow_mode+1) % VRFM_NUM_FOLLOWMODES;
+				if (vr.follow_mode == VRFM_THIRDPERSON_1)
+				{
 					Cbuf_ExecuteText(EXEC_APPEND, "follow\n");
-				// }
+				}
 
 				// Initiate realign
 				vr.realign = 3;
@@ -1513,6 +1522,7 @@ static void IN_VRButtons( qboolean isRightController, uint32_t buttons )
 void VR_ProcessInputActions( void )
 {
 	vr.virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen();
+	vr.right_handed = vr_righthanded->integer != 0;
 
 	VR_ProcessHaptics();
 

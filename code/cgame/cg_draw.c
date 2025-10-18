@@ -3003,7 +3003,7 @@ void CG_DrawActive( void ) {
 
 	float heightOffset = 0.0f;
 	float worldscale = cg.worldscale;
-	if ( cg.demoPlayback || CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_1))
+	if ( CG_IsThirdPersonFollowMode(VRFM_THIRDPERSON_1) )
 	{
 		worldscale *= SPECTATOR_WORLDSCALE_MULTIPLIER;
 		trap_Cvar_SetValue("vr_worldscaleScaler", SPECTATOR_WORLDSCALE_MULTIPLIER);
@@ -3023,9 +3023,13 @@ void CG_DrawActive( void ) {
 		trap_Cvar_SetValue("vr_worldscaleScaler", zoomCoeff);
 	}
 
-	if (cg.snap->ps.pm_flags & PMF_FOLLOW && vr->follow_mode == VRFM_FIRSTPERSON)
+	if (((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && vr->follow_mode == VRFM_FIRSTPERSON)
 	{
 		//Do nothing to view height if we are following in first person
+	}
+	else if (CG_IsDeathCam() || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+	{
+		//Do nothing to view height - CG_OffsetVRThirdPersonView already positioned the camera
 	}
 	else
 	{
@@ -3070,10 +3074,11 @@ void CG_DrawActive( void ) {
 		vec3_t forward, right, up;
 
 		float scale = trap_Cvar_VariableValue("vr_worldscaleScaler");
-		float dist = (trap_Cvar_VariableValue("vr_hudDepth")+3) * 3 * scale;
+		float dist = (trap_Cvar_VariableValue("vr_currentHudDepth")+3) * 3 * scale;
 		float radius = dist / 3.0f;
 
-		if (cg.snap->ps.stats[STAT_HEALTH] > 0 && cg.snap->ps.pm_type != PM_INTERMISSION)
+		if (cg.snap->ps.stats[STAT_HEALTH] > 0 && cg.snap->ps.pm_type != PM_INTERMISSION &&
+		    !(cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW)))
 		{
 			float viewYaw = SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]) +
 			    (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);

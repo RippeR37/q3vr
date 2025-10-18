@@ -8,6 +8,7 @@
 cvar_t *vr_worldscale = NULL;
 cvar_t *vr_worldscaleScaler = NULL;
 cvar_t *vr_hudDepth = NULL;
+cvar_t *vr_currentHudDepth = NULL;
 cvar_t *vr_righthanded = NULL;
 cvar_t *vr_switchThumbsticks = NULL;
 cvar_t *vr_snapturn = NULL;
@@ -63,6 +64,7 @@ void VR_InitCvars( void )
 	vr_goreLevel = Cvar_Get ("vr_goreLevel", "2", CVAR_ARCHIVE);
 	vr_hudDrawStatus = Cvar_Get ("vr_hudDrawStatus", "1", CVAR_ARCHIVE); // 0 - no hud, 1 - in-world hud, 2 - performance (static HUD)
 	vr_currentHudDrawStatus = Cvar_Get ("vr_currentHudDrawStatus", "1", CVAR_ARCHIVE); // 0 - no hud, 1 - in-world hud, 2 - performance (static HUD)
+	vr_currentHudDepth = Cvar_Get ("vr_currentHudDepth", "10", CVAR_ARCHIVE);
 	vr_showConsoleMessages = Cvar_Get ("vr_showConsoleMessages", "1", CVAR_ARCHIVE);
 	vr_desktopMode = Cvar_Get ("vr_desktopMode", "0", CVAR_ARCHIVE); // 0 - left eye, 1 - right eye, 2 - both eyes
 	vr_virtualScreenMode = Cvar_Get ("vr_virtualScreenMode", "0", CVAR_ARCHIVE); // 0 - fixed, 1 - follow
