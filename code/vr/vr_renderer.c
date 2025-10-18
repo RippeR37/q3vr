@@ -378,3 +378,20 @@ XrDesktopViewConfiguration VR_GetDesktopViewConfiguration( void )
 	}
 	return LEFT_EYE;
 }
+
+qboolean VR_Renderer_SubmitLoadingFrame(VR_Engine* engine)
+{
+	// Only submit frames during loading states when a frame has been started
+	if ((clc.state != CA_LOADING && clc.state != CA_PRIMED) || !frameStarted)
+	{
+		return qfalse;
+	}
+
+	// End the current VR frame (this will blit to virtual screen and submit to XR)
+	VR_Renderer_EndFrame(engine);
+
+	// Start a new VR frame for the next screen update
+	VR_Renderer_BeginFrame(engine, XR_FALSE);
+
+	return qtrue;
+}

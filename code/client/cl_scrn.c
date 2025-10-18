@@ -29,6 +29,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 extern vr_clientinfo_t vr;
 extern cvar_t *vr_currentHudDrawStatus;
 
+extern VR_Engine* VR_GetEngine( void );
+
 qboolean	scr_initialized;		// ready to draw
 
 cvar_t		*cl_timegraph;
@@ -617,8 +619,13 @@ void SCR_UpdateScreen( void ) {
 		} else {
 			re.EndFrame( NULL, NULL );
 		}
+
+		// During loading states (CA_LOADING/CA_PRIMED), SCR_UpdateScreen is called repeatedly
+		// from within CG_INIT (before Com_Frame returns). We need to submit VR frames during
+		// this time so the loading screen is visible in the headset.
+		VR_Renderer_SubmitLoadingFrame(VR_GetEngine());
 	}
-	
+
 	recursive = 0;
 }
 
