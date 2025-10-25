@@ -22,6 +22,7 @@ cvar_t *vr_superSampling = NULL;
 cvar_t *vr_weaponScope = NULL;
 cvar_t *vr_rollWhenHit = NULL;
 cvar_t *vr_hudYOffset = NULL;
+cvar_t *vr_hudScale = NULL;
 cvar_t *vr_sendRollToServer = NULL;
 cvar_t *vr_lasersight = NULL;
 cvar_t *vr_hapticIntensity = NULL;
@@ -55,6 +56,7 @@ void VR_InitCvars( void )
 	vr_weaponScope = Cvar_Get ("vr_weaponScope", "1", CVAR_ARCHIVE);
 	vr_rollWhenHit = Cvar_Get ("vr_rollWhenHit", "0", CVAR_ARCHIVE);
 	vr_hudYOffset = Cvar_Get ("vr_hudYOffset", "0", CVAR_ARCHIVE);
+	vr_hudScale = Cvar_Get ("vr_hudScale", "1.0", CVAR_ARCHIVE);
 	vr_sendRollToServer = Cvar_Get ("vr_sendRollToServer", "1", CVAR_ARCHIVE);
 	vr_lasersight = Cvar_Get ("vr_lasersight", "0", CVAR_ARCHIVE);
 	vr_hapticIntensity = Cvar_Get ("vr_hapticIntensity", "0.5", CVAR_ARCHIVE);

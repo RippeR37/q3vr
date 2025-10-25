@@ -3089,7 +3089,7 @@ void CG_DrawActive( void ) {
 
 		float scale = trap_Cvar_VariableValue("vr_worldscaleScaler");
 		float dist = (trap_Cvar_VariableValue("vr_currentHudDepth")+3) * 3 * scale;
-		float radius = dist / 3.0f;
+		float radius = (dist / 3.0f) * trap_Cvar_VariableValue("vr_hudScale");
 
 		if (cg.snap->ps.stats[STAT_HEALTH] > 0 && cg.snap->ps.pm_type != PM_INTERMISSION &&
 		    !(cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW)))

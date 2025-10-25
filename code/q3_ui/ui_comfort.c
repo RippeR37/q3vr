@@ -67,6 +67,7 @@ typedef struct {
 	menuslider_s 		hapticintensity;
 	menuslider_s        huddepth;
 	menuslider_s 		hudyoffset;
+	menuslider_s 		hudscale;
 
 	menubitmap_s		back;
 } comfort_t;
@@ -82,6 +83,7 @@ static void Comfort_SetMenuItems( void ) {
 	s_comfort.hapticintensity.curvalue		= trap_Cvar_VariableValue( "vr_hapticIntensity" );
 	s_comfort.huddepth.curvalue						= (int)trap_Cvar_VariableValue( "vr_hudDepth" ) % NUM_HUDDEPTH;
 	s_comfort.hudyoffset.curvalue					= trap_Cvar_VariableValue( "vr_hudYOffset" ) + 200;
+	s_comfort.hudscale.curvalue						= trap_Cvar_VariableValue( "vr_hudScale" );
 }
 
 
@@ -117,6 +119,10 @@ static void Comfort_MenuEvent( void* ptr, int notification ) {
 
 		case ID_HUDYOFFSET:
 			trap_Cvar_SetValue( "vr_hudYOffset", s_comfort.hudyoffset.curvalue - 200);
+			break;
+
+		case ID_HUDSCALE:
+			trap_Cvar_SetValue( "vr_hudScale", s_comfort.hudscale.curvalue);
 			break;
 
 		case ID_BACK:
@@ -231,6 +237,17 @@ static void Comfort_MenuInit( void ) {
 	s_comfort.hudyoffset.minvalue		     = 0;
 	s_comfort.hudyoffset.maxvalue		     = 400;
 
+	y += BIGCHAR_HEIGHT+2;
+	s_comfort.hudscale.generic.type	     = MTYPE_SLIDER;
+	s_comfort.hudscale.generic.x			 = VR_X_POS;
+	s_comfort.hudscale.generic.y			 = y;
+	s_comfort.hudscale.generic.flags	 	= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_comfort.hudscale.generic.name	     = "HUD Scale:";
+	s_comfort.hudscale.generic.id 	     	= ID_HUDSCALE;
+	s_comfort.hudscale.generic.callback  	= Comfort_MenuEvent;
+	s_comfort.hudscale.minvalue		     = 0.5f;
+	s_comfort.hudscale.maxvalue		     = 2.0f;
+
 	s_comfort.back.generic.type	    = MTYPE_BITMAP;
 	s_comfort.back.generic.name     = ART_BACK0;
 	s_comfort.back.generic.flags    = QMF_LEFT_JUSTIFY|QMF_PULSEIFFOCUS;
@@ -253,6 +270,7 @@ static void Comfort_MenuInit( void ) {
 	Menu_AddItem( &s_comfort.menu, &s_comfort.hapticintensity );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.huddepth );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.hudyoffset );
+	Menu_AddItem( &s_comfort.menu, &s_comfort.hudscale );
 
 	Menu_AddItem( &s_comfort.menu, &s_comfort.back );
 
