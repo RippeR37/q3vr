@@ -38,6 +38,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "../vr/vr_clientinfo.h"
 
 extern cvar_t *vr_hudDepth;
+extern cvar_t *vr_hudScale;
 extern cvar_t *vr_currentHudDepth;
 extern cvar_t *vr_currentHudDrawStatus;
 extern vr_clientinfo_t vr;
