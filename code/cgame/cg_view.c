@@ -386,7 +386,6 @@ static void CG_OffsetVRThirdPersonView( void ) {
 			angles[PITCH] = 0;
 			AngleVectors(angles, forward, right, up);
 			VectorMA(cg.vr_vieworigin, -180, forward, cg.vr_vieworigin);
-			VectorMA(cg.vr_vieworigin, -100, up, cg.vr_vieworigin);
 
 			// Calculate rotation needed to point at player
 			vec3_t lookDir, targetAngles;
