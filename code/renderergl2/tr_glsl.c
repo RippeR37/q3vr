@@ -1831,7 +1831,9 @@ static GLuint GLSL_CalculateProjection() {
       }
       else
       {
-        result = STEREO_ORTHO_PROJECTION;
+        // Use FULLSCREEN_ORTHO instead of STEREO_ORTHO to avoid stereo offset
+        // which offset HUD to the right on virtual screen.
+        result = FULLSCREEN_ORTHO_PROJECTION;
       }
     }
     else
