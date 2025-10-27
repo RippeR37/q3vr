@@ -44,7 +44,7 @@ void VR_Renderer_EndFrame(VR_Engine* engine);
 void VR_Recenter(VR_Engine* engine, XrTime predictedDisplayTime);
 void VR_ClearFrameBuffer( int width, int height);
 void VR_UpdatePerFrameState( void );
-void VR_DrawVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrFovf fov, XrView* views, uint32_t viewCount);
+void VR_DrawVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrFovf fov, XrView* views, uint32_t viewCount, qboolean isGameplayFirstPerson);
 XrDesktopViewConfiguration VR_GetDesktopViewConfiguration( void );
 
 void VR_GetResolution(VR_Engine* engine, int *pWidth, int *pHeight)
@@ -214,10 +214,10 @@ void VR_Renderer_EndFrame(VR_Engine* engine)
 	VR_SwapchainInfos* swapchains = &engine->appState.Renderer.Swapchains;
 
 	// Draw Virtual Screen if needed
-	const int use_virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen() || (((cl.snap.ps.pm_flags & PMF_FOLLOW) || clc.demoplaying) && (vr.follow_mode == VRFM_FIRSTPERSON));
+	const int use_virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen();
 	if (use_virtual_screen)
 	{
-		VR_DrawVirtualScreen(swapchains, swapchainColorIndex, fov, views, viewCount);
+		VR_DrawVirtualScreen(swapchains, swapchainColorIndex, fov, views, viewCount, vr.first_person_following);
 		vr.menuYaw = VR_VirtualScreen_GetCurrentYaw();
 	}
 	else
@@ -352,10 +352,10 @@ void VR_UpdatePerFrameState( void )
 	}
 }
 
-void VR_DrawVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrFovf fov, XrView* views, uint32_t viewCount)
+void VR_DrawVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrFovf fov, XrView* views, uint32_t viewCount, qboolean isGameplayFirstPerson)
 {
 	// Copy current image to Virtual Screen's texture
-	VR_Swapchains_BlitXRToVirtualScreen(swapchains, swapchainImageIndex);
+	VR_Swapchains_BlitXRToVirtualScreen(swapchains, swapchainImageIndex, isGameplayFirstPerson);
 
 	// Clear everything
 	glClearColor(0.0, 0.0f, 0.0f, 1.0f);

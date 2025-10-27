@@ -608,10 +608,21 @@ void Con_DrawNotify (void)
 
 	re.HUDBufferStart(qfalse);
 
-	// When drawing to 1280x960 HUD buffer, use 2x scale
-	int charScale = (vr_currentHudDrawStatus->integer == 1) ? 2 : 1;
-	int xadjust = (vr_currentHudDrawStatus->integer != 1) ? 500 : 10;
-	int yadjust = (vr_currentHudDrawStatus->integer != 1) ? 600 : 10;
+	// Adjust scale based on HUD mode
+	int charScale = (vr_currentHudDrawStatus->integer == 1) ? 2 : 3;
+	// Use floating HUD positioning for mode 1, or for mode 2 when in VRFM_FIRSTPERSON (viewing on virtual screen)
+	int xadjust = (vr_currentHudDrawStatus->integer == 1 || vr.first_person_following) ? 10 : 500;
+	int yadjust;
+	if (vr_currentHudDrawStatus->integer == 1) {
+		yadjust = 10;
+	} else if (vr.first_person_following) {
+		// For VRFM_FIRSTPERSON, add Y offset to account for 4:3 safe area
+		int safeHeight = (cls.glconfig.vidWidth * 3) / 4;
+		int yMargin = (cls.glconfig.vidHeight - safeHeight) / 2;
+		yadjust = 10 + yMargin;
+	} else {
+		yadjust = 600;
+	}
 
 	v = 0;
 	for (i= con.current-NUM_CON_TIMES+1 ; i<=con.current ; i++)

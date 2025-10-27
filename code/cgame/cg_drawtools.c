@@ -67,24 +67,42 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 	}
 	else  // scale to clearly visible portion of VR screen
 	{
-		qboolean isVirtualScreen = vr->virtual_screen || (((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && (vr->follow_mode == VRFM_FIRSTPERSON));
 		float screenXScale, screenYScale;
+		float yOffset = 0.0f;
+		int effectiveHeight = cg.refdef.height;
 
-		if (isVirtualScreen) {
+		if (vr->virtual_screen) {
 			screenXScale = cgs.screenXScale;
 			screenYScale = cgs.screenYScale;
+
+			// For VRFM_FIRSTPERSON gameplay, we're rendering to full framebuffer
+			// but only displaying the centered 4:3 portion, so adjust scale and offset
+			if (vr->first_person_following) {
+				// Calculate the 4:3 safe area height
+				int safeHeight = (cgs.glconfig.vidWidth * 3) / 4;
+				int yMargin = (cgs.glconfig.vidHeight - safeHeight) / 2;
+
+				// Recalculate Y scale based on the visible 4:3 area, not full height
+				screenYScale = safeHeight / 480.0f;
+
+				// Use safe height for centering calculation
+				effectiveHeight = safeHeight;
+
+				// Adjust Y coordinate to account for the cropped top margin
+				yOffset = yMargin;
+			}
 		} else {
 			screenXScale = cgs.screenXScale / 2.8f;
 			screenYScale = cgs.screenYScale / 2.3f;
 		}
-		
+
 		*x *= screenXScale;
 		*y *= screenYScale;
 		*w *= screenXScale;
 		*h *= screenYScale;
 
 		*x += (cg.refdef.width - (640 * screenXScale)) / 2.0f;
-		*y += (cg.refdef.height - (480 * screenYScale)) / 2.0f - trap_Cvar_VariableValue("vr_hudYOffset");
+		*y += (effectiveHeight - (480 * screenYScale)) / 2.0f - trap_Cvar_VariableValue("vr_hudYOffset") + yOffset;
 	}
 }
 

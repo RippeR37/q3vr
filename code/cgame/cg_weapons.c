@@ -1732,7 +1732,7 @@ void CG_AddViewWeapon( playerState_t *ps ) {
 		return;
 	}
 
-	if (vr->weapon_zoomed || vr->virtual_screen) {
+	if (vr->weapon_zoomed || (vr->virtual_screen && !(vr->first_person_following))) {
 		return; // do not draw weapon model with enabled weapon scope or when in menu
 	}
 

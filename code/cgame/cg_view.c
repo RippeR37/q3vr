@@ -407,16 +407,18 @@ static void CG_OffsetVRThirdPersonView( void ) {
 			vr->recenter_follow_camera = qfalse;
 		}
 
-		//Move camera if the user is pushing thumbstick
-		vec3_t angles, forward, right, up;
-		VectorCopy(vr->offhandangles, angles);
-		// Match the deltaYaw condition from CG_ConvertFromVR:
-		// Don't include delta if following another player or playing back a demo
-		float deltaYaw = (cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW)) ? 0.0f : SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]);
-		angles[YAW] += deltaYaw + (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);
-		AngleVectors(angles, forward, right, up);
-		VectorMA(cg.vr_vieworigin, vr->thumbstick_location[THUMB_LEFT][1] * 5.0f, forward, cg.vr_vieworigin);
-		VectorMA(cg.vr_vieworigin, vr->thumbstick_location[THUMB_LEFT][0] * 5.0f, right, cg.vr_vieworigin);
+		// Do NOT allow movement when following in FIRSTPERSON mode (even if followed player is dead)
+		if (!vr->first_person_following)
+		{
+			//Move camera if the user is pushing thumbstick
+			vec3_t angles, forward, right, up;
+			VectorCopy(vr->offhandangles, angles);
+			float deltaYaw = (cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW)) ? 0.0f : SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]);
+			angles[YAW] += deltaYaw + (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);
+			AngleVectors(angles, forward, right, up);
+			VectorMA(cg.vr_vieworigin, vr->thumbstick_location[THUMB_LEFT][1] * 5.0f, forward, cg.vr_vieworigin);
+			VectorMA(cg.vr_vieworigin, vr->thumbstick_location[THUMB_LEFT][0] * 5.0f, right, cg.vr_vieworigin);
+		}
 	}
 
 	vec3_t position;
@@ -1000,7 +1002,7 @@ static int CG_CalcViewValues( void ) {
 		}
 	}
 
-	if (CG_IsDeathCam() || (cg.demoPlayback && vr->follow_mode != VRFM_FIRSTPERSON) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+	if (CG_IsDeathCam() || (cg.demoPlayback && !vr->first_person_following) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
 	{
 		//If dead, or spectating, view the map from above
 		CG_OffsetVRThirdPersonView();
@@ -1104,7 +1106,7 @@ static int CG_CalcViewValues( void ) {
 			angles[ROLL] = vr->hmdorientation[ROLL];
 			AnglesToAxis( angles, cg.refdef.viewaxis );
 		}
-		else if ( (cg.demoPlayback && vr->follow_mode != VRFM_FIRSTPERSON) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+		else if ( (cg.demoPlayback && !vr->first_person_following) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
 		{
 			//If we're following someone in third person,
 			vec3_t angles;
@@ -1113,7 +1115,7 @@ static int CG_CalcViewValues( void ) {
 			angles[YAW] += vr->clientviewangles[YAW];
 			AnglesToAxis(angles, cg.refdef.viewaxis);
 		}
-		else if (!(((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && vr->follow_mode == VRFM_FIRSTPERSON))
+		else if (!vr->first_person_following)
 		{
 			//We are connected to a multiplayer server, so make the appropriate adjustment to the view
 			//angles as we send orientation to the server that includes the weapon angles
@@ -1135,7 +1137,7 @@ static int CG_CalcViewValues( void ) {
 			angles[YAW] = (cg.refdefViewAngles[YAW] - vr->hmdorientation[YAW]) + vr->weaponangles[YAW];
 			AnglesToAxis(angles, cg.refdef.viewaxis);
 		}
-		else if ( (cg.demoPlayback && vr->follow_mode != VRFM_FIRSTPERSON) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
+		else if ( (cg.demoPlayback && !vr->first_person_following) || CG_IsThirdPersonFollowMode(VRFM_QUERY))
 		{
 			//If we're following someone in third person,
 			vec3_t angles;
@@ -1259,11 +1261,11 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	trap_Cvar_Set( "vr_thirdPersonSpectator", (CG_IsDeathCam() ||
                                              cg.demoPlayback ||
                                              CG_IsThirdPersonFollowMode(VRFM_QUERY) ? "1" : "0" ));
-	if ((cg.snap && ((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && (vr->follow_mode == VRFM_FIRSTPERSON))) {
+	if (vr->first_person_following) {
 		// draw mode 1 won't work with virtual screen at the moment
 		trap_Cvar_SetValue( "vr_currentHudDrawStatus", 2 );
 	} else if (CG_IsDeathCam() ||
-		((cg.snap && (cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && (vr->follow_mode != VRFM_FIRSTPERSON)))
+		((cg.snap && (cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && (!vr->first_person_following)))
 	{
 		trap_Cvar_SetValue( "vr_currentHudDrawStatus", 1 );
 		trap_Cvar_SetValue( "vr_currentHudDepth", 1 );
@@ -1315,7 +1317,7 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 
 	// decide on third person view
 	cg.renderingThirdPerson = cg.predictedPlayerState.pm_type == PM_SPECTATOR ||
-			(cg.demoPlayback && vr->follow_mode != VRFM_FIRSTPERSON) || CG_IsThirdPersonFollowMode(VRFM_QUERY) ||
+			(cg.demoPlayback && !vr->first_person_following) || CG_IsThirdPersonFollowMode(VRFM_QUERY) ||
 			cg_thirdPerson.integer;
 
 	// build cg.refdef

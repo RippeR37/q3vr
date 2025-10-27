@@ -2180,7 +2180,7 @@ static void CG_PlayerPowerups( centity_t *cent, refEntity_t *torso ) {
 			const qboolean shouldRenderOffhand =
 				(cg.predictedPlayerState.pm_type != PM_INTERMISSION) &&
 				(cg.predictedPlayerState.pm_type != PM_SPECTATOR) &&
-				!((cg.snap->ps.pm_flags & PMF_FOLLOW) && (vr->follow_mode == VRFM_FIRSTPERSON)) &&
+				!vr->first_person_following &&
 				!(trap_Key_GetCatcher() & KEYCATCH_UI);
 
 			if (shouldRenderOffhand && cg_vr_showOffhand.integer) {
