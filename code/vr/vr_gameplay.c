@@ -1,6 +1,7 @@
 #include "vr_gameplay.h"
 
 #include "../client/client.h"
+#include "vr_clientinfo.h"
 
 void VR_Gameplay_OpenMenuAndPauseIfPossible(void)
 {
