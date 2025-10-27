@@ -3037,7 +3037,7 @@ void CG_DrawActive( void ) {
 		trap_Cvar_SetValue("vr_worldscaleScaler", zoomCoeff);
 	}
 
-	if (((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback) && vr->follow_mode == VRFM_FIRSTPERSON)
+	if (vr->first_person_following)
 	{
 		//Do nothing to view height if we are following in first person
 	}
@@ -3142,7 +3142,7 @@ void CG_DrawActive( void ) {
 		//Now draw the screen 2D stuff
 		CG_DrawScreen2D();
 
-		if (!vr->weapon_zoomed && !vr->virtual_screen)
+		if (!vr->weapon_zoomed && (!vr->virtual_screen || vr->first_person_following))
 		{
 			cg.drawingHUD = qtrue;
 

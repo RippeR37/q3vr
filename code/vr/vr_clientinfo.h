@@ -18,6 +18,8 @@ typedef struct {
 	float weapon_zoomLevel;
 	qboolean right_handed;
 	qboolean virtual_screen;
+	qboolean first_person_following;
+	qboolean in_menu;
 	qboolean local_server;
 	qboolean single_player;
 	qboolean use_fake_6dof;

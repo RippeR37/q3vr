@@ -10,6 +10,22 @@ void VR_Gameplay_OpenMenuAndPauseIfPossible(void)
 	}
 }
 
+qboolean VR_IsFollowingInFirstPerson( void )
+{
+	extern vr_clientinfo_t vr;
+
+	return (
+		(((cl.snap.ps.pm_flags & PMF_FOLLOW) || clc.demoplaying)) &&
+		(vr.follow_mode == VRFM_FIRSTPERSON)
+	);
+}
+
+qboolean VR_IsInMenu( void )
+{
+	int keyCatcher = Key_GetCatcher();
+	return (keyCatcher & (KEYCATCH_UI | KEYCATCH_CONSOLE)) != 0;
+}
+
 qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void )
 {
 	// intermission is never full screen
@@ -18,8 +34,10 @@ qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void )
 		return qfalse;
 	}
 
-	int keyCatcher = Key_GetCatcher( );
-	return ( 
-		clc.state == CA_CINEMATIC || clc.state != CA_ACTIVE || ( keyCatcher & (KEYCATCH_UI | KEYCATCH_CONSOLE) )
+	return (
+		clc.state == CA_CINEMATIC ||
+		clc.state != CA_ACTIVE ||
+		VR_IsInMenu() ||
+		VR_IsFollowingInFirstPerson()
 	);
 }
