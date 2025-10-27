@@ -476,15 +476,35 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 	}
 }
 
-void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex)
+void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, qboolean use4x3Crop)
 {
+	int srcX, srcY, srcWidth, srcHeight;
+
+	if (use4x3Crop)
+	{
+		// Take full width, calculate 4:3 height, center vertically
+		srcWidth = swapchains->color.width;
+		srcHeight = (srcWidth * 3) / 4;
+		srcX = 0;
+		srcY = (swapchains->color.height - srcHeight) / 2;
+	}
+	else
+	{
+		// Use full framebuffer (for menus, console, etc.)
+		srcX = 0;
+		srcY = 0;
+		srcWidth = swapchains->color.width;
+		srcHeight = swapchains->color.height;
+	}
+
+	// Blit the source region to fill the entire virtual screen texture
 	qglBlitNamedFramebuffer(
 		swapchains->eyeFramebuffers[0][swapchainImageIndex],
-		swapchains->virtualScreenFramebuffer, 
-		0, 0, swapchains->color.width, swapchains->color.height,
+		swapchains->virtualScreenFramebuffer,
+		srcX, srcY, srcX + srcWidth, srcY + srcHeight,
 		0, 0, swapchains->color.width, swapchains->color.height,
 		GL_COLOR_BUFFER_BIT,
-		GL_NEAREST);
+		GL_LINEAR);
 }
 
 void VR_Swapchains_Acquire(VR_SwapchainInfos* swapchainInfos, uint32_t* colorIndex, uint32_t* depthIndex)
