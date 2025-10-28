@@ -5673,6 +5673,13 @@ void UI_DrawConnectScreen( qboolean overlay ) {
 	
 	menuDef_t *menu = Menus_FindByName("Connect");
 
+	// see what information we should display
+	trap_GetClientState( &cstate );
+
+	// During CA_LOADING/CA_PRIMED, don't draw UI connect screen - just show cgame loading screen
+	if (cstate.connState == CA_LOADING || cstate.connState == CA_PRIMED) {
+		return;
+	}
 
 	if ( !overlay && menu ) {
 		Menu_Paint(menu, qtrue);
@@ -5685,9 +5692,6 @@ void UI_DrawConnectScreen( qboolean overlay ) {
 	} else {
 		return;
 	}
-
-	// see what information we should display
-	trap_GetClientState( &cstate );
 
 	info[0] = '\0';
 	if( trap_GetConfigString( CS_SERVERINFO, info, sizeof(info) ) ) {
@@ -5731,11 +5735,8 @@ void UI_DrawConnectScreen( qboolean overlay ) {
 		}
 		s = "Awaiting gamestate...";
 		break;
-	case CA_LOADING:
-		return;
-	case CA_PRIMED:
-		return;
 	default:
+		// CA_LOADING and CA_PRIMED handled above, other states shouldn't reach here
 		return;
 	}
 
