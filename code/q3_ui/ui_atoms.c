@@ -67,6 +67,11 @@ float UI_GetXScale()
 float UI_GetYScale()
 {
 	if (vr == NULL || vr->virtual_screen) {
+		// For VRFM_FIRSTPERSON, adjust Y scale based on 4:3 safe area
+		if (vr != NULL && vr->first_person_following) {
+			int safeHeight = (uis.glconfig.vidWidth * 3) / 4;
+			return safeHeight / 480.0f;
+		}
 		return uis.yscale;
 	} else {
 		return uis.yscale / 3.25f;
@@ -85,6 +90,12 @@ float UI_GetXOffset()
 float UI_GetYOffset()
 {
 	if (vr == NULL || vr->virtual_screen) {
+		// For VRFM_FIRSTPERSON, add Y offset to account for 4:3 safe area
+		if (vr != NULL && vr->first_person_following) {
+			int safeHeight = (uis.glconfig.vidWidth * 3) / 4;
+			int yMargin = (uis.glconfig.vidHeight - safeHeight) / 2;
+			return yMargin;
+		}
 		return 0;
 	} else {
 		return (uis.glconfig.vidHeight - (480 * UI_GetYScale())) / 2.0f;
@@ -1147,10 +1158,29 @@ Adjusted for resolution and screen aspect ratio
 */
 void UI_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 	// expect valid pointers
-	*x = *x * UI_GetXScale() + uis.bias + UI_GetXOffset();
-	*y = *y * UI_GetYScale() + UI_GetYOffset();
-	*w *= UI_GetXScale();
-	*h *= UI_GetYScale();
+	float xscale = UI_GetXScale();
+	float yscale = UI_GetYScale();
+	float xoffset = UI_GetXOffset();
+	float yoffset = UI_GetYOffset();
+
+	// For VRFM_FIRSTPERSON, we're rendering to full framebuffer
+	// but only displaying the centered 4:3 portion, so adjust scale and offset
+	if (vr != NULL && vr->first_person_following) {
+		// Calculate the 4:3 safe area height
+		int safeHeight = (uis.glconfig.vidWidth * 3) / 4;
+		int yMargin = (uis.glconfig.vidHeight - safeHeight) / 2;
+
+		// Recalculate Y scale based on the visible 4:3 area, not full height
+		yscale = safeHeight / 480.0f;
+
+		// Adjust Y offset to account for the cropped top margin
+		yoffset = yMargin;
+	}
+
+	*x = *x * xscale + uis.bias + xoffset;
+	*y = *y * yscale + yoffset;
+	*w *= xscale;
+	*h *= yscale;
 }
 
 void UI_DrawNamedPic( float x, float y, float width, float height, const char *picname ) {

@@ -3651,10 +3651,30 @@ void AdjustFrom640(float *x, float *y, float *w, float *h) {
 
 	if (vr == NULL || vr->virtual_screen) {
 		// expect valid pointers
-		*x *= DC->xscale;
-		*y *= DC->yscale;
-		*w *= DC->xscale;
-		*h *= DC->yscale;
+		float xscale = DC->xscale;
+		float yscale = DC->yscale;
+		float yOffset = 0.0f;
+
+		// For VRFM_FIRSTPERSON, we're rendering to full framebuffer
+		// but only displaying the centered 4:3 portion, so adjust scale and offset
+		if (vr != NULL && vr->first_person_following) {
+			// Calculate the 4:3 safe area height
+			int safeHeight = (DC->glconfig.vidWidth * 3) / 4;
+			int yMargin = (DC->glconfig.vidHeight - safeHeight) / 2;
+
+			// Recalculate Y scale based on the visible 4:3 area, not full height
+			yscale = safeHeight / 480.0f;
+
+			// Adjust Y coordinate to account for the cropped top margin
+			yOffset = yMargin;
+		}
+
+		*x *= xscale;
+		*y *= yscale;
+		*w *= xscale;
+		*h *= yscale;
+
+		*y += yOffset;
 	} else {
 		float screenXScale = DC->xscale / 2.75f;
 		float screenYScale = DC->yscale / 2.75f;
