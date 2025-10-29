@@ -179,7 +179,7 @@ typedef enum {
 
 	SS_UNDERWATER,		// for items that should be drawn in front of the water plane
 
-	SS_BLEND0,			// regular transparency and filters
+	SS_BLEND0 = 17,		// regular transparency and filters
 	SS_BLEND1,			// generally only used for additive type effects
 	SS_BLEND2,
 	SS_BLEND3,
