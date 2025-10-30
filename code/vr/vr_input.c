@@ -879,7 +879,8 @@ static void IN_VRController( qboolean isRightController, XrPosef pose )
 		VectorSubtract(vr.offhandposition, vr.hmdposition, vr.offhandoffset);
 	}
 
-	if (vr.virtual_screen || cl.snap.ps.pm_type == PM_INTERMISSION)
+	// Update cursor for virtual screen, intermission, or when scoreboard is active
+	if ((vr.virtual_screen && (!vr.first_person_following || vr.in_menu)) || cl.snap.ps.pm_type == PM_INTERMISSION || (vr.scoreboardCursorX && vr.scoreboardCursorY))
 	{
 		vr.weapon_zoomed = qfalse;
 		if (vr.menuCursorX && vr.menuCursorY)
@@ -910,6 +911,8 @@ static void IN_VRController( qboolean isRightController, XrPosef pose )
 
 			lastMenuCursorX = *vr.menuCursorX = x;
 			lastMenuCursorY = *vr.menuCursorY = y;
+			if (vr.scoreboardCursorX) *vr.scoreboardCursorX = x;
+			if (vr.scoreboardCursorY) *vr.scoreboardCursorY = y;
 
 			Com_QueueEvent(in_vrEventTime, SE_MOUSE, 0, 0, 0, NULL);
 		}
@@ -1107,7 +1110,8 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 	vr.thumbstick_location[isRightController][0] = joystickX;
 	vr.thumbstick_location[isRightController][1] = joystickY;
 
-	if (vr.virtual_screen || cl.snap.ps.pm_type == PM_INTERMISSION)
+	// Allow thumbstick menu navigation for virtual screen, intermission, or when scoreboard is active
+	if ((vr.virtual_screen && (!vr.first_person_following || vr.in_menu)) || cl.snap.ps.pm_type == PM_INTERMISSION || (vr.scoreboardCursorX && vr.scoreboardCursorY))
 	{
 
 		// Use thumbstick UP/DOWN as PAGEUP/PAGEDOWN in menus
@@ -1231,9 +1235,9 @@ static void IN_VRTriggers( qboolean isRightController, float triggerValue )
 {
 	vrController_t* controller = isRightController == qtrue ? &rightController : &leftController;
 
-	if (VR_Gameplay_ShouldRenderInVirtualScreen() || cl.snap.ps.pm_type == PM_INTERMISSION)
+	if ((vr.virtual_screen && (!vr.first_person_following || vr.in_menu)) || cl.snap.ps.pm_type == PM_INTERMISSION || (vr.scoreboardCursorX && vr.scoreboardCursorY))
 	{
-		// Triggers are used for menu navigation in screen mode or in intermission
+		// Triggers are used for menu navigation in screen mode, intermission, or scoreboard
 		if (triggerValue > triggerPressedThreshold && !IN_InputActivated(&controller->axisButtons, VR_TOUCH_AXIS_TRIGGER_INDEX))
 		{
 			IN_ActivateInput(&controller->axisButtons, VR_TOUCH_AXIS_TRIGGER_INDEX);
@@ -1508,6 +1512,8 @@ static void IN_VRButtons( qboolean isRightController, uint32_t buttons )
 void VR_ProcessInputActions( void )
 {
 	vr.virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen();
+	vr.first_person_following = VR_IsFollowingInFirstPerson();
+	vr.in_menu = VR_IsInMenu();
 	vr.right_handed = vr_righthanded->integer != 0;
 
 	VR_ProcessHaptics();

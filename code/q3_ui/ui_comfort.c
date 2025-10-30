@@ -42,11 +42,13 @@ COMFORT OPTIONS MENU
 #define ID_COMFORTVIGNETTE		127
 #define ID_HEIGHTADJUST			128
 #define ID_ROLLHIT			    129
-#define ID_HAPTICINTENSITY	    130
-#define ID_HUDDEPTH			    131
-#define ID_HUDYOFFSET		    132
+#define ID_SMOOTHFOLLOW		    130
+#define ID_HAPTICINTENSITY	    131
+#define ID_HUDDEPTH			    132
+#define ID_HUDYOFFSET		    133
+#define ID_HUDSCALE			    134
 
-#define ID_BACK					133
+#define ID_BACK					135
 
 #define	NUM_HUDDEPTH			15
 
@@ -61,6 +63,7 @@ typedef struct {
 	menuslider_s 		comfortvignette;
 	menuslider_s 		heightadjust;
 	menuradiobutton_s	rollhit;
+	menuradiobutton_s	smoothfollow;
 	menuslider_s 		hapticintensity;
 	menuslider_s        huddepth;
 	menuslider_s 		hudyoffset;
@@ -75,6 +78,7 @@ static void Comfort_SetMenuItems( void ) {
 	s_comfort.comfortvignette.curvalue		= trap_Cvar_VariableValue( "vr_comfortVignette" );
 	s_comfort.heightadjust.curvalue				= trap_Cvar_VariableValue( "vr_heightAdjust" );
 	s_comfort.rollhit.curvalue						= trap_Cvar_VariableValue( "vr_rollWhenHit" ) != 0;
+	s_comfort.smoothfollow.curvalue				= trap_Cvar_VariableValue( "cg_smoothFollow" ) != 0;
 	s_comfort.hapticintensity.curvalue		= trap_Cvar_VariableValue( "vr_hapticIntensity" );
 	s_comfort.huddepth.curvalue						= (int)trap_Cvar_VariableValue( "vr_hudDepth" ) % NUM_HUDDEPTH;
 	s_comfort.hudyoffset.curvalue					= trap_Cvar_VariableValue( "vr_hudYOffset" ) + 200;
@@ -97,6 +101,10 @@ static void Comfort_MenuEvent( void* ptr, int notification ) {
 
 		case ID_ROLLHIT:
 			trap_Cvar_SetValue( "vr_rollWhenHit", s_comfort.rollhit.curvalue );
+			break;
+
+		case ID_SMOOTHFOLLOW:
+			trap_Cvar_SetValue( "cg_smoothFollow", s_comfort.smoothfollow.curvalue );
 			break;
 
 		case ID_HAPTICINTENSITY:
@@ -182,6 +190,15 @@ static void Comfort_MenuInit( void ) {
 	s_comfort.rollhit.generic.y	          = y;
 
 	y += BIGCHAR_HEIGHT+2;
+	s_comfort.smoothfollow.generic.type        = MTYPE_RADIOBUTTON;
+	s_comfort.smoothfollow.generic.name	       = "Smooth Follow:";
+	s_comfort.smoothfollow.generic.flags	   = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_comfort.smoothfollow.generic.callback    = Comfort_MenuEvent;
+	s_comfort.smoothfollow.generic.id          = ID_SMOOTHFOLLOW;
+	s_comfort.smoothfollow.generic.x	       = VR_X_POS;
+	s_comfort.smoothfollow.generic.y	       = y;
+
+	y += BIGCHAR_HEIGHT+2;
 	s_comfort.hapticintensity.generic.type	     = MTYPE_SLIDER;
 	s_comfort.hapticintensity.generic.x			 = VR_X_POS;
 	s_comfort.hapticintensity.generic.y			 = y;
@@ -232,6 +249,7 @@ static void Comfort_MenuInit( void ) {
 	Menu_AddItem( &s_comfort.menu, &s_comfort.comfortvignette );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.heightadjust );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.rollhit );
+	Menu_AddItem( &s_comfort.menu, &s_comfort.smoothfollow );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.hapticintensity );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.huddepth );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.hudyoffset );

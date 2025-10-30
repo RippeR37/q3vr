@@ -304,6 +304,9 @@ typedef struct {
 	int				captures;
 	qboolean	perfect;
 	int				team;
+
+	int				minx, maxx;
+	int				miny, maxy;
 } score_t;
 
 // each client has an associated clientInfo_t
@@ -1036,6 +1039,9 @@ typedef struct {
 
 	// VR hand model
 	qhandle_t vrHandModel;
+
+	// scoreboard cursor
+	qhandle_t scoreboardCursor;
 } cgMedia_t;
 
 
@@ -1112,6 +1118,10 @@ typedef struct {
 	qboolean sizingHud;
 	void *capturedItem;
 	qhandle_t activeCursor;
+
+	qboolean		filterKeyUpEvent;
+	qboolean		score_catched;
+	int				score_key;
 
 	// orders
 	int currentOrder;
@@ -1542,6 +1552,8 @@ void CG_DrawInformation( void );
 //
 qboolean CG_DrawOldScoreboard( void );
 void CG_DrawTourneyScoreboard( void );
+void CG_ScoreboardClick( void );
+void CG_SetScoreCatcher( qboolean value );
 
 //
 // cg_consolecmds.c

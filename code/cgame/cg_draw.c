@@ -2883,6 +2883,20 @@ static void CG_DrawHUD2D(void)
 	if ( !cg.scoreBoardShowing) {
 		CG_DrawCenterString();
 	}
+
+#ifndef MISSIONPACK
+	// Draw scoreboard cursor if scoreboard is active (Team Arena not supported)
+	if ( cgs.score_catched ) {
+		float x, y, w, h;
+		trap_R_SetColor( NULL );
+		x = cgs.cursorX - 12;
+		y = cgs.cursorY - 12;
+		w = 24;
+		h = 24;
+		CG_AdjustFrom640( &x, &y, &w, &h );
+		trap_R_DrawStretchPic( x, y, w, h, 0, 0, 1, 1, cgs.media.scoreboardCursor );
+	}
+#endif
 }
 
 /*

@@ -106,6 +106,8 @@ static void CG_ScoresDown_f( void ) {
 		// is within two seconds
 		cg.showScores = qtrue;
 	}
+
+	CG_SetScoreCatcher( cg.showScores );
 }
 
 static void CG_ScoresUp_f( void ) {
@@ -113,6 +115,7 @@ static void CG_ScoresUp_f( void ) {
 		cg.showScores = qfalse;
 		cg.scoreFadeTime = cg.time;
 	}
+	CG_SetScoreCatcher( qfalse );
 }
 
 #ifdef MISSIONPACK
