@@ -63,6 +63,8 @@ typedef struct {
 	float menuYaw;
 	int *menuCursorX;
 	int *menuCursorY;
+	int *scoreboardCursorX;
+	int *scoreboardCursorY;
 	qboolean menuLeftHanded;
 
 	float recenterYaw;

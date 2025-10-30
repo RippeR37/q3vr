@@ -22,6 +22,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 // cg_scoreboard -- draw the scoreboard on top of the game screen
 #include "cg_local.h"
+#include "../vr/vr_clientinfo.h"
+
+extern vr_clientinfo_t *vr;
 
 
 #define	SCOREBOARD_X		(0)
@@ -221,6 +224,17 @@ static void CG_DrawClientScore( int y, score_t *score, float *color, float fade,
 	// add the "ready" marker for intermission exiting
 	if ( cg.snap->ps.stats[ STAT_CLIENTS_READY ] & ( 1 << score->client ) ) {
 		CG_DrawBigStringColor( iconx, y, "READY", color );
+	}
+
+	// set bounds for scoreboard clicks
+	score->minx = SB_SCORELINE_X;
+	score->maxx = SCREEN_WIDTH - 8;
+	score->miny = y;
+	score->maxy = y + BIGCHAR_HEIGHT;
+	if ( largeFormat )
+	{
+		score->miny -= ( ICON_SIZE - BIGCHAR_HEIGHT ) / 2;
+		score->maxy += ( ICON_SIZE - BIGCHAR_HEIGHT ) / 2;
 	}
 }
 
@@ -530,5 +544,87 @@ void CG_DrawTourneyScoreboard( void ) {
 	}
 
 
+}
+
+/*
+=================
+CG_ScoreboardClick
+=================
+*/
+void CG_ScoreboardClick( void )
+{
+	score_t	*score;
+	int i;
+
+	if ( cg.intermissionStarted )
+		return;
+
+	if ( !cg.snap || cg.snap->ps.pm_type == PM_INTERMISSION )
+		return;
+
+	score = cg.scores;
+	for ( i = 0; i < cg.numScores; i++, score++ ) {
+		if ( score->team >= TEAM_SPECTATOR ) {
+			continue;
+		}
+		if ( cgs.cursorX < score->minx || cgs.cursorX > score->maxx )
+			continue;
+		if ( cgs.cursorY < score->miny || cgs.cursorY > score->maxy )
+			continue;
+		if ( !cgs.clientinfo[ score->client ].infoValid ) {
+			continue;
+		}
+
+		if ( !cg.demoPlayback ) {
+			trap_SendClientCommand( va( "follow %i", score->client ) );
+		}
+	}
+}
+
+/*
+=================
+CG_SetScoreCatcher
+=================
+*/
+void CG_SetScoreCatcher( qboolean enable )
+{
+	int	currentCatcher, newCatcher, old_state, new_state;
+	qboolean spectator;
+
+	currentCatcher = trap_Key_GetCatcher();
+
+	if ( currentCatcher & KEYCATCH_CONSOLE || !cg.snap )
+		return;
+
+	spectator = cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR || ( cg.snap->ps.pm_flags & PMF_FOLLOW );
+
+	if ( enable && spectator ) {
+		cgs.score_key = trap_Key_GetKey( "+scores" );
+		cgs.score_catched = qtrue;
+		// Point VR scoreboard cursor to cgame cursor so controller drives it
+		vr->scoreboardCursorX = &cgs.cursorX;
+		vr->scoreboardCursorY = &cgs.cursorY;
+		newCatcher = currentCatcher | KEYCATCH_CGAME;
+	} else {
+		cgs.score_catched = qfalse;
+		vr->scoreboardCursorX = NULL;
+		vr->scoreboardCursorY = NULL;
+		newCatcher = currentCatcher & ~KEYCATCH_CGAME;
+	}
+
+	if ( newCatcher != currentCatcher ) {
+		if ( cgs.score_key ) {
+			// keycatcher change may cause reset of all pressed buttons on new engines
+			// so track state of scoreboard key and ignore first upcoming keyup event for it
+			old_state = trap_Key_IsDown( cgs.score_key );
+			trap_Key_SetCatcher( newCatcher );
+			new_state = trap_Key_IsDown( cgs.score_key );
+			if ( new_state != old_state ) {
+				cgs.filterKeyUpEvent = qtrue;
+			}
+		} else {
+			trap_Key_SetCatcher( newCatcher );
+		}
+	}
 }
 
