@@ -1190,6 +1190,22 @@ void ClientEndFrame( gentity_t *ent ) {
 	// unlagged
 	G_StoreHistory( ent );
 
+	// hitsounds
+	if ( ent->client->damage.enemy && ent->client->damage.amount ) {
+		ent->client->ps.persistant[PERS_HITS] += ent->client->damage.enemy;
+		ent->client->damage.enemy = 0;
+		// scale damage by max.health
+		i = ent->client->damage.amount * 100 / ent->client->ps.stats[STAT_MAX_HEALTH];
+		// avoid high-byte setup
+		if ( i > 255 )
+			i = 255;
+		ent->client->ps.persistant[PERS_ATTACKEE_ARMOR] = i;
+		ent->client->damage.amount = 0;
+	} else if ( ent->client->damage.team ) {
+		ent->client->ps.persistant[PERS_HITS] -= ent->client->damage.team;
+		ent->client->damage.team = 0;
+	}
+
 	G_SetClientSound (ent);
 
 	// set the latest infor
