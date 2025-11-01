@@ -3094,18 +3094,27 @@ void CG_DrawActive( void ) {
 		if (cg.snap->ps.stats[STAT_HEALTH] > 0 && cg.snap->ps.pm_type != PM_INTERMISSION &&
 		    !(cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW)))
 		{
-			float viewYaw = SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]) +
-			    (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);
-
 			static float hmd_yaw_x = 0.0f;
 			static float hmd_yaw_y = 1.0f;
 			static float prevPitch = 0.0f;
+
+			// Smooth only the HMD orientation
+			hmd_yaw_x = 0.95f * hmd_yaw_x + 0.05f * cosf(DEG2RAD(vr->hmdorientation[YAW]));
+			hmd_yaw_y = 0.95f * hmd_yaw_y + 0.05f * sinf(DEG2RAD(vr->hmdorientation[YAW]));
+
+			if (vr->use_fake_6dof)
 			{
-				hmd_yaw_x = 0.95f * hmd_yaw_x + 0.05f * cosf(DEG2RAD(vr->hmdorientation[YAW]));
-				hmd_yaw_y = 0.95f * hmd_yaw_y + 0.05f * sinf(DEG2RAD(vr->hmdorientation[YAW]));
+				// Multiplayer: use clientviewangles logic
+				float viewYaw = SHORT2ANGLE(cg.predictedPlayerState.delta_angles[YAW]) +
+				    (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);
+				angles[YAW] = viewYaw + RAD2DEG(atan2(hmd_yaw_y, hmd_yaw_x));
+			}
+			else
+			{
+				// Single player: use refdefViewAngles  - HMD offset + smoothed HMD
+				angles[YAW] = cg.refdefViewAngles[YAW] - vr->hmdorientation[YAW] + RAD2DEG(atan2(hmd_yaw_y, hmd_yaw_x));
 			}
 
-			angles[YAW] = viewYaw + RAD2DEG(atan2(hmd_yaw_y, hmd_yaw_x));
 			angles[PITCH] = 0.95f * prevPitch + 0.05f * vr->hmdorientation[PITCH];
 			prevPitch = angles[PITCH];
 			angles[ROLL] = 0;
