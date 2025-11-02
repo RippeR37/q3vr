@@ -36,6 +36,7 @@ cvar_t *vr_showConsoleMessages = NULL;
 cvar_t *vr_desktopMode = NULL;
 cvar_t *vr_virtualScreenMode = NULL;
 cvar_t *vr_virtualScreenShape = NULL;
+cvar_t *vr_thumbstickDeadzone = NULL;
 
 void VR_InitCvars( void )
 {
@@ -71,6 +72,7 @@ void VR_InitCvars( void )
 	vr_desktopMode = Cvar_Get ("vr_desktopMode", "0", CVAR_ARCHIVE); // 0 - left eye, 1 - right eye, 2 - both eyes
 	vr_virtualScreenMode = Cvar_Get ("vr_virtualScreenMode", "0", CVAR_ARCHIVE); // 0 - fixed, 1 - follow
 	vr_virtualScreenShape = Cvar_Get ("vr_virtualScreenShape", "0", CVAR_ARCHIVE); // 0 - curved, 1 - flat
+	vr_thumbstickDeadzone = Cvar_Get ("vr_thumbstickDeadzone", "0.15", CVAR_ARCHIVE);
 
 	// Values are:  scale,right,up,forward,pitch,yaw,roll
 	// VALUES PROVIDED BY SkillFur - Thank-you!
