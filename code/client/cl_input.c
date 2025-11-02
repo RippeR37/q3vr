@@ -643,8 +643,8 @@ void CL_FinishMove( usercmd_t *cmd ) {
 
 		vec3_t out;
 		rotateAboutOrigin(cmd->rightmove, cmd->forwardmove, -vr.calculated_weaponangles[YAW], out);
-		cmd->rightmove = out[0];
-		cmd->forwardmove = out[1];
+		cmd->rightmove = ClampChar( (int)out[0] );
+		cmd->forwardmove = ClampChar( (int)out[1] );
 	}
 	else 
 	{

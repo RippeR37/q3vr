@@ -79,8 +79,22 @@ static double lastframetime = 0;
 static float triggerPressedThreshold = 0.75f;
 static float triggerReleasedThreshold = 0.5f;
 
-static float thumbstickPressedThreshold = 0.5f;
-static float thumbstickReleasedThreshold = 0.4f;
+// Apply analog curve to thumbstick input
+// Smoothly ramps from dead zone to maximum value (same approach as SDL gamepad)
+static float IN_ApplyThumbstickCurve(float value, float threshold)
+{
+	float absValue = fabs(value);
+
+	// Below threshold, return 0
+	if (absValue < threshold)
+		return 0.0f;
+
+	// Smoothly ramp from dead zone to maximum value
+	float f = (absValue - threshold) / (1.0f - threshold);
+
+	// Preserve sign
+	return (value < 0) ? -f : f;
+}
 
 extern cvar_t *cl_sensitivity;
 extern cvar_t *m_pitch;
@@ -100,6 +114,7 @@ extern cvar_t *vr_twoHandedWeapons;
 extern cvar_t *vr_refreshrate;
 extern cvar_t *vr_weaponScope;
 extern cvar_t *vr_hapticIntensity;
+extern cvar_t *vr_thumbstickDeadzone;
 
 qboolean alt_key_mode_active = qfalse;
 
@@ -298,9 +313,9 @@ static qboolean IN_SendInputAction(const char* action, qboolean inputActive, flo
 				}
 				else // yaw (smooth turn)
 				{
-					float value = (axisValue > 0.0f ? axisValue : 1.0f) * cl_sensitivity->value * m_yaw->value;
-					Com_QueueEvent(in_vrEventTime, SE_MOUSE, -value, 0, 0, NULL);
-					return qtrue;
+					// Don't send SE_MOUSE events - turning is handled by SE_JOYSTICK_AXIS in the thumbstick handler
+					// This action is left here for compatibility with snap turn mode
+					return qfalse;
 				}
 			}
 			else if (strcmp(action, "turnright") == 0)
@@ -316,9 +331,9 @@ static qboolean IN_SendInputAction(const char* action, qboolean inputActive, flo
 				}
 				else // yaw (smooth turn)
 				{
-					float value = (axisValue > 0.0f ? axisValue : 1.0f) * cl_sensitivity->value * m_yaw->value;
-					Com_QueueEvent(in_vrEventTime, SE_MOUSE, value, 0, 0, NULL);
-					return qtrue;
+					// Don't send SE_MOUSE events - turning is handled by SE_JOYSTICK_AXIS in the thumbstick handler
+					// This action is left here for compatibility with snap turn mode
+					return qfalse;
 				}
 			}
 			else if (strcmp(action, "uturn") == 0)
@@ -1110,12 +1125,17 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 	vr.thumbstick_location[isRightController][0] = joystickX;
 	vr.thumbstick_location[isRightController][1] = joystickY;
 
+	// Apply analog curve to joystick input for smoother control
+	float curvedX = IN_ApplyThumbstickCurve(joystickX, vr_thumbstickDeadzone->value);
+	float curvedY = IN_ApplyThumbstickCurve(joystickY, vr_thumbstickDeadzone->value);
+
 	// Allow thumbstick menu navigation for virtual screen, intermission, or when scoreboard is active
 	if ((vr.virtual_screen && (!vr.first_person_following || vr.in_menu)) || cl.snap.ps.pm_type == PM_INTERMISSION || (vr.scoreboardCursorX && vr.scoreboardCursorY))
 	{
 
 		// Use thumbstick UP/DOWN as PAGEUP/PAGEDOWN in menus
-		if (joystickY > thumbstickPressedThreshold)
+		// Check curved values: 0.05 = 5% into usable range past deadzone (hysteresis)
+		if (curvedY > 0.05f)
 		{
 			if (!IN_InputActivated(&controller->axisButtons, VR_TOUCH_AXIS_UP))
 			{
@@ -1123,7 +1143,7 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 				Com_QueueEvent(in_vrEventTime, SE_KEY, K_PGUP, qtrue, 0, NULL);
 			}
 		}
-		else if (joystickY < -thumbstickPressedThreshold)
+		else if (curvedY < -0.05f)
 		{
 			if (!IN_InputActivated(&controller->axisButtons, VR_TOUCH_AXIS_DOWN))
 			{
@@ -1131,7 +1151,7 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 				Com_QueueEvent(in_vrEventTime, SE_KEY, K_PGDN, qtrue, 0, NULL);
 			}
 		}
-		else if (joystickY < thumbstickReleasedThreshold && joystickY > -thumbstickReleasedThreshold)
+		else if (curvedY < 0.05f && curvedY > -0.05f)
 		{
 			if (IN_InputActivated(&controller->axisButtons, VR_TOUCH_AXIS_UP))
 			{
@@ -1159,13 +1179,20 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 				if (!vr_directionMode->integer)
 				{
 					//HMD Based
-					rotateAboutOrigin(joystickX, joystickY, vr.hmdorientation[YAW], joystick);
+					rotateAboutOrigin(curvedX, curvedY, vr.hmdorientation[YAW], joystick);
 				}
 				else
 				{
 					//Off-hand based
-					rotateAboutOrigin(joystickX, joystickY, vr.offhandangles2[YAW], joystick);
+					rotateAboutOrigin(curvedX, curvedY, vr.offhandangles2[YAW], joystick);
 				}
+
+				// Snap joystick values close to ±1.0 after rotation to ensure full speed
+				const float snapThreshold = 0.96f;
+				if (joystick[0] >= snapThreshold) joystick[0] = 1.0f;
+				else if (joystick[0] <= -snapThreshold) joystick[0] = -1.0f;
+				if (joystick[1] >= snapThreshold) joystick[1] = 1.0f;
+				else if (joystick[1] <= -snapThreshold) joystick[1] = -1.0f;
 			}
 			else
 			{
@@ -1182,14 +1209,21 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 				if (!vr_directionMode->integer)
 				{
 					//HMD Based
-					joystick[0] = joystickX;
-					joystick[1] = joystickY;
+					joystick[0] = curvedX;
+					joystick[1] = curvedY;
 				}
 				else
 				{
 					//Off-hand based
-					rotateAboutOrigin(joystickX, joystickY, vr.offhandangles2[YAW] - vr.hmdorientation[YAW], joystick);
+					rotateAboutOrigin(curvedX, curvedY, vr.offhandangles2[YAW] - vr.hmdorientation[YAW], joystick);
 				}
+
+				// Snap joystick values close to ±1.0 after rotation to ensure full speed
+				const float snapThreshold = 0.96f;
+				if (joystick[0] >= snapThreshold) joystick[0] = 1.0f;
+				else if (joystick[0] <= -snapThreshold) joystick[0] = -1.0f;
+				if (joystick[1] >= snapThreshold) joystick[1] = 1.0f;
+				else if (joystick[1] <= -snapThreshold) joystick[1] = -1.0f;
 			}
 
 			//sideways
@@ -1202,10 +1236,18 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 		// In case thumbstick is used by weapon wheel (is in HMD/thumbstick mode), ignore standard thumbstick inputs
 		else if (!vr.weapon_select_using_thumbstick)
 		{
-			float joystickValue = length(joystickX, joystickY);
-			if (joystickValue < thumbstickReleasedThreshold)
+			// Use joystick X axis for analog turning in smooth turn mode only
+			// This provides smooth analog turn speed control like gamepads
+			// Scale to match SDL joystick range (-32768 to +32767) since j_yaw is calibrated for that range
+			if (vr_snapturn->integer <= 0)
 			{
-				// Joystick within threshold -> disable all inputs
+				Com_QueueEvent(in_vrEventTime, SE_JOYSTICK_AXIS, 2, curvedX * 32767.0f, 0, NULL);
+			}
+
+			float joystickValue = length(curvedX, curvedY);
+			if (joystickValue == 0.0f)
+			{
+				// Joystick within deadzone -> disable all inputs
 				IN_HandleInactiveInput(&controller->axisButtons, VR_TOUCH_AXIS_UP, "RTHUMBFORWARD", joystickValue, qtrue);
 				IN_HandleInactiveInput(&controller->axisButtons, VR_TOUCH_AXIS_UPRIGHT, "RTHUMBFORWARDRIGHT", joystickValue, qtrue);
 				IN_HandleInactiveInput(&controller->axisButtons, VR_TOUCH_AXIS_RIGHT, "RTHUMBRIGHT", joystickValue, qtrue);
@@ -1215,9 +1257,9 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 				IN_HandleInactiveInput(&controller->axisButtons, VR_TOUCH_AXIS_LEFT, "RTHUMBLEFT", joystickValue, qtrue);
 				IN_HandleInactiveInput(&controller->axisButtons, VR_TOUCH_AXIS_UPLEFT, "RTHUMBFORWARDLEFT", joystickValue, qtrue);
 			}
-			else if (joystickValue > thumbstickPressedThreshold)
+			else if (joystickValue > 0.05f)
 			{
-				float joystickAngle = AngleNormalize360(RAD2DEG(atan2(joystickX, joystickY)));
+				float joystickAngle = AngleNormalize360(RAD2DEG(atan2(curvedX, curvedY)));
 				if (IN_VRJoystickUse8WayMapping())
 				{
 						IN_VRJoystickHandle8WayMapping(&controller->axisButtons, joystickAngle, joystickValue);
