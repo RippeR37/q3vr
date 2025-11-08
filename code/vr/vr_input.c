@@ -644,19 +644,33 @@ void VR_InitInstanceInput( VR_Engine* engine )
 		suggestedBindings.suggestedBindings = bindings;
 		suggestedBindings.countSuggestedBindings = currBinding;
 
+		// Determine controller priority based on detected HMD
+		// This ensures we try the HMD's native controller first, which should
+		// cover the vast majority of use cases (Quest HMD with Quest controllers,
+		// Index HMD with Index controllers, etc.)
+		const char* systemName = engine->systemProperties.SystemProperties.systemName;
 
-		const XrPath interactionProfiles[] =
+		const XrPath interactionProfiles[3];
+		const char* interactionProfileNames[3];
+
+		// Check for Valve Index HMD
+		if (strstr(systemName, "Index") != NULL)
 		{
-			interactionProfilePathOculusTouch,
-			interactionProfilePathValveIndex,
-			interactionProfilePathKHRSimple,
-		};
-		const char* interactionProfileNames[] =
+			printf("[OpenXR] Detected Valve Index HMD (%s), prioritizing Index controllers\n", systemName);
+			const XrPath profiles[] = { interactionProfilePathValveIndex, interactionProfilePathOculusTouch, interactionProfilePathKHRSimple };
+			const char* names[] = { "Valve Index", "Oculus Quest", "Simple" };
+			memcpy(interactionProfiles, profiles, sizeof(interactionProfiles));
+			memcpy(interactionProfileNames, names, sizeof(interactionProfileNames));
+		}
+		else
 		{
-			"Oculus Quest",
-			"Valve Index",
-			"Simple",
-		};
+			// Default to Oculus Touch controllers for all other HMDs
+			const XrPath profiles[] = { interactionProfilePathOculusTouch, interactionProfilePathValveIndex, interactionProfilePathKHRSimple };
+			const char* names[] = { "Oculus Quest", "Valve Index", "Simple" };
+			memcpy(interactionProfiles, profiles, sizeof(interactionProfiles));
+			memcpy(interactionProfileNames, names, sizeof(interactionProfileNames));
+		}
+
 		const size_t profilesCount = sizeof(interactionProfiles)/sizeof(interactionProfiles[0]);
 
 		// Try until found supported one
