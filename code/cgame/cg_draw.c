@@ -562,7 +562,12 @@ void CG_DrawTeamBackground( int x, int y, int w, int h, float alpha, int team )
 		hcolor[1] = 0.1f;
 		hcolor[2] = 1.0f;
 	} else {
-		return;
+		if ( !cg_drawFFABackground.integer ) {
+			return;
+		}
+		hcolor[0] = 0.0f;
+		hcolor[1] = 0.0f;
+		hcolor[2] = 0.0f;
 	}
 	trap_R_SetColor( hcolor );
 	CG_DrawPic( x, y, w, h, cgs.media.teamStatusBar );
