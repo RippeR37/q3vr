@@ -250,11 +250,13 @@ GRAPHICS OPTIONS MENU
 #define ID_GAMMA		110
 #define ID_HIGHQUALITYSKY	111
 #define ID_SUPERSAMPLING	112
+#define ID_MSAA			113
 
 #define	NUM_REFRESHRATE	5
 #define NUM_SHADOWS 3
 #define NUM_RAILGUN 2
 #define	NUM_SUPERSAMPLING	6
+#define NUM_MSAA		4
 
 typedef struct {
 	menuframework_s	menu;
@@ -281,6 +283,7 @@ typedef struct {
 	menuslider_s	gamma;
 	menuradiobutton_s	highqualitysky;
 	menulist_s		supersampling;
+	menulist_s		msaa;
 
 	menubitmap_s	apply;
 	menubitmap_s	back;
@@ -300,6 +303,7 @@ typedef struct
 	float gamma;
 	int highqualitysky;
 	float supersampling;
+	int msaa;
 } InitialVideoOptions_s;
 
 static InitialVideoOptions_s	s_ivo;
@@ -324,6 +328,7 @@ static void GraphicsOptions_GetInitialVideo( void )
 	s_ivo.gamma       = s_graphicsoptions.gamma.curvalue;
 	s_ivo.highqualitysky = s_graphicsoptions.highqualitysky.curvalue;
 	s_ivo.supersampling = s_graphicsoptions.supersampling.curvalue;
+	s_ivo.msaa = s_graphicsoptions.msaa.curvalue;
 }
 
 /*
@@ -348,6 +353,10 @@ static void GraphicsOptions_UpdateMenuItems( void )
 		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
 	if ( s_ivo.gamma != s_graphicsoptions.gamma.curvalue )
+	{
+		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
+	}
+	if ( s_ivo.msaa != s_graphicsoptions.msaa.curvalue )
 	{
 		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
@@ -494,6 +503,29 @@ static void GraphicsOptions_Event( void* ptr, int event ) {
 					break;
 				}
 			trap_Cvar_SetValue("vr_superSampling", supersampling);
+		}
+		break;
+
+	case ID_MSAA: {
+			int msaa;
+			switch (s_graphicsoptions.msaa.curvalue) {
+				case 0:
+					msaa = 0;
+					break;
+				case 1:
+					msaa = 2;
+					break;
+				case 2:
+					msaa = 4;
+					break;
+				case 3:
+					msaa = 8;
+					break;
+				default:
+					msaa = 4;
+					break;
+			}
+			trap_Cvar_SetValue("r_ext_framebuffer_multisample", msaa);
 		}
 		break;
 
@@ -690,6 +722,25 @@ static void GraphicsOptions_SetMenuItems( void )
 	s_graphicsoptions.railgun.curvalue	= trap_Cvar_VariableValue( "cg_oldRail" );
 	s_graphicsoptions.gamma.curvalue			= trap_Cvar_VariableValue( "r_gamma" );
 	s_graphicsoptions.highqualitysky.curvalue	= trap_Cvar_VariableValue( "r_fastsky" ) == 0;
+
+	switch ( (int) trap_Cvar_VariableValue( "r_ext_framebuffer_multisample" ) )
+	{
+		case 0:
+			s_graphicsoptions.msaa.curvalue = 0;
+			break;
+		case 2:
+			s_graphicsoptions.msaa.curvalue = 1;
+			break;
+		case 4:
+			s_graphicsoptions.msaa.curvalue = 2;
+			break;
+		case 8:
+			s_graphicsoptions.msaa.curvalue = 3;
+			break;
+		default:
+			s_graphicsoptions.msaa.curvalue = 2;
+			break;
+	}
 }
 
 /*
@@ -748,6 +799,15 @@ void GraphicsOptions_MenuInit( void )
 		"1.1",
 		"1.2",
 		"1.3",
+		NULL
+	};
+
+	static const char *s_msaa[] =
+	{
+		"Off",
+		"2x",
+		"4x",
+		"8x",
 		NULL
 	};
 
@@ -874,6 +934,18 @@ void GraphicsOptions_MenuInit( void )
 	s_graphicsoptions.gamma.maxvalue				= 1.0f;
 	y += BIGCHAR_HEIGHT+2;
 
+	// references "r_ext_framebuffer_multisample"
+	s_graphicsoptions.msaa.generic.type			= MTYPE_SPINCONTROL;
+	s_graphicsoptions.msaa.generic.name			= "MSAA:";
+	s_graphicsoptions.msaa.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_graphicsoptions.msaa.generic.x			= 400;
+	s_graphicsoptions.msaa.generic.y			= y;
+	s_graphicsoptions.msaa.itemnames			= s_msaa;
+	s_graphicsoptions.msaa.generic.callback		= GraphicsOptions_Event;
+	s_graphicsoptions.msaa.generic.id			= ID_MSAA;
+	s_graphicsoptions.msaa.numitems				= NUM_MSAA;
+	y += BIGCHAR_HEIGHT+2;
+
 	// references "cg_oldRail"
 	s_graphicsoptions.railgun.generic.type     = MTYPE_SPINCONTROL;
 	s_graphicsoptions.railgun.generic.name	   = "Railgun Effect:";
@@ -995,6 +1067,7 @@ void GraphicsOptions_MenuInit( void )
 	// Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.supersampling );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.railgun );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.gamma );
+	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.msaa );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.lighting );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.shadows );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.playershadow );

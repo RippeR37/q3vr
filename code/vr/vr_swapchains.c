@@ -191,6 +191,50 @@ GLuint VR_CreateVirtualScreenImageView(GLuint colorImage)
 	return framebuffer;
 }
 
+GLuint VR_CreateResolveImage(int64_t format, GLsizei width, GLsizei height)
+{
+	GLuint texture;
+	qglGenTextures(1, &texture);
+	qglBindTexture(GL_TEXTURE_2D, texture);
+
+	// Allocate storage for non-MSAA resolve target
+	qglTexImage2D(
+		GL_TEXTURE_2D,
+		0,                   // mip level
+		format,              // internal format
+		width,
+		height,
+		0,                   // border
+		GL_RGBA,             // format
+		GL_UNSIGNED_BYTE,    // type
+		NULL                 // no initial data
+	);
+
+	qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	qglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	qglBindTexture(GL_TEXTURE_2D, 0);
+	return texture;
+}
+
+GLuint VR_CreateEyeResolveImageView(GLuint resolveImage)
+{
+	GLuint framebuffer;
+	qglGenFramebuffers(1, &framebuffer);
+	CHECK(framebuffer != 0, "Failed to create GL eye resolve framebuffer");
+
+	qglBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	qglFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, resolveImage, 0);
+
+	GLenum result = qglCheckFramebufferStatus(GL_FRAMEBUFFER);
+	CHECK(result == GL_FRAMEBUFFER_COMPLETE, "Failed to create complete eye resolve Framebuffer");
+
+	qglBindFramebuffer(GL_FRAMEBUFFER, 0);
+	return framebuffer;
+}
+
 GLuint VR_CreateImage2D(GLint format, GLsizei width, GLsizei height)
 {
 	GLuint texture;
@@ -219,7 +263,7 @@ GLuint VR_CreateImage2D(GLint format, GLsizei width, GLsizei height)
 	return texture;
 }
 
-void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, const XrViewConfigurationView* view, uint32_t viewCount, VR_SwapchainInfo* swapchain_info)
+void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, const XrViewConfigurationView* view, uint32_t viewCount, uint32_t sampleCount, VR_SwapchainInfo* swapchain_info)
 {
 	XrSwapchainCreateInfo swapchainCI;
 	swapchainCI.type = XR_TYPE_SWAPCHAIN_CREATE_INFO;
@@ -234,7 +278,7 @@ void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, con
 		swapchainCI.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	}
 	swapchainCI.format = format;
-	swapchainCI.sampleCount = 1;
+	swapchainCI.sampleCount = sampleCount;
 	swapchainCI.width = view->recommendedImageRectWidth;
 	swapchainCI.height = view->recommendedImageRectHeight;
 	swapchainCI.faceCount = 1;
@@ -323,6 +367,16 @@ VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, 
 	fprintf(stderr, "[OpenXR] Chosen GL formats: {color: %llx, depth: %llx}\n", colorFormat, depthFormat);
 
 	//
+	// Determine MSAA sample count from r_ext_framebuffer_multisample
+	//
+	uint32_t sampleCount = 1;
+	if (r_ext_framebuffer_multisample && r_ext_framebuffer_multisample->integer > 1)
+	{
+		sampleCount = r_ext_framebuffer_multisample->integer;
+		fprintf(stderr, "[OpenXR] Using MSAA with %d samples\n", sampleCount);
+	}
+
+	//
 	// OpenGL Multiview rendering feature sanity check
 	//
 	for (uint32_t idx = 0; idx < viewCount; ++idx)
@@ -338,9 +392,9 @@ VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, 
 	//
 	// Swapchains
 	//
-	VR_SwapchainInfos swapchains = {.viewCount = viewCount};
-	VR_CreateSwapchain(session, XR_TRUE,  colorFormat, &views[0], viewCount, &swapchains.color);
-	VR_CreateSwapchain(session, XR_FALSE, depthFormat, &views[0], viewCount, &swapchains.depth);
+	VR_SwapchainInfos swapchains = {.viewCount = viewCount, .sampleCount = sampleCount};
+	VR_CreateSwapchain(session, XR_TRUE,  colorFormat, &views[0], viewCount, sampleCount, &swapchains.color);
+	VR_CreateSwapchain(session, XR_FALSE, depthFormat, &views[0], viewCount, sampleCount, &swapchains.depth);
 
 	//
 	// Framebuffers
@@ -353,6 +407,33 @@ VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, 
 		swapchains.eyeFramebuffers[view] = calloc(swapchains.color.imageCount, sizeof(GLuint));
 	}
 
+	// Create MSAA resolve framebuffers for desktop mirroring if MSAA is enabled
+	if (sampleCount > 1)
+	{
+		swapchains.eyeResolveImages = calloc(viewCount, sizeof(GLuint));
+		swapchains.eyeResolveFramebuffers = calloc(viewCount, sizeof(GLuint*));
+
+		for (uint32_t view = 0; view < viewCount; ++view)
+		{
+			// Create one resolve texture per eye
+			swapchains.eyeResolveImages[view] = VR_CreateResolveImage(
+				colorFormat,
+				swapchains.color.width,
+				swapchains.color.height
+			);
+
+			// Create one framebuffer that will be shared across all swapchain images
+			// (we only need one since we're resolving to the same texture each time)
+			swapchains.eyeResolveFramebuffers[view] = calloc(1, sizeof(GLuint));
+			swapchains.eyeResolveFramebuffers[view][0] = VR_CreateEyeResolveImageView(swapchains.eyeResolveImages[view]);
+		}
+	}
+	else
+	{
+		swapchains.eyeResolveImages = NULL;
+		swapchains.eyeResolveFramebuffers = NULL;
+	}
+
 	for (uint32_t idx = 0; idx < swapchains.color.imageCount; ++idx)
 	{
 		swapchains.framebuffers[idx] = VR_CreateImageView(swapchains.color.images[idx], swapchains.depth.images[idx], viewCount);
@@ -362,6 +443,8 @@ VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, 
 		}
 	}
 	swapchains.virtualScreenFramebuffer = VR_CreateVirtualScreenImageView(swapchains.color.virtualScreenImage);
+
+	free(views);
 	return swapchains;
 }
 
@@ -399,6 +482,28 @@ void VR_DestroySwapchains(VR_SwapchainInfos* swapchains)
 	swapchains->framebuffers = NULL;
 	swapchains->eyeFramebuffers = NULL;
 
+	// Clean up MSAA resolve framebuffers if they exist
+	if (swapchains->eyeResolveFramebuffers)
+	{
+		for (uint32_t view = 0; view < swapchains->viewCount; ++view)
+		{
+			qglDeleteFramebuffers(1, &swapchains->eyeResolveFramebuffers[view][0]);
+			free(swapchains->eyeResolveFramebuffers[view]);
+		}
+		free(swapchains->eyeResolveFramebuffers);
+		swapchains->eyeResolveFramebuffers = NULL;
+	}
+
+	if (swapchains->eyeResolveImages)
+	{
+		for (uint32_t view = 0; view < swapchains->viewCount; ++view)
+		{
+			qglDeleteTextures(1, &swapchains->eyeResolveImages[view]);
+		}
+		free(swapchains->eyeResolveImages);
+		swapchains->eyeResolveImages = NULL;
+	}
+
 	VR_DestroySwapchain(&swapchains->color);
 	VR_DestroySwapchain(&swapchains->depth);
 }
@@ -433,6 +538,21 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 	const int maxParts = 2;
 	const int parts = (swapchains->viewCount > 1) ? (1 + (viewConfig == BOTH_EYES)) : 1;
 
+	// If MSAA is enabled, resolve to the non-MSAA resolve framebuffers first
+	if (swapchains->sampleCount > 1 && swapchains->eyeResolveFramebuffers)
+	{
+		for (uint32_t view = 0; view < swapchains->viewCount; ++view)
+		{
+			qglBlitNamedFramebuffer(
+				swapchains->eyeFramebuffers[view][swapchainImageIndex],
+				swapchains->eyeResolveFramebuffers[view][0],
+				0, 0, swapchains->color.width, swapchains->color.height,
+				0, 0, swapchains->color.width, swapchains->color.height,
+				GL_COLOR_BUFFER_BIT,
+				GL_NEAREST);
+		}
+	}
+
 	for (uint32_t part = 0; part < maxParts; ++part)
 	{
 		if (!(viewConfig & (part + 1)))
@@ -464,11 +584,16 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 			cutY = cutX / ratioW;
 			offsetY = (tY - cutY) / 2;
 		}
-		
+
 		const GLuint defaultFBO = 0;
+		// Use resolve framebuffer as source if MSAA is enabled, otherwise use eye framebuffer directly
+		GLuint sourceFBO = (swapchains->sampleCount > 1 && swapchains->eyeResolveFramebuffers)
+			? swapchains->eyeResolveFramebuffers[part][0]
+			: swapchains->eyeFramebuffers[part][swapchainImageIndex];
+
 		qglBlitNamedFramebuffer(
-			swapchains->eyeFramebuffers[0][swapchainImageIndex],
-			defaultFBO, 
+			sourceFBO,
+			defaultFBO,
 			offsetX, offsetY, offsetX + cutX, offsetY + cutY,
 			leftOffset, 0, leftOffset+ engine->window.width / parts, engine->window.height,
 			GL_COLOR_BUFFER_BIT,
@@ -479,6 +604,18 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, qboolean use4x3Crop)
 {
 	int srcX, srcY, srcWidth, srcHeight;
+
+	// If MSAA is enabled, resolve to the non-MSAA resolve framebuffer first (for eye 0 only)
+	if (swapchains->sampleCount > 1 && swapchains->eyeResolveFramebuffers)
+	{
+		qglBlitNamedFramebuffer(
+			swapchains->eyeFramebuffers[0][swapchainImageIndex],
+			swapchains->eyeResolveFramebuffers[0][0],
+			0, 0, swapchains->color.width, swapchains->color.height,
+			0, 0, swapchains->color.width, swapchains->color.height,
+			GL_COLOR_BUFFER_BIT,
+			GL_NEAREST);
+	}
 
 	if (use4x3Crop)
 	{
@@ -497,9 +634,14 @@ void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t
 		srcHeight = swapchains->color.height;
 	}
 
+	// Use resolve framebuffer as source if MSAA is enabled, otherwise use eye framebuffer directly
+	GLuint sourceFBO = (swapchains->sampleCount > 1 && swapchains->eyeResolveFramebuffers)
+		? swapchains->eyeResolveFramebuffers[0][0]
+		: swapchains->eyeFramebuffers[0][swapchainImageIndex];
+
 	// Blit the source region to fill the entire virtual screen texture
 	qglBlitNamedFramebuffer(
-		swapchains->eyeFramebuffers[0][swapchainImageIndex],
+		sourceFBO,
 		swapchains->virtualScreenFramebuffer,
 		srcX, srcY, srcX + srcWidth, srcY + srcHeight,
 		0, 0, swapchains->color.width, swapchains->color.height,
