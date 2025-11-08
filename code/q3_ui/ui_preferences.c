@@ -74,6 +74,7 @@ typedef struct {
 	menuradiobutton_s	identifytarget;
 	menuradiobutton_s	forcemodel;
 	menulist_s			drawteamoverlay;
+	menulist_s			drawffabackground;
 	menuradiobutton_s	holster2d;
 	menulist_s 			gore;
 	menulist_s			damageeffect;
@@ -93,6 +94,13 @@ static const char *teamoverlay_names[] =
 	"Upper Right",
 	"Lower Right",
 	"Lower Left",
+	NULL
+};
+
+static const char *hudbackground_names[] =
+{
+	"Team",
+	"Always",
 	NULL
 };
 
@@ -121,6 +129,7 @@ static void Preferences_SetMenuItems( void ) {
 	s_preferences.identifytarget.curvalue	= trap_Cvar_VariableValue( "cg_drawCrosshairNames" ) != 0;
 	s_preferences.forcemodel.curvalue		= trap_Cvar_VariableValue( "cg_forcemodel" ) != 0;
 	s_preferences.drawteamoverlay.curvalue	= Com_Clamp( 0, 3, trap_Cvar_VariableValue( "cg_drawTeamOverlay" ) );
+	s_preferences.drawffabackground.curvalue = Com_Clamp( 0, 1, trap_Cvar_VariableValue( "cg_drawFFABackground" ) );
 	s_preferences.holster2d.curvalue		= trap_Cvar_VariableValue( "cg_weaponSelectorSimple2DIcons" ) != 0;
 	s_preferences.gore.curvalue				= trap_Cvar_VariableValue( "vr_goreLevel" );
 	s_preferences.damageeffect.curvalue		= trap_Cvar_VariableValue( "cg_damageEffect" );
@@ -182,6 +191,10 @@ static void Preferences_Event( void* ptr, int notification ) {
 
 	case ID_DRAWTEAMOVERLAY:
 		trap_Cvar_SetValue( "cg_drawTeamOverlay", s_preferences.drawteamoverlay.curvalue );
+		break;
+
+	case ID_DRAWFFABACKGROUND:
+		trap_Cvar_SetValue( "cg_drawFFABackground", s_preferences.drawffabackground.curvalue );
 		break;
 
 	case ID_LASERSIGHT:
@@ -448,6 +461,16 @@ static void Preferences_MenuInit( void ) {
 	s_preferences.drawteamoverlay.itemnames			= teamoverlay_names;
 
 	y += BIGCHAR_HEIGHT+2;
+	s_preferences.drawffabackground.generic.type     = MTYPE_SPINCONTROL;
+	s_preferences.drawffabackground.generic.name	 = "HUD Background:";
+	s_preferences.drawffabackground.generic.flags	 = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_preferences.drawffabackground.generic.callback = Preferences_Event;
+	s_preferences.drawffabackground.generic.id       = ID_DRAWFFABACKGROUND;
+	s_preferences.drawffabackground.generic.x	     = PREFERENCES_X_POS;
+	s_preferences.drawffabackground.generic.y	     = y;
+	s_preferences.drawffabackground.itemnames		 = hudbackground_names;
+
+	y += BIGCHAR_HEIGHT+2;
 	s_preferences.showconsole.generic.type        = MTYPE_RADIOBUTTON;
 	s_preferences.showconsole.generic.name	      = "Show Console Messages:";
 	s_preferences.showconsole.generic.flags	      = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
@@ -500,6 +523,7 @@ static void Preferences_MenuInit( void ) {
 	Menu_AddItem( &s_preferences.menu, &s_preferences.identifytarget );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.forcemodel );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.drawteamoverlay );
+	Menu_AddItem( &s_preferences.menu, &s_preferences.drawffabackground );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.holster2d );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.gore );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.damageeffect );

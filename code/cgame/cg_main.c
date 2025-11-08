@@ -187,6 +187,7 @@ vmCvar_t	cg_smoothFollow;
 vmCvar_t	cg_drawTeamOverlay;
 vmCvar_t	cg_teamOverlayUserinfo;
 vmCvar_t	cg_drawFriend;
+vmCvar_t	cg_drawFFABackground;
 vmCvar_t	cg_teamChatsOnly;
 #ifdef MISSIONPACK
 vmCvar_t	cg_noVoiceChats;
@@ -325,6 +326,7 @@ static cvarTable_t cvarTable[] = {
 	{ &cg_teamOverlayUserinfo, "teamoverlay", "0", CVAR_ROM | CVAR_USERINFO },
 	{ &cg_stats, "cg_stats", "0", 0 },
 	{ &cg_drawFriend, "cg_drawFriend", "1", CVAR_ARCHIVE },
+	{ &cg_drawFFABackground, "cg_drawFFABackground", "1", CVAR_ARCHIVE },
 	{ &cg_teamChatsOnly, "cg_teamChatsOnly", "0", CVAR_ARCHIVE },
 #ifdef MISSIONPACK
 	{ &cg_noVoiceChats, "cg_noVoiceChats", "0", CVAR_ARCHIVE },
