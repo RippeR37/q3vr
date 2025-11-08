@@ -465,6 +465,7 @@ void Cmd_FollowCycle_f( gentity_t *ent, int dir );
 void G_CheckTeamItems( void );
 void G_RunItem( gentity_t *ent );
 void RespawnItem( gentity_t *ent );
+int SpawnTime( gentity_t *ent, qboolean firstSpawn );
 
 void UseHoldableItem( gentity_t *ent );
 void PrecacheItem (gitem_t *it);
@@ -668,6 +669,7 @@ void G_RunClient( gentity_t *ent );
 qboolean OnSameTeam( gentity_t *ent1, gentity_t *ent2 );
 void Team_CheckDroppedItem( gentity_t *dropped );
 qboolean CheckObeliskAttack( gentity_t *obelisk, gentity_t *attacker );
+void Team_ResetFlags( void );
 
 //
 // g_mem.c
