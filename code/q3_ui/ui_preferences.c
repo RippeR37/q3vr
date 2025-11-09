@@ -36,24 +36,34 @@ GAME OPTIONS MENU
 #define ART_FRAMER				"menu/art/frame1_r"
 #define ART_BACK0				"menu/art/back_0"
 #define ART_BACK1				"menu/art/back_1"
+#define ART_FX_BASE				"menu/art/fx_base"
+#define ART_FX_BLUE				"menu/art/fx_blue"
+#define ART_FX_CYAN				"menu/art/fx_cyan"
+#define ART_FX_GREEN			"menu/art/fx_grn"
+#define ART_FX_RED				"menu/art/fx_red"
+#define ART_FX_TEAL				"menu/art/fx_teal"
+#define ART_FX_WHITE			"menu/art/fx_white"
+#define ART_FX_YELLOW			"menu/art/fx_yel"
 
 #define PREFERENCES_X_POS		360
 
 #define ID_CROSSHAIR			127
-#define ID_SIMPLEITEMS			128
-#define ID_EJECTINGBRASS		129
-#define ID_WALLMARKS			130
-#define ID_IDENTIFYTARGET		131
-#define ID_FORCEMODEL			132
-#define ID_DRAWTEAMOVERLAY		133
-#define ID_DRAWFFABACKGROUND	134
-#define ID_LASERSIGHT		    135
-#define ID_HOLSTER2D		    136
-#define ID_GORE 			    137
-#define ID_DAMAGEEFFECT		    138
-#define ID_SHOWINHAND		    139
-#define ID_SHOWCONSOLE			140
-#define ID_BACK					141
+#define ID_CROSSHAIRCOLOR		128
+#define ID_CROSSHAIRSIZE		129
+#define ID_SIMPLEITEMS			130
+#define ID_EJECTINGBRASS		131
+#define ID_WALLMARKS			132
+#define ID_IDENTIFYTARGET		133
+#define ID_FORCEMODEL			134
+#define ID_DRAWTEAMOVERLAY		135
+#define ID_DRAWFFABACKGROUND	136
+#define ID_LASERSIGHT		    137
+#define ID_HOLSTER2D		    138
+#define ID_GORE 			    139
+#define ID_DAMAGEEFFECT		    140
+#define ID_SHOWINHAND		    141
+#define ID_SHOWCONSOLE			142
+#define ID_BACK					143
 
 #define	NUM_CROSSHAIRS			10
 #define	NUM_GORE    			4
@@ -67,6 +77,8 @@ typedef struct {
 	menubitmap_s		framer;
 
 	menulist_s			crosshair;
+	menulist_s			crosshaircolor;
+	menuslider_s		crosshairsize;
 	menuradiobutton_s	lasersight;
 	menuradiobutton_s	simpleitems;
 	menuradiobutton_s	brass;
@@ -83,6 +95,8 @@ typedef struct {
 	menubitmap_s		back;
 
 	qhandle_t			crosshairShader[NUM_CROSSHAIRS];
+	qhandle_t			fxBasePic;
+	qhandle_t			fxPic[7];
 } preferences_t;
 
 static preferences_t s_preferences;
@@ -120,8 +134,22 @@ static const char *s_damageeffect[] =
 	NULL
 };
 
+static int gamecodetoui[] = {0,2,1,5,3,4,6};
+static int uitogamecode[] = {1,3,2,6,4,5,7};
+
 static void Preferences_SetMenuItems( void ) {
+	int c;
+
 	s_preferences.crosshair.curvalue		= (int)trap_Cvar_VariableValue( "cg_drawCrosshair" ) % NUM_CROSSHAIRS;
+
+	c = trap_Cvar_VariableValue( "cg_crosshairColor" ) - 1;
+	if( c < 0 || c > 6 ) {
+		c = 6; // default to white
+	}
+	s_preferences.crosshaircolor.curvalue = gamecodetoui[c];
+
+	s_preferences.crosshairsize.curvalue	= trap_Cvar_VariableValue( "cg_crosshairSize" ) / 16.0f;
+
 	s_preferences.lasersight.curvalue		= trap_Cvar_VariableValue( "vr_lasersight" ) != 0;
 	s_preferences.simpleitems.curvalue		= trap_Cvar_VariableValue( "cg_simpleItems" ) != 0;
 	s_preferences.brass.curvalue			= trap_Cvar_VariableValue( "cg_brassTime" ) != 0;
@@ -146,6 +174,20 @@ static void Preferences_Event( void* ptr, int notification ) {
 	switch( ((menucommon_s*)ptr)->id ) {
 	case ID_CROSSHAIR:
 		trap_Cvar_SetValue( "cg_drawCrosshair", s_preferences.crosshair.curvalue );
+		break;
+
+	case ID_CROSSHAIRCOLOR:
+		trap_Cvar_SetValue( "cg_crosshairColor", uitogamecode[s_preferences.crosshaircolor.curvalue] );
+		// Enable health-based coloring for white, disable for custom colors
+		if ( uitogamecode[s_preferences.crosshaircolor.curvalue] == 7 ) {
+			trap_Cvar_SetValue( "cg_crosshairHealth", 1 );
+		} else {
+			trap_Cvar_SetValue( "cg_crosshairHealth", 0 );
+		}
+		break;
+
+	case ID_CROSSHAIRSIZE:
+		trap_Cvar_SetValue( "cg_crosshairSize", s_preferences.crosshairsize.curvalue * 16.0f );
 		break;
 
 	case ID_SIMPLEITEMS:
@@ -287,7 +329,6 @@ static void Crosshair_Draw( void *self ) {
 	if ( focus )
 	{
 		// draw cursor
-		UI_FillRect( s->generic.left, s->generic.top, s->generic.right-s->generic.left+1, s->generic.bottom-s->generic.top+1, listbar_color ); 
 		UI_DrawChar( x, y, 13, UI_CENTER|UI_BLINK|UI_SMALLFONT, color);
 	}
 
@@ -295,7 +336,78 @@ static void Crosshair_Draw( void *self ) {
 	if( !s->curvalue ) {
 		return;
 	}
+
+	// Set crosshair color based on selected color
+	{
+		int colorCode = uitogamecode[s_preferences.crosshaircolor.curvalue];
+		vec4_t crosshairColor;
+
+		// Convert color code to RGB (same logic as CG_CrosshairColorFromInt)
+		if ( colorCode < 1 || colorCode > 7 ) {
+			crosshairColor[0] = 1.0f;
+			crosshairColor[1] = 1.0f;
+			crosshairColor[2] = 1.0f;
+		} else {
+			crosshairColor[0] = (colorCode & 1) ? 1.0f : 0.0f;
+			crosshairColor[1] = (colorCode & 2) ? 1.0f : 0.0f;
+			crosshairColor[2] = (colorCode & 4) ? 1.0f : 0.0f;
+		}
+		crosshairColor[3] = 1.0f;
+
+		trap_R_SetColor( crosshairColor );
+	}
+
 	UI_DrawHandlePic( x + SMALLCHAR_WIDTH, y - 4, 24, 24, s_preferences.crosshairShader[s->curvalue] );
+
+	// Reset color
+	trap_R_SetColor( NULL );
+}
+
+/*
+=================
+CrosshairColor_Draw
+=================
+*/
+static void CrosshairColor_Draw( void *self ) {
+	menulist_s	*s;
+	float		*color;
+	int			x, y;
+	int			style;
+	qboolean	focus;
+
+	s = (menulist_s *)self;
+	x = s->generic.x;
+	y =	s->generic.y;
+
+	style = UI_SMALLFONT;
+	focus = (s->generic.parent->cursor == s->generic.menuPosition);
+
+	if ( s->generic.flags & QMF_GRAYED )
+		color = text_color_disabled;
+	else if ( focus )
+	{
+		color = text_color_highlight;
+		style |= UI_PULSE;
+	}
+	else if ( s->generic.flags & QMF_BLINK )
+	{
+		color = text_color_highlight;
+		style |= UI_BLINK;
+	}
+	else
+		color = text_color_normal;
+
+	if ( focus )
+	{
+		// draw cursor
+		UI_DrawChar( x, y, 13, UI_CENTER|UI_BLINK|UI_SMALLFONT, color);
+	}
+
+	UI_DrawString( x - SMALLCHAR_WIDTH, y, s->generic.name, style|UI_RIGHT, color );
+
+	// Draw color picker
+	UI_DrawHandlePic( x + SMALLCHAR_WIDTH, y + 4, 128, 8, s_preferences.fxBasePic );
+	UI_DrawHandlePic( x + SMALLCHAR_WIDTH + s->curvalue * 16 + 8, y + 2, 16, 12, s_preferences.fxPic[s->curvalue] );
 }
 
 
@@ -332,7 +444,7 @@ static void Preferences_MenuInit( void ) {
 	s_preferences.framer.width  	   = 256;
 	s_preferences.framer.height  	   = 334;
 
-	y = 100;
+	y = 80;
 	s_preferences.crosshair.generic.type		= MTYPE_SPINCONTROL;
 	s_preferences.crosshair.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT|QMF_NODEFAULTINIT|QMF_OWNERDRAW;
 	s_preferences.crosshair.generic.x			= PREFERENCES_X_POS;
@@ -348,6 +460,32 @@ static void Preferences_MenuInit( void ) {
 	s_preferences.crosshair.numitems			= NUM_CROSSHAIRS;
 
 	y += BIGCHAR_HEIGHT+2+4;
+	s_preferences.crosshairsize.generic.type		= MTYPE_SLIDER;
+	s_preferences.crosshairsize.generic.name		= "Crosshair Size:";
+	s_preferences.crosshairsize.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_preferences.crosshairsize.generic.callback	= Preferences_Event;
+	s_preferences.crosshairsize.generic.id			= ID_CROSSHAIRSIZE;
+	s_preferences.crosshairsize.generic.x			= PREFERENCES_X_POS;
+	s_preferences.crosshairsize.generic.y			= y;
+	s_preferences.crosshairsize.minvalue			= 0.5f;
+	s_preferences.crosshairsize.maxvalue			= 1.5f;
+
+	y += BIGCHAR_HEIGHT+2;
+	s_preferences.crosshaircolor.generic.type		= MTYPE_SPINCONTROL;
+	s_preferences.crosshaircolor.generic.flags		= QMF_PULSEIFFOCUS|QMF_SMALLFONT|QMF_NODEFAULTINIT|QMF_OWNERDRAW;
+	s_preferences.crosshaircolor.generic.x			= PREFERENCES_X_POS;
+	s_preferences.crosshaircolor.generic.y			= y;
+	s_preferences.crosshaircolor.generic.name		= "Crosshair Color:";
+	s_preferences.crosshaircolor.generic.callback	= Preferences_Event;
+	s_preferences.crosshaircolor.generic.ownerdraw	= CrosshairColor_Draw;
+	s_preferences.crosshaircolor.generic.id			= ID_CROSSHAIRCOLOR;
+	s_preferences.crosshaircolor.generic.top		= y - 4;
+	s_preferences.crosshaircolor.generic.bottom		= y + 20;
+	s_preferences.crosshaircolor.generic.left		= PREFERENCES_X_POS - ( ( strlen(s_preferences.crosshaircolor.generic.name) + 1 ) * SMALLCHAR_WIDTH );
+	s_preferences.crosshaircolor.generic.right		= PREFERENCES_X_POS + SMALLCHAR_WIDTH + 128;
+	s_preferences.crosshaircolor.numitems			= 7;
+
+	y += BIGCHAR_HEIGHT+2;
 	s_preferences.lasersight.generic.type        = MTYPE_RADIOBUTTON;
 	s_preferences.lasersight.generic.name	      = "Laser Sight:";
 	s_preferences.lasersight.generic.flags	      = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
@@ -516,6 +654,8 @@ static void Preferences_MenuInit( void ) {
 	Menu_AddItem( &s_preferences.menu, &s_preferences.framer );
 
 	Menu_AddItem( &s_preferences.menu, &s_preferences.crosshair );
+	Menu_AddItem( &s_preferences.menu, &s_preferences.crosshairsize );
+	Menu_AddItem( &s_preferences.menu, &s_preferences.crosshaircolor );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.lasersight );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.simpleitems );
 	Menu_AddItem( &s_preferences.menu, &s_preferences.wallmarks );
@@ -551,6 +691,15 @@ void Preferences_Cache( void ) {
 	for( n = 0; n < NUM_CROSSHAIRS; n++ ) {
 		s_preferences.crosshairShader[n] = trap_R_RegisterShaderNoMip( va("gfx/2d/crosshair%c", 'a' + n ) );
 	}
+
+	s_preferences.fxBasePic = trap_R_RegisterShaderNoMip( ART_FX_BASE );
+	s_preferences.fxPic[0] = trap_R_RegisterShaderNoMip( ART_FX_RED );
+	s_preferences.fxPic[1] = trap_R_RegisterShaderNoMip( ART_FX_YELLOW );
+	s_preferences.fxPic[2] = trap_R_RegisterShaderNoMip( ART_FX_GREEN );
+	s_preferences.fxPic[3] = trap_R_RegisterShaderNoMip( ART_FX_TEAL );
+	s_preferences.fxPic[4] = trap_R_RegisterShaderNoMip( ART_FX_BLUE );
+	s_preferences.fxPic[5] = trap_R_RegisterShaderNoMip( ART_FX_CYAN );
+	s_preferences.fxPic[6] = trap_R_RegisterShaderNoMip( ART_FX_WHITE );
 }
 
 
