@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 /*
 =======================================================================
 
-COMFORT OPTIONS MENU
+VR OPTIONS MENU
 
 =======================================================================
 */
@@ -158,7 +158,7 @@ static void VR_MenuInit( void ) {
 	s_vr.banner.generic.type  = MTYPE_BTEXT;
 	s_vr.banner.generic.x	   = 320;
 	s_vr.banner.generic.y	   = 16;
-	s_vr.banner.string		   = "COMFORT OPTIONS";
+	s_vr.banner.string		   = "VR OPTIONS";
 	s_vr.banner.color         = color_white;
 	s_vr.banner.style         = UI_CENTER;
 
