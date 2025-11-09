@@ -2046,6 +2046,25 @@ static void CG_DrawCrosshair(void)
 
 /*
 =================
+CG_CrosshairColorFromInt
+=================
+*/
+static void CG_CrosshairColorFromInt( int val, byte *color ) {
+	if ( val < 1 || val > 7 ) {
+		// Default to white
+		color[0] = 255;
+		color[1] = 255;
+		color[2] = 255;
+	} else {
+		color[0] = (val & 1) ? 255 : 0;
+		color[1] = (val & 2) ? 255 : 0;
+		color[2] = (val & 4) ? 255 : 0;
+	}
+	color[3] = 255;
+}
+
+/*
+=================
 CG_DrawCrosshair3D
 =================
 */
@@ -2075,7 +2094,7 @@ static void CG_DrawCrosshair3D(void)
 		return;
 	}
 
-	if ( cg.renderingThirdPerson ) {
+	if ( cg.renderingThirdPerson || CG_IsDeathCam()) {
 		return;
 	}
 
@@ -2123,12 +2142,34 @@ static void CG_DrawCrosshair3D(void)
 	memset(&ent, 0, sizeof(ent));
 	ent.reType = RT_SPRITE;
 	ent.renderfx = RF_DEPTHHACK | RF_CROSSHAIR;
-	
+
 	VectorCopy(trace.endpos, ent.origin);
-	
+
 	// scale the crosshair so it appears the same size for all distances
-	ent.radius = w / 640 * xmax * trace.fraction * maxdist / zProj;
+	// Position is based on weapon aim, but size is based on distance from eyes
+	{
+		vec3_t delta;
+		float distance;
+		VectorSubtract(trace.endpos, cg.refdef.vieworg, delta);
+		distance = VectorLength(delta);
+
+		// Scale radius proportional to distance to maintain constant angular size
+		// radius = (normalized_size) * distance * tan(half_fov)
+		ent.radius = (w / 640.0f) * distance * tan(cg.refdef.fov_x * M_PI / 360.0f);
+	}
 	ent.customShader = hShader;
+
+	// set crosshair color
+	if ( cg_crosshairHealth.integer ) {
+		vec4_t hcolor;
+		CG_ColorForHealth( hcolor );
+		ent.shaderRGBA[0] = (byte)(hcolor[0] * 255);
+		ent.shaderRGBA[1] = (byte)(hcolor[1] * 255);
+		ent.shaderRGBA[2] = (byte)(hcolor[2] * 255);
+		ent.shaderRGBA[3] = (byte)(hcolor[3] * 255);
+	} else {
+		CG_CrosshairColorFromInt( cg_crosshairColor.integer, ent.shaderRGBA );
+	}
 
 	// ensure crosshair is aligned with world, not HMD/view
 	ent.rotation = vr->hmdorientation[ROLL];
