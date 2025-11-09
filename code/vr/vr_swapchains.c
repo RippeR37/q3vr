@@ -5,6 +5,8 @@
 #include "vr_base.h"
 #include "vr_macros.h"
 
+extern cvar_t *vr_desktopMirror;
+
 //
 // Helpers
 //
@@ -408,7 +410,8 @@ VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, 
 	}
 
 	// Create MSAA resolve framebuffers for desktop mirroring if MSAA is enabled
-	if (sampleCount > 1)
+	// Skip creation if desktop mirroring is disabled to save resources
+	if (sampleCount > 1 && (!vr_desktopMirror || vr_desktopMirror->integer != 0))
 	{
 		swapchains.eyeResolveImages = calloc(viewCount, sizeof(GLuint));
 		swapchains.eyeResolveFramebuffers = calloc(viewCount, sizeof(GLuint*));
@@ -530,6 +533,12 @@ void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swap
 
 void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrDesktopViewConfiguration viewConfig)
 {
+	// Skip desktop mirroring if disabled
+	if (vr_desktopMirror && vr_desktopMirror->integer == 0)
+	{
+		return;
+	}
+
 	// We need to map VR swapchain image size ("VR frame") to desktop window.
 	// We know that `windowSize <= vrFrameSize`, so let's scale it nicely.
 
@@ -569,20 +578,27 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 
 		const int leftOffset = (parts == 2) ? part * wX : 0;
 
-		int cutX = 0, cutY = 0, offsetX = 0, offsetY = 0;
+		// Use full source texture
+		int srcX = 0, srcY = 0;
+		int srcWidth = tX, srcHeight = tY;
+
+		// Calculate destination dimensions to fit source while maintaining aspect ratio
+		int dstX, dstY, dstWidth, dstHeight;
 		if (ratioT > ratioW)
 		{
-			// texture is wider, crop sides
-			cutY = tY;
-			cutX = cutY * ratioW;
-			offsetX = (tX - cutX) / 2;
+			// Source is wider than window - fit to width, letterbox top/bottom
+			dstWidth = wX;
+			dstHeight = dstWidth / ratioT;
+			dstX = leftOffset;
+			dstY = (wY - dstHeight) / 2;
 		}
 		else
 		{
-			// texture is taller, crop top/bottom
-			cutX = tX;
-			cutY = cutX / ratioW;
-			offsetY = (tY - cutY) / 2;
+			// Source is taller than window - fit to height, pillarbox left/right
+			dstHeight = wY;
+			dstWidth = dstHeight * ratioT;
+			dstX = leftOffset + (wX - dstWidth) / 2;
+			dstY = 0;
 		}
 
 		const GLuint defaultFBO = 0;
@@ -594,8 +610,8 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 		qglBlitNamedFramebuffer(
 			sourceFBO,
 			defaultFBO,
-			offsetX, offsetY, offsetX + cutX, offsetY + cutY,
-			leftOffset, 0, leftOffset+ engine->window.width / parts, engine->window.height,
+			srcX, srcY, srcX + srcWidth, srcY + srcHeight,
+			dstX, dstY, dstX + dstWidth, dstY + dstHeight,
 			GL_COLOR_BUFFER_BIT,
 			GL_NEAREST);
 	}

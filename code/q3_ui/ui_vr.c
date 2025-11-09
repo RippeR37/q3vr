@@ -36,15 +36,19 @@ VR OPTIONS MENU
 #define ART_FRAMER				"menu/art/frame1_r"
 #define ART_BACK0				"menu/art/back_0"
 #define ART_BACK1				"menu/art/back_1"
+#define ART_ACCEPT0				"menu/art/accept_0"
+#define ART_ACCEPT1				"menu/art/accept_1"
 
 #define VR_X_POS		360
 
-#define ID_DESKTOPMODE           150
-#define ID_VIRTUALSCREENMODE     151
-#define ID_VIRTUALSCREENSHAPE    152
-#define ID_SHOWOFFHAND           153
-#define ID_DRAWHUD			         154
+#define ID_DESKTOPMIRROR         150
+#define ID_DESKTOPMODE           151
+#define ID_VIRTUALSCREENMODE     152
+#define ID_VIRTUALSCREENSHAPE    153
+#define ID_SHOWOFFHAND           154
+#define ID_DRAWHUD			         155
 #define ID_SELECTORWITHHUD		   139
+#define ID_APPLY				         157
 #define ID_BACK					         156
 
 
@@ -55,6 +59,7 @@ typedef struct {
 	menubitmap_s framel;
 	menubitmap_s framer;
 
+	menulist_s desktopmirror;
 	menulist_s desktopmode;
   menulist_s virtualscreenmode;
   menulist_s virtualscreenshape;
@@ -62,14 +67,20 @@ typedef struct {
 	menulist_s drawhud;
 	menuradiobutton_s selectorwithhud;
 
+	menubitmap_s apply;
 	menubitmap_s back;
 } vr_t;
 
 static vr_t s_vr;
 
+static int s_ivo_desktopmirror;
+static int s_ivo_desktopmode;
 
 static void VR_SetMenuItems( void ) {
+	s_vr.desktopmirror.curvalue = trap_Cvar_VariableValue( "vr_desktopMirror" );
+	s_ivo_desktopmirror = s_vr.desktopmirror.curvalue;
 	s_vr.desktopmode.curvalue = trap_Cvar_VariableValue( "vr_desktopMode" );
+	s_ivo_desktopmode = s_vr.desktopmode.curvalue;
 	s_vr.virtualscreenmode.curvalue = trap_Cvar_VariableValue( "vr_virtualScreenMode" );
   s_vr.virtualscreenshape.curvalue = trap_Cvar_VariableValue( "vr_virtualScreenShape" );
   s_vr.showoffhand.curvalue = trap_Cvar_VariableValue( "vr_showOffhand" ) != 0;
@@ -77,6 +88,32 @@ static void VR_SetMenuItems( void ) {
 	s_vr.selectorwithhud.curvalue = trap_Cvar_VariableValue( "vr_weaponSelectorWithHud" ) != 0;
 }
 
+static void VR_UpdateMenuItems( void )
+{
+	s_vr.apply.generic.flags |= QMF_HIDDEN|QMF_INACTIVE;
+
+	if ( s_ivo_desktopmirror != s_vr.desktopmirror.curvalue )
+	{
+		s_vr.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
+	}
+
+	// Show apply button if switching between one eye and both eyes in windowed mirror mode
+	// (switching between left and right eye doesn't need restart)
+	qboolean wasBothEyes = (s_ivo_desktopmode == 2);
+	qboolean isBothEyes = (s_vr.desktopmode.curvalue == 2);
+	if ( wasBothEyes != isBothEyes && trap_Cvar_VariableValue( "vr_desktopMirror" ) == 1 )
+	{
+		s_vr.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
+	}
+}
+
+static void VR_ApplyChanges( void *unused, int notification )
+{
+	if (notification != QM_ACTIVATED)
+		return;
+
+	trap_Cmd_ExecuteText( EXEC_APPEND, "vid_restart\n" );
+}
 
 static void VR_MenuEvent( void* ptr, int notification ) {
 	if( notification != QM_ACTIVATED ) {
@@ -84,6 +121,10 @@ static void VR_MenuEvent( void* ptr, int notification ) {
 	}
 
 	switch( ((menucommon_s*)ptr)->id ) {
+		case ID_DESKTOPMIRROR:
+			trap_Cvar_SetValue( "vr_desktopMirror", s_vr.desktopmirror.curvalue );
+			break;
+
 		case ID_DESKTOPMODE:
 			trap_Cvar_SetValue( "vr_desktopMode", s_vr.desktopmode.curvalue );
 			break;
@@ -109,14 +150,28 @@ static void VR_MenuEvent( void* ptr, int notification ) {
 			trap_Cvar_SetValue( "vr_weaponSelectorWithHud", s_vr.selectorwithhud.curvalue);
 			break;
 
+		case ID_APPLY:
+			VR_ApplyChanges( ptr, notification );
+			break;
+
 		case ID_BACK:
 			UI_PopMenu();
 			break;
 	}
+
+	VR_UpdateMenuItems();
 }
 
 static void VR_MenuInit( void ) {
 	int y;
+
+	static const char *s_desktopMirrorModes[] =
+	{
+		"Off",
+		"Windowed",
+		"Fullscreen",
+		NULL,
+	};
 
 	static const char *s_desktopModes[] =
 	{
@@ -179,6 +234,17 @@ static void VR_MenuInit( void ) {
 	s_vr.framer.height  	   = 334;
 
 	y = 198;
+	s_vr.desktopmirror.generic.type	     = MTYPE_SPINCONTROL;
+	s_vr.desktopmirror.generic.x			   = VR_X_POS;
+	s_vr.desktopmirror.generic.y			   = y;
+	s_vr.desktopmirror.generic.flags	 	 = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_vr.desktopmirror.generic.name	     = "Desktop mirror:";
+	s_vr.desktopmirror.generic.id 	     = ID_DESKTOPMIRROR;
+	s_vr.desktopmirror.generic.callback  = VR_MenuEvent;
+	s_vr.desktopmirror.itemnames		     = s_desktopMirrorModes;
+	s_vr.desktopmirror.numitems		       = 3;
+
+	y += BIGCHAR_HEIGHT+2;
 	s_vr.desktopmode.generic.type	     = MTYPE_SPINCONTROL;
 	s_vr.desktopmode.generic.x			   = VR_X_POS;
 	s_vr.desktopmode.generic.y			   = y;
@@ -239,6 +305,17 @@ static void VR_MenuInit( void ) {
 	s_vr.selectorwithhud.generic.x	         = VR_X_POS;
 	s_vr.selectorwithhud.generic.y	         = y;
 
+	s_vr.apply.generic.type     = MTYPE_BITMAP;
+	s_vr.apply.generic.name     = ART_ACCEPT0;
+	s_vr.apply.generic.flags    = QMF_RIGHT_JUSTIFY|QMF_PULSEIFFOCUS|QMF_HIDDEN|QMF_INACTIVE;
+	s_vr.apply.generic.callback = VR_ApplyChanges;
+	s_vr.apply.generic.id       = ID_APPLY;
+	s_vr.apply.generic.x        = 640;
+	s_vr.apply.generic.y        = 480-64;
+	s_vr.apply.width            = 128;
+	s_vr.apply.height           = 64;
+	s_vr.apply.focuspic         = ART_ACCEPT1;
+
 	s_vr.back.generic.type	    = MTYPE_BITMAP;
 	s_vr.back.generic.name      = ART_BACK0;
 	s_vr.back.generic.flags     = QMF_LEFT_JUSTIFY|QMF_PULSEIFFOCUS;
@@ -254,13 +331,15 @@ static void VR_MenuInit( void ) {
 	Menu_AddItem( &s_vr.menu, &s_vr.framel );
 	Menu_AddItem( &s_vr.menu, &s_vr.framer );
 
+	Menu_AddItem( &s_vr.menu, &s_vr.desktopmirror );
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmode );
 	Menu_AddItem( &s_vr.menu, &s_vr.virtualscreenmode );
 	Menu_AddItem( &s_vr.menu, &s_vr.virtualscreenshape );
 	Menu_AddItem( &s_vr.menu, &s_vr.showoffhand );
 	Menu_AddItem( &s_vr.menu, &s_vr.drawhud );
 	Menu_AddItem( &s_vr.menu, &s_vr.selectorwithhud );
-	
+
+	Menu_AddItem( &s_vr.menu, &s_vr.apply );
 	Menu_AddItem( &s_vr.menu, &s_vr.back );
 
 	VR_SetMenuItems();
@@ -277,6 +356,8 @@ void VR_Cache( void ) {
 	trap_R_RegisterShaderNoMip( ART_FRAMER );
 	trap_R_RegisterShaderNoMip( ART_BACK0 );
 	trap_R_RegisterShaderNoMip( ART_BACK1 );
+	trap_R_RegisterShaderNoMip( ART_ACCEPT0 );
+	trap_R_RegisterShaderNoMip( ART_ACCEPT1 );
 }
 
 

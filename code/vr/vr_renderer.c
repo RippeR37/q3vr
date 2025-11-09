@@ -24,6 +24,7 @@ extern vr_clientinfo_t vr;
 extern cvar_t *vr_heightAdjust;
 extern cvar_t *vr_refreshrate;
 extern cvar_t *vr_desktopMode;
+extern cvar_t *vr_desktopMirror;
 
 const float hudScale = M_PI * 15.0f / 180.0f;
 

@@ -503,6 +503,33 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
     engine->window.width = desktopMode.w;
   if (engine->window.height > desktopMode.h)
     engine->window.height = desktopMode.h;
+
+  // For windowed mode, calculate window size to match VR aspect ratio
+  if (!fullscreen && ri.Cvar_VariableIntegerValue("vr_desktopMirror") == 1)
+  {
+    int desktopModeValue = ri.Cvar_VariableIntegerValue("vr_desktopMode");
+    float vrAspectRatio = (float)glConfig.vidWidth / (float)glConfig.vidHeight;
+
+    // When showing both eyes, double the width
+    if (desktopModeValue == 2) // BOTH_EYES
+    {
+      vrAspectRatio *= 2.0f;
+    }
+
+    // Start with 80% of desktop height and calculate width from aspect ratio
+    int targetHeight = (int)(desktopMode.h * 0.8f);
+    int targetWidth = (int)(targetHeight * vrAspectRatio);
+
+    // If resulting width is too wide, constrain by width instead
+    if (targetWidth > desktopMode.w * 0.8f)
+    {
+      targetWidth = (int)(desktopMode.w * 0.8f);
+      targetHeight = (int)(targetWidth / vrAspectRatio);
+    }
+
+    engine->window.width = targetWidth;
+    engine->window.height = targetHeight;
+  }
 #if 0
 	if (mode == -2)
 	{
@@ -878,6 +905,12 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 
 	GLimp_DetectAvailableModes();
 
+	// Hide window if desktop mirroring is disabled
+	if (ri.Cvar_VariableIntegerValue("vr_desktopMirror") == 0)
+	{
+		SDL_HideWindow(SDL_window);
+	}
+
 	glstring = (char *) qglGetString (GL_RENDERER);
 	ri.Printf( PRINT_ALL, "GL_RENDERER: %s\n", glstring );
 
@@ -1155,13 +1188,16 @@ void GLimp_Init( qboolean fixedFunction )
 	ri.Sys_GLimpInit( );
 
 	// Create the window and set up the context
-	if(GLimp_StartDriverAndSetMode(r_mode->integer, r_fullscreen->integer, r_noborder->integer, fixedFunction))
+	// vr_desktopMirror: 0 = off (handled in blit), 1 = windowed, 2 = fullscreen
+	int desktopMirror = ri.Cvar_VariableIntegerValue("vr_desktopMirror");
+	qboolean useFullscreen = (desktopMirror == 2) ? qtrue : qfalse;
+	if(GLimp_StartDriverAndSetMode(r_mode->integer, useFullscreen, r_noborder->integer, fixedFunction))
 		goto success;
 
 	// Try again, this time in a platform specific "safe mode"
 	ri.Sys_GLimpSafeInit( );
 
-	if(GLimp_StartDriverAndSetMode(r_mode->integer, r_fullscreen->integer, qfalse, fixedFunction))
+	if(GLimp_StartDriverAndSetMode(r_mode->integer, useFullscreen, qfalse, fixedFunction))
 		goto success;
 
 	// Finally, try the default screen resolution
@@ -1261,36 +1297,7 @@ void GLimp_EndFrame( void )
 		SDL_GL_SwapWindow( SDL_window );
 	}
 
-	if( r_fullscreen->modified )
-	{
-		int         fullscreen;
-		qboolean    needToToggle;
-		qboolean    sdlToggled = qfalse;
-
-		// Find out the current state
-		fullscreen = !!( SDL_GetWindowFlags( SDL_window ) & SDL_WINDOW_FULLSCREEN );
-
-		if( r_fullscreen->integer && ri.Cvar_VariableIntegerValue( "in_nograb" ) )
-		{
-			ri.Printf( PRINT_ALL, "Fullscreen not allowed with in_nograb 1\n");
-			ri.Cvar_Set( "r_fullscreen", "0" );
-			r_fullscreen->modified = qfalse;
-		}
-
-		// Is the state we want different from the current state?
-		needToToggle = !!r_fullscreen->integer != fullscreen;
-
-		if( needToToggle )
-		{
-			sdlToggled = SDL_SetWindowFullscreen( SDL_window, r_fullscreen->integer ) >= 0;
-
-			// SDL_WM_ToggleFullScreen didn't work, so do it the slow way
-			if( !sdlToggled )
-				ri.Cmd_ExecuteText(EXEC_APPEND, "vid_restart\n");
-
-			ri.IN_Restart( );
-		}
-
-		r_fullscreen->modified = qfalse;
-	}
+	// Note: Desktop mirror mode (vr_desktopMirror) controls windowed/fullscreen for VR
+	// The old r_fullscreen cvar is ignored to prevent conflicts
+	// Window mode is set during initialization in GLimp_Init
 }
