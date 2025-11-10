@@ -601,7 +601,13 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 
 	self->s.loopSound = 0;
 
-	self->r.maxs[2] = -8;
+	// The below line has been commented out in
+	// https://github.com/ec-/baseq3a/pull/49.
+	// Executing this line causes a bug where the shotgun doesn't gib
+	// unless you aim at the feet.
+	// See https://github.com/ioquake/ioq3/issues/794.
+	//
+	// self->r.maxs[2] = -8;
 
 	// don't allow respawn until the death anim is done
 	// g_forcerespawn may force spawning at some later time
@@ -818,6 +824,18 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	// the intermission has already been qualified for, so don't
 	// allow any extra scoring
 	if ( level.intermissionQueued ) {
+
+		// With a special exception for gibbing bodies.
+		// This was introduced in https://github.com/ec-/baseq3a/pull/50.
+		if (targ->die == body_die) {
+			targ->health = targ->health - damage;
+			if ( targ->health <= 0 ) {
+				// `body_die` doesn't use any of its arguments (except `targ`),
+				// so it's fine if they're `NULL`.
+				targ->die (targ, inflictor, attacker, damage, mod);
+			}
+		}
+
 		return;
 	}
 #ifdef MISSIONPACK
