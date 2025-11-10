@@ -1206,6 +1206,12 @@ void ClientEndFrame( gentity_t *ent ) {
 		ent->client->damage.team = 0;
 	}
 
+	// send accumulated damage plums
+	for ( i = 0; i < ent->client->damagePlumCount; i++ ) {
+		DamagePlum( ent, ent->client->damagePlums[i].origin, ent->client->damagePlums[i].damage );
+	}
+	ent->client->damagePlumCount = 0;
+
 	G_SetClientSound (ent);
 
 	// set the latest infor
