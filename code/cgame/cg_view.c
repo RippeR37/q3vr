@@ -1307,6 +1307,9 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 	// update cg.predictedPlayerState
 	CG_PredictPlayerState();
 
+	// track team changes and refresh models when needed
+	CG_TrackClientTeamChange();
+
 	// follow killer
 	if ( cg.followTime && cg.followTime < cg.time ) {
 		cg.followTime = 0;

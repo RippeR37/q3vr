@@ -182,6 +182,8 @@ typedef struct centity_s {
 	int				trailTime;		// so missile trails can handle dropped initial packets
 	int				dustTrailTime;
 	int				miscTime;
+	int				delaySpawn;
+	qboolean		delaySpawnPlayed;
 
 	int				snapShotTime;	// last time this entity was found in a snapshot
 
@@ -464,6 +466,8 @@ typedef struct {
 // occurs, and they will have visible effects for #define STEP_TIME or whatever msec after
 
 #define MAX_PREDICTED_EVENTS	16
+#define PICKUP_PREDICTION_DELAY 200
+#define NUM_SAVED_STATES ( CMD_BACKUP + 2 )
  
 typedef struct {
 	int			clientFrame;		// incremented each frame
@@ -476,7 +480,7 @@ typedef struct {
 	qboolean	loading;			// don't defer players at initial startup
 	qboolean	intermissionStarted;	// don't play voice rewards, because game will end shortly
 
-	// there are only one or two snapshot_t that are relevant at a time
+	// there are only one or two snapshot_t that are relevent at a time
 	int			latestSnapshotNum;	// the number of snapshots the client system has received
 	int			latestSnapshotTime;	// the time from latestSnapshotNum, so we don't need to read the snapshot yet
 
@@ -489,7 +493,7 @@ typedef struct {
 	qboolean	thisFrameTeleport;
 	qboolean	nextFrameTeleport;
 
-	float 		worldscale;
+	float           worldscale;
 	stereoFrame_t stereoView;
 
 	int			frametime;		// cg.time - cg.oldTime
@@ -506,7 +510,6 @@ typedef struct {
 	qboolean	mapRestart;			// set on a map restart to set back the weapon
 
 	qboolean	renderingThirdPerson;		// during deaths, chasecams, etc
-
 	qboolean	drawingHUD;
 
 	// prediction state
@@ -543,12 +546,12 @@ typedef struct {
 	vec3_t		refdefViewAngles;		// will be converted to refdef.viewaxis
 
 	// view origin in VR thirdperson
-	vec3_t 		vr_vieworigin;
+	vec3_t		vr_vieworigin;
 
 	// smooth follow camera control (spherical coordinates)
-	float		smoothFollow_distance;		// radius from player
-	float		smoothFollow_yaw;			// horizontal angle around player
-	float		smoothFollow_pitch;			// vertical angle (elevation)
+	float		smoothFollow_distance;          // radius from player
+	float		smoothFollow_yaw;                       // horizontal angle around player
+	float		smoothFollow_pitch;                     // vertical angle (elevation)
 
 	// zoom key
 	qboolean	zoomed;
@@ -567,7 +570,8 @@ typedef struct {
 	qboolean	showScores;
 	qboolean	scoreBoardShowing;
 	int			scoreFadeTime;
-	char		killerName[MAX_NAME_LENGTH];
+	char		killerName[MAX_NAME_LENGTH+32];
+	int			killerTime;
 	char			spectatorList[MAX_STRING_CHARS];		// list of names
 	int				spectatorLen;												// length of list
 	float			spectatorWidth;											// width in device units
@@ -592,6 +596,9 @@ typedef struct {
 	// low ammo warning state
 	int			lowAmmoWarning;		// 1 = low, 2 = empty
 
+	// kill timers for carnage reward
+	int			lastKillTime;
+
 	// crosshair client ID
 	int			crosshairClientNum;
 	int			crosshairClientTime;
@@ -601,7 +608,10 @@ typedef struct {
 	int			powerupTime;
 
 	// attacking player
+	char		attackerName[MAX_NAME_LENGTH];
+	int			attackerClientNum;
 	int			attackerTime;
+
 	int			voiceTime;
 
 	// reward medals
@@ -616,9 +626,10 @@ typedef struct {
 	int			soundBufferOut;
 	int			soundTime;
 	qhandle_t	soundBuffer[MAX_SOUNDBUFFER];
+	qhandle_t	soundPlaying;
 
-#ifdef MISSIONPACK
 	// for voice chat buffer
+#ifdef MISSIONPACK
 	int			voiceChatTime;
 	int			voiceChatBufferIn;
 	int			voiceChatBufferOut;
@@ -627,25 +638,27 @@ typedef struct {
 	// warmup countdown
 	int			warmup;
 	int			warmupCount;
+	int			warmupFightSound;	// last time "Fight!" sound was played
 
 	//==========================
 
 	int			itemPickup;
+	int			itemPickupCount;
 	int			itemPickupTime;
-	int			itemPickupBlendTime;	// the pulse around the crosshair is timed separately
+	int			itemPickupBlendTime;	// the pulse around the crosshair is timed seperately
 
 	int			weaponSelectTime;
 	int			weaponAnimation;
 	int			weaponAnimationTime;
 
-	int			weaponSelectorSelection;
-	int 		weaponSelectorTime;
+	int                     weaponSelectorSelection;
+	int   		weaponSelectorTime;
 	vec3_t		weaponSelectorAngles;
 	vec3_t		weaponSelectorOrigin;
 	vec3_t		weaponSelectorOffset;
 
 	// blend blobs
-	float		damageTime;
+	int			damageTime;
 	float		damageX, damageY, damageValue;
 
 	// status bar head
@@ -662,27 +675,36 @@ typedef struct {
 	float		v_dmg_pitch;
 	float		v_dmg_roll;
 
+	vec3_t		kick_angles;	// weapon kicks
+	vec3_t		kick_origin;
+
 	// temp working variables for player view
 	float		bobfracsin;
 	int			bobcycle;
 	float		xyspeed;
-	int     nextOrbitTime;
+	int			nextOrbitTime;
 
 	//qboolean cameraMode;		// if rendering from a loaded camera
-
 
 	// development tool
 	refEntity_t		testModelEntity;
 	char			testModelName[MAX_QPATH];
 	qboolean		testGun;
 
-	// lagometer
-	int				meanPing;
+	// optimized prediction
+	int				lastPredictedCommand;
+	int				lastServerTime;
+	playerState_t	savedPmoveStates[ NUM_SAVED_STATES ];
+	int				stateHead, stateTail;
 
-	// follow killer
+	int				meanPing;
+	int				timeResidual;
+	int				allowPickupPrediction;
+
 	int				followTime;
 	int				followClient;
 
+	qboolean		skipDFshaders;
 } cg_t;
 
 
@@ -1316,6 +1338,9 @@ qboolean CG_IsThirdPersonFollowMode( VR_FollowMode followMode );
 qboolean CG_IsDeathCam( void );
 
 void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback );
+void CG_TrackClientTeamChange( void );
+void CG_WarmupEvent( void );
+void CG_ForceModelChange( void );
 
 
 //
@@ -1429,13 +1454,15 @@ void CG_Trace( trace_t *result, const vec3_t start, const vec3_t mins, const vec
 void CG_PredictPlayerState( void );
 void CG_LoadDeferredPlayers( void );
 
+void CG_PlayDroppedEvents( playerState_t *ps, playerState_t *ops );
+
 
 //
 // cg_events.c
 //
 void CG_CheckEvents( centity_t *cent );
 const char	*CG_PlaceString( int rank );
-void CG_EntityEvent( centity_t *cent, vec3_t position );
+void CG_EntityEvent( centity_t *cent, vec3_t position, int entityNum );
 void CG_PainEvent( centity_t *cent, int health );
 
 

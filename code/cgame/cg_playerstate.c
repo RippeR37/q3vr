@@ -203,6 +203,8 @@ void CG_Respawn( void ) {
 
 	// select the weapon the server says we are using
 	cg.weaponSelect = cg.snap->ps.weapon;
+
+	cg.timeResidual = cg.snap->ps.commandTime + 1000;
 }
 
 extern char *eventnames[];
@@ -212,6 +214,9 @@ extern char *eventnames[];
 CG_CheckPlayerstateEvents
 ==============
 */
+extern int		eventStack;
+extern int		eventParm2[ MAX_PREDICTED_EVENTS ];
+
 void CG_CheckPlayerstateEvents( playerState_t *ps, playerState_t *ops ) {
 	int			i;
 	int			event;
@@ -221,7 +226,7 @@ void CG_CheckPlayerstateEvents( playerState_t *ps, playerState_t *ops ) {
 		cent = &cg_entities[ ps->clientNum ];
 		cent->currentState.event = ps->externalEvent;
 		cent->currentState.eventParm = ps->externalEventParm;
-		CG_EntityEvent( cent, cent->lerpOrigin );
+		CG_EntityEvent( cent, cent->lerpOrigin, -1 );
 	}
 
 	cent = &cg.predictedPlayerEntity; // cg_entities[ ps->clientNum ];
@@ -236,7 +241,7 @@ void CG_CheckPlayerstateEvents( playerState_t *ps, playerState_t *ops ) {
 			event = ps->events[ i & (MAX_PS_EVENTS-1) ];
 			cent->currentState.event = event;
 			cent->currentState.eventParm = ps->eventParms[ i & (MAX_PS_EVENTS-1) ];
-			CG_EntityEvent( cent, cent->lerpOrigin );
+			CG_EntityEvent( cent, cent->lerpOrigin, -1 );
 
 			cg.predictableEvents[ i & (MAX_PREDICTED_EVENTS-1) ] = event;
 
@@ -269,7 +274,7 @@ void CG_CheckChangedPredictableEvents( playerState_t *ps ) {
 				event = ps->events[ i & (MAX_PS_EVENTS-1) ];
 				cent->currentState.event = event;
 				cent->currentState.eventParm = ps->eventParms[ i & (MAX_PS_EVENTS-1) ];
-				CG_EntityEvent( cent, cent->lerpOrigin );
+				CG_EntityEvent( cent, cent->lerpOrigin, -1 );
 
 				cg.predictableEvents[ i & (MAX_PREDICTED_EVENTS-1) ] = event;
 
@@ -519,6 +524,8 @@ CG_TransitionPlayerState
 ===============
 */
 void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops ) {
+	qboolean respawn;
+
 	// check for changing follow mode
 	if ( ps->clientNum != ops->clientNum ) {
 		cg.thisFrameTeleport = qtrue;
@@ -531,14 +538,11 @@ void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops ) {
 		CG_DamageFeedback( ps->damageYaw, ps->damagePitch, ps->damageCount );
 	}
 
-	// respawning
-	if ( ps->persistant[PERS_SPAWN_COUNT] != ops->persistant[PERS_SPAWN_COUNT] ) {
-		CG_Respawn();
-	}
-
-	if ( cg.mapRestart ) {
-		CG_Respawn();
+	// respawning / map restart
+	respawn = ps->persistant[PERS_SPAWN_COUNT] != ops->persistant[PERS_SPAWN_COUNT];
+	if ( respawn || cg.mapRestart ) {
 		cg.mapRestart = qfalse;
+		CG_Respawn();
 	}
 
 	if ( cg.snap->ps.pm_type != PM_INTERMISSION 
@@ -549,11 +553,17 @@ void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops ) {
 	// check for going low on ammo
 	CG_CheckAmmo();
 
+	 // try to play potentially dropped events
+	CG_PlayDroppedEvents( ps, ops );
+
 	// run events
 	CG_CheckPlayerstateEvents( ps, ops );
 
+	// reset event stack
+	eventStack = 0;
+
 	// smooth the ducking viewheight change
-	if ( ps->viewheight != ops->viewheight ) {
+	if ( ps->viewheight != ops->viewheight && !respawn ) {
 		cg.duckChange = ps->viewheight - ops->viewheight;
 		cg.duckTime = cg.time;
 	}

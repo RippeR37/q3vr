@@ -71,7 +71,7 @@ PM_AddEvent
 ===============
 */
 void PM_AddEvent( int newEvent ) {
-	BG_AddPredictableEventToPlayerstate( newEvent, 0, pm->ps );
+	BG_AddPredictableEventToPlayerstate( newEvent, 0, pm->ps, -1 );
 }
 
 /*
