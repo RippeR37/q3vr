@@ -2533,30 +2533,25 @@ CG_DrawWarmup
 */
 static void CG_DrawWarmup( void ) {
 	int			w;
-	int			sec;
 	int			i;
 #ifdef MISSIONPACK
-	float		scale;
-#else
-	int			cw;
+	float scale;
 #endif
-	clientInfo_t	*ci1, *ci2;
+	clientInfo_t *ci1, *ci2;
+	int			cw;
 	const char	*s;
 
-	sec = cg.warmup;
-	if ( !sec ) {
+	if ( !cg.warmup ) {
 		return;
 	}
 
-	if ( sec < 0 ) {
-		s = "Waiting for players";		
-		w = CG_DrawStrlen( s ) * BIGCHAR_WIDTH;
-		CG_DrawBigString(320 - w / 2, 24, s, 1.0F);
-		cg.warmupCount = 0;
+	if ( cg.warmup < 0 ) {
+		CG_DrawString( 320,24, "Waiting for players", colorWhite, BIGCHAR_WIDTH, BIGCHAR_HEIGHT, 0,
+			DS_PROPORTIONAL | DS_CENTER | DS_SHADOW );
 		return;
 	}
 
-	if (cgs.gametype == GT_TOURNAMENT) {
+	if ( cgs.gametype == GT_TOURNAMENT ) {
 		// find the two active players
 		ci1 = NULL;
 		ci2 = NULL;
@@ -2582,8 +2577,7 @@ static void CG_DrawWarmup( void ) {
 			} else {
 				cw = GIANT_WIDTH;
 			}
-			CG_DrawStringExt( 320 - w * cw/2, 20,s, colorWhite, 
-					qfalse, qtrue, cw, (int)(cw * 1.5f), 0 );
+			CG_DrawString( 320, 20, s, colorWhite, cw, cw*1.5, 0, DS_SHADOW | DS_CENTER | DS_PROPORTIONAL );
 #endif
 		}
 	} else {
@@ -2614,71 +2608,47 @@ static void CG_DrawWarmup( void ) {
 		} else {
 			cw = GIANT_WIDTH;
 		}
-		CG_DrawStringExt( 320 - w * cw/2, 25,s, colorWhite, 
-				qfalse, qtrue, cw, (int)(cw * 1.1f), 0 );
+		CG_DrawString( 320, 25, s, colorWhite, cw, cw*1.1f, 0, DS_PROPORTIONAL | DS_SHADOW | DS_CENTER );
 #endif
 	}
 
-	sec = ( sec - cg.time ) / 1000;
-	if ( sec < 0 ) {
-		cg.warmup = 0;
-		sec = 0;
-	}
-	s = va( "Starts in: %i", sec + 1 );
-	if ( sec != cg.warmupCount ) {
-		cg.warmupCount = sec;
-		switch ( sec ) {
-		case 0:
-			trap_S_StartLocalSound( cgs.media.count1Sound, CHAN_ANNOUNCER );
-			break;
-		case 1:
-			trap_S_StartLocalSound( cgs.media.count2Sound, CHAN_ANNOUNCER );
-			break;
-		case 2:
-			trap_S_StartLocalSound( cgs.media.count3Sound, CHAN_ANNOUNCER );
-			break;
-		default:
-			break;
-		}
-	}
+	if ( cg.warmupCount <= 0 )
+		return;
 
-#ifdef MISSIONPACK
+	s = va( "Starts in: %i", cg.warmupCount );
+
 	switch ( cg.warmupCount ) {
-	case 0:
-		scale = 0.54f;
-		break;
 	case 1:
-		scale = 0.51f;
-		break;
-	case 2:
-		scale = 0.48f;
-		break;
-	default:
-		scale = 0.45f;
-		break;
-	}
-
-	w = CG_Text_Width(s, scale, 0);
-	CG_Text_Paint(320 - w / 2, 125, scale, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWEDMORE);
-#else
-	switch ( cg.warmupCount ) {
-	case 0:
 		cw = 28;
-		break;
-	case 1:
-		cw = 24;
+#ifdef MISSIONPACK
+		scale = 0.54f;
+#endif
 		break;
 	case 2:
+		cw = 24;
+#ifdef MISSIONPACK
+		scale = 0.51f;
+#endif
+		break;
+	case 3:
 		cw = 20;
+#ifdef MISSIONPACK
+		scale = 0.48f;
+#endif
 		break;
 	default:
 		cw = 16;
+#ifdef MISSIONPACK
+		scale = 0.45f;
+#endif
 		break;
 	}
 
-	w = CG_DrawStrlen( s );
-	CG_DrawStringExt( 320 - w * cw/2, 70, s, colorWhite, 
-			qfalse, qtrue, cw, (int)(cw * 1.5), 0 );
+#ifdef MISSIONPACK
+	w = CG_Text_Width(s, scale, 0);
+	CG_Text_Paint(320 - w / 2, 125, scale, colorWhite, s, 0, 0, ITEM_TEXTSTYLE_SHADOWEDMORE);
+#else
+	CG_DrawString( 320, 70, s, colorWhite, cw, cw * 1.5, 0, DS_CENTER | DS_SHADOW | DS_PROPORTIONAL );
 #endif
 }
 
@@ -3026,6 +2996,176 @@ static void CG_CalculatePing( void ) {
 	}
 }
 
+static void CG_WarmupEvents( void ) {
+
+	int	count;
+
+	if ( !cg.warmup )
+		return;
+
+	if ( cg.warmup < 0 ) {
+		cg.warmupCount = -1;
+		return;
+	}
+
+	if ( cg.warmup < cg.time ) {
+		cg.warmup = 0;
+		count = 0;
+	} else {
+		count = ( cg.warmup - cg.time + 999 ) / 1000;
+	}
+
+	if ( cg.warmupCount == -2 && cg.demoPlayback ) {
+		cg.warmupCount = 0;
+	}
+
+	if ( cg.warmupCount == count ) {
+		return;
+	}
+
+	cg.warmupCount = count;
+	cg.timelimitWarnings = 0;
+
+	switch ( count ) {
+		case 0:
+			if ( cg.warmupFightSound <= cg.time ) {
+				trap_S_StartLocalSound( cgs.media.countFightSound, CHAN_ANNOUNCER );
+				cg.warmupFightSound = cg.time + 750;
+			}
+			CG_CenterPrint( "FIGHT!", 120, GIANTCHAR_WIDTH*2 );
+			break;
+
+		case 1:
+			trap_S_StartLocalSound( cgs.media.count1Sound, CHAN_ANNOUNCER );
+			break;
+
+		case 2:
+			trap_S_StartLocalSound( cgs.media.count2Sound, CHAN_ANNOUNCER );
+			break;
+
+		case 3:
+			trap_S_StartLocalSound( cgs.media.count3Sound, CHAN_ANNOUNCER );
+			break;
+
+		default:
+			break;
+	}
+}
+
+
+
+// will be called on warmup end and when client changed
+void CG_WarmupEvent( void ) {
+
+	cg.attackerTime = 0;
+	cg.attackerName[0] = '\0';
+
+	cg.itemPickupTime = 0;
+	cg.itemPickupBlendTime = 0;
+	cg.itemPickupCount = 0;
+
+	cg.killerTime = 0;
+	cg.killerName[0] = '\0';
+	
+	cg.damageTime = 0;
+
+	cg.rewardStack = 0;
+	cg.rewardTime = 0;
+	
+	cg.weaponSelectTime = cg.time;
+
+	cg.lowAmmoWarning = 0;
+
+	cg.followTime = 0;
+}
+
+
+/*
+=====================
+CG_ApplyClientChange
+
+Called each time client team changed
+=====================
+*/
+static void CG_ApplyClientChange( void ) {
+	CG_WarmupEvent();
+	CG_ForceModelChange();
+}
+
+
+/*
+=====================
+CG_TrackClientTeamChange
+
+Detects when local player changes team and refreshes all client models
+=====================
+*/
+void CG_TrackClientTeamChange( void ) {
+	static int spec_client = -1;
+	static int spec_team = -1;
+	static int curr_team = -1;
+
+	int		ti; // team from clientinfo
+	int		tp; // persistant team from snapshot
+
+	if ( !cg.snap )
+		return;
+
+	tp = cg.snap->ps.persistant[ PERS_TEAM ];
+	ti = cgs.clientinfo[ cg.snap->ps.clientNum ].team;
+
+	if ( !(cg.snap->ps.pm_flags & PMF_FOLLOW) && tp != TEAM_SPECTATOR ) {
+		ti = tp; // use team from persistant info
+	}
+
+	// team changed
+	if ( curr_team != ti )
+	{
+		curr_team = ti;
+		spec_client = cg.snap->ps.clientNum;
+		spec_team = tp;
+
+		if ( spec_team == TEAM_SPECTATOR )
+			spec_team = curr_team;
+
+		CG_ApplyClientChange();
+		CG_ResetPlayerEntity( &cg.predictedPlayerEntity );
+		return;
+	}
+
+	if ( curr_team == TEAM_SPECTATOR )
+	{
+		if ( spec_team != tp )
+		{
+			spec_team  = tp;
+			spec_client = cg.snap->ps.clientNum;
+
+			CG_ApplyClientChange();
+			CG_ResetPlayerEntity( &cg.predictedPlayerEntity );
+			return;
+		}
+
+		if ( cgs.gametype >= GT_TEAM )
+		{
+			spec_client = cg.snap->ps.clientNum;
+			return;
+		}
+		// pass through to spec client checks
+	}
+
+	if ( spec_client != cg.snap->ps.clientNum )
+	{
+		spec_client = cg.snap->ps.clientNum;
+		spec_team = tp;
+
+		if ( spec_team == TEAM_SPECTATOR )
+			spec_team = cgs.clientinfo[ cg.snap->ps.clientNum ].team;
+
+		CG_ApplyClientChange();
+		CG_ResetPlayerEntity( &cg.predictedPlayerEntity );
+	}
+}
+
 /*
 =====================
 CG_DrawActive
@@ -3203,7 +3343,8 @@ void CG_DrawActive( void ) {
 
 			//Tell renderer we want to draw to the HUD buffer
 			trap_R_HUDBufferStart(qtrue);
-
+			// play warmup sounds and display text
+			CG_WarmupEvents();
 			// draw status bar and other floating elements
 			CG_DrawHUD2D();
 
@@ -3215,6 +3356,3 @@ void CG_DrawActive( void ) {
 
 	CG_EmptySceneHackHackHack();
 }
-
-
-

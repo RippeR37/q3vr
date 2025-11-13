@@ -266,6 +266,11 @@ typedef enum {
 #define EF_AWARD_DENIED		0x00040000		// denied
 #define EF_TEAMVOTED		0x00080000		// already cast a team vote
 
+#define EF_PERSISTANT ( EF_CONNECTION | EF_VOTED | EF_TEAMVOTED )
+#define EF_AWARDS ( EF_AWARD_IMPRESSIVE | EF_AWARD_EXCELLENT | EF_AWARD_GAUNTLET | EF_AWARD_ASSIST | EF_AWARD_DEFEND | EF_AWARD_CAP )
+
+#define EF_NOPREDICT ( EF_AWARDS | EF_PERSISTANT | EF_TALK )
+
 // NOTE: may not have more than 16
 typedef enum {
 	PW_NONE,
@@ -705,7 +710,7 @@ typedef enum {
 void	BG_EvaluateTrajectory( const trajectory_t *tr, int atTime, vec3_t result );
 void	BG_EvaluateTrajectoryDelta( const trajectory_t *tr, int atTime, vec3_t result );
 
-void	BG_AddPredictableEventToPlayerstate( int newEvent, int eventParm, playerState_t *ps );
+void	BG_AddPredictableEventToPlayerstate( int newEvent, int eventParm, playerState_t *ps, int entityNum );
 
 void	BG_TouchJumpPad( playerState_t *ps, entityState_t *jumppad );
 
