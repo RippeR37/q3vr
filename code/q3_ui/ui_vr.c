@@ -77,7 +77,17 @@ static int s_ivo_desktopmirror;
 static int s_ivo_desktopmode;
 
 static void VR_SetMenuItems( void ) {
-	s_vr.desktopmirror.curvalue = trap_Cvar_VariableValue( "vr_desktopMirror" );
+	// Desktop mirror UI: 0=off, 1=windowed, 2=fullscreen
+	// Reads vr_desktopMirror (0=off, 1=on) and r_fullscreen (0=windowed, 1=fullscreen)
+	int mirror = trap_Cvar_VariableValue( "vr_desktopMirror" );
+	int fullscreen = trap_Cvar_VariableValue( "r_fullscreen" );
+	if (mirror == 0) {
+		s_vr.desktopmirror.curvalue = 0; // Off
+	} else if (fullscreen == 0) {
+		s_vr.desktopmirror.curvalue = 1; // Windowed (mirror=1, fullscreen=0)
+	} else {
+		s_vr.desktopmirror.curvalue = 2; // Fullscreen (mirror=1, fullscreen=1)
+	}
 	s_ivo_desktopmirror = s_vr.desktopmirror.curvalue;
 	s_vr.desktopmode.curvalue = trap_Cvar_VariableValue( "vr_desktopMode" );
 	s_ivo_desktopmode = s_vr.desktopmode.curvalue;
@@ -101,7 +111,7 @@ static void VR_UpdateMenuItems( void )
 	// (switching between left and right eye doesn't need restart)
 	qboolean wasBothEyes = (s_ivo_desktopmode == 2);
 	qboolean isBothEyes = (s_vr.desktopmode.curvalue == 2);
-	if ( wasBothEyes != isBothEyes && trap_Cvar_VariableValue( "vr_desktopMirror" ) == 1 )
+	if ( wasBothEyes != isBothEyes && trap_Cvar_VariableValue( "vr_desktopMirror" ) != 0 && trap_Cvar_VariableValue( "r_fullscreen" ) == 0 )
 	{
 		s_vr.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
@@ -122,7 +132,20 @@ static void VR_MenuEvent( void* ptr, int notification ) {
 
 	switch( ((menucommon_s*)ptr)->id ) {
 		case ID_DESKTOPMIRROR:
-			trap_Cvar_SetValue( "vr_desktopMirror", s_vr.desktopmirror.curvalue );
+			// UI curvalue: 0=off, 1=windowed, 2=fullscreen
+			// Set vr_desktopMirror (0=off, 1=on) and r_fullscreen (0=windowed, 1=fullscreen)
+			if (s_vr.desktopmirror.curvalue == 0) {
+				// Off
+				trap_Cvar_SetValue( "vr_desktopMirror", 0 );
+			} else if (s_vr.desktopmirror.curvalue == 1) {
+				// Windowed
+				trap_Cvar_SetValue( "vr_desktopMirror", 1 );
+				trap_Cvar_SetValue( "r_fullscreen", 0 );
+			} else {
+				// Fullscreen
+				trap_Cvar_SetValue( "vr_desktopMirror", 1 );
+				trap_Cvar_SetValue( "r_fullscreen", 1 );
+			}
 			break;
 
 		case ID_DESKTOPMODE:
