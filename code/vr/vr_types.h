@@ -46,10 +46,7 @@ typedef struct
 	VR_SwapchainInfo depth;
 	GLuint* framebuffers;
 	GLuint** eyeFramebuffers; // separate FBOs with bound only single eye image
-	GLuint** eyeResolveFramebuffers; // MSAA resolve FBOs for desktop mirroring
-	GLuint* eyeResolveImages; // MSAA resolve textures for desktop mirroring
 	GLuint virtualScreenFramebuffer;
-	uint32_t sampleCount; // MSAA sample count
 } VR_SwapchainInfos;
 
 typedef struct
