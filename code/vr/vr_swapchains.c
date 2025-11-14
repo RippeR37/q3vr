@@ -427,11 +427,55 @@ void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swap
 	qglFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, swapchains->depth.images[swapchainDepthIndex], 0, 0, 2);
 }
 
-void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrDesktopViewConfiguration viewConfig)
+void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrDesktopViewConfiguration viewConfig, qboolean useVirtualScreen)
 {
 	// Skip desktop mirroring if disabled
 	if (vr_desktopMirror && vr_desktopMirror->integer == 0)
 	{
+		return;
+	}
+
+	// If using virtual screen, blit it directly instead of the VR eye views
+	if (useVirtualScreen)
+	{
+		const VR_Engine* engine = VR_GetEngine();
+		const GLuint defaultFBO = 0;
+
+		// Clear the framebuffer
+		qglBindFramebuffer(GL_DRAW_FRAMEBUFFER, defaultFBO);
+		qglClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		qglClear(GL_COLOR_BUFFER_BIT);
+
+		// Calculate 4:3 aspect ratio destination rectangle
+		const float targetAspect = 4.0f / 3.0f;
+		const float windowAspect = (float)engine->window.width / (float)engine->window.height;
+
+		int dstX, dstY, dstWidth, dstHeight;
+		if (windowAspect > targetAspect)
+		{
+			// Window is wider than 4:3 - pillarbox left/right
+			dstHeight = engine->window.height;
+			dstWidth = (int)(dstHeight * targetAspect);
+			dstX = (engine->window.width - dstWidth) / 2;
+			dstY = 0;
+		}
+		else
+		{
+			// Window is taller than 4:3 - letterbox top/bottom
+			dstWidth = engine->window.width;
+			dstHeight = (int)(dstWidth / targetAspect);
+			dstX = 0;
+			dstY = (engine->window.height - dstHeight) / 2;
+		}
+
+		// Blit the virtual screen texture directly to the desktop window
+		qglBlitNamedFramebuffer(
+			swapchains->virtualScreenFramebuffer,
+			defaultFBO,
+			0, 0, swapchains->color.width, swapchains->color.height,
+			dstX, dstY, dstX + dstWidth, dstY + dstHeight,
+			GL_COLOR_BUFFER_BIT,
+			GL_LINEAR);
 		return;
 	}
 
@@ -442,6 +486,13 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 
 	const int maxParts = 2;
 	const int parts = (swapchains->viewCount > 1) ? (1 + (viewConfig == BOTH_EYES)) : 1;
+
+	// Clear the default framebuffer to prevent old images from showing
+	// (especially when switching from both eyes to one eye in fullscreen)
+	const GLuint defaultFBO = 0;
+	qglBindFramebuffer(GL_DRAW_FRAMEBUFFER, defaultFBO);
+	qglClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	qglClear(GL_COLOR_BUFFER_BIT);
 
 	for (uint32_t part = 0; part < maxParts; ++part)
 	{
@@ -481,8 +532,6 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 			dstX = leftOffset + (wX - dstWidth) / 2;
 			dstY = 0;
 		}
-
-		const GLuint defaultFBO = 0;
 
 		qglBlitNamedFramebuffer(
 			swapchains->eyeFramebuffers[part][swapchainImageIndex],

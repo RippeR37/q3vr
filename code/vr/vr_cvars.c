@@ -71,7 +71,7 @@ void VR_InitCvars( void )
 	vr_currentHudDepth = Cvar_Get ("vr_currentHudDepth", "10", CVAR_ARCHIVE);
 	vr_showConsoleMessages = Cvar_Get ("vr_showConsoleMessages", "1", CVAR_ARCHIVE);
 	vr_desktopMode = Cvar_Get ("vr_desktopMode", "0", CVAR_ARCHIVE); // 0 - left eye, 1 - right eye, 2 - both eyes
-	vr_desktopMirror = Cvar_Get ("vr_desktopMirror", "2", CVAR_ARCHIVE | CVAR_LATCH); // 0 - off, 1 - windowed, 2 - fullscreen
+	vr_desktopMirror = Cvar_Get ("vr_desktopMirror", "1", CVAR_ARCHIVE | CVAR_LATCH); // 0 - off, 1 - on
 	vr_virtualScreenMode = Cvar_Get ("vr_virtualScreenMode", "0", CVAR_ARCHIVE); // 0 - fixed, 1 - follow
 	vr_virtualScreenShape = Cvar_Get ("vr_virtualScreenShape", "0", CVAR_ARCHIVE); // 0 - curved, 1 - flat
 	vr_thumbstickDeadzone = Cvar_Get ("vr_thumbstickDeadzone", "0.15", CVAR_ARCHIVE);

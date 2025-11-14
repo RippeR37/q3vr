@@ -230,8 +230,8 @@ void VR_Renderer_EndFrame(VR_Engine* engine)
 	VR_Swapchains_Release(swapchains);
 	VR_Swapchains_BindFramebuffers(NULL, 0, 0);
 
-	// Blit left eye's view to main FBO (desktop window)
-	VR_Swapchains_BlitXRToMainFbo(swapchains, swapchainColorIndex, VR_GetDesktopViewConfiguration());
+	// Blit to main FBO (desktop window) - use virtual screen if active, otherwise eye view
+	VR_Swapchains_BlitXRToMainFbo(swapchains, swapchainColorIndex, VR_GetDesktopViewConfiguration(), use_virtual_screen);
 
 	VR_EndFrame(
 		engine->appState.Session,
