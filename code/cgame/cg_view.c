@@ -1032,7 +1032,7 @@ static int CG_CalcViewValues( void ) {
 		vec3_t weaponorigin, weaponangles;
 		if (cg.predictedPlayerState.pm_type == PM_SPECTATOR && !(cg.snap->ps.pm_flags & PMF_FOLLOW)) {
 			// For free cam spectator, use offhand's angles to compute fly direction (mainly up/down)
-  		CG_CalculateVROffHandPosition(weaponorigin, weaponangles);
+  			CG_CalculateVROffHandPosition(weaponorigin, weaponangles);
 		} else {
 			CG_CalculateVRWeaponPosition(weaponorigin, weaponangles);
 		}
