@@ -1200,13 +1200,6 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 					//Off-hand based
 					rotateAboutOrigin(curvedX, curvedY, vr.offhandangles2[YAW], joystick);
 				}
-
-				// Snap joystick values close to ±1.0 after rotation to ensure full speed
-				const float snapThreshold = 0.96f;
-				if (joystick[0] >= snapThreshold) joystick[0] = 1.0f;
-				else if (joystick[0] <= -snapThreshold) joystick[0] = -1.0f;
-				if (joystick[1] >= snapThreshold) joystick[1] = 1.0f;
-				else if (joystick[1] <= -snapThreshold) joystick[1] = -1.0f;
 			}
 			else
 			{
@@ -1231,14 +1224,14 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 					//Off-hand based
 					rotateAboutOrigin(curvedX, curvedY, vr.offhandangles2[YAW] - vr.hmdorientation[YAW], joystick);
 				}
-
-				// Snap joystick values close to ±1.0 after rotation to ensure full speed
-				const float snapThreshold = 0.96f;
-				if (joystick[0] >= snapThreshold) joystick[0] = 1.0f;
-				else if (joystick[0] <= -snapThreshold) joystick[0] = -1.0f;
-				if (joystick[1] >= snapThreshold) joystick[1] = 1.0f;
-				else if (joystick[1] <= -snapThreshold) joystick[1] = -1.0f;
 			}
+
+			// Snap joystick values close to ±1.0 after rotation to ensure full speed
+            const float snapThreshold = 0.96f;
+            if (joystick[0] >= snapThreshold) joystick[0] = 1.0f;
+            else if (joystick[0] <= -snapThreshold) joystick[0] = -1.0f;
+            if (joystick[1] >= snapThreshold) joystick[1] = 1.0f;
+            else if (joystick[1] <= -snapThreshold) joystick[1] = -1.0f;
 
 			//sideways
 			Com_QueueEvent(in_vrEventTime, SE_JOYSTICK_AXIS, 0, joystick[0] * 127.0f + positional[0] * 127.0f, 0, NULL);
