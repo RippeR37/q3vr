@@ -241,7 +241,7 @@ int Pickup_PersistantPowerup( gentity_t *ent, gentity_t *other ) {
 		break;
 	}
 
-	return -1;
+	return SpawnTime( ent, qfalse ); // return -1;;
 }
 
 //======================================================================
