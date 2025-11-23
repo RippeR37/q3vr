@@ -241,7 +241,16 @@ void CG_ConvertFromVR(vec3_t in, vec3_t offset, vec3_t out)
 		float angleYaw = deltaYaw + (vr->clientviewangles[YAW] - vr->hmdorientation[YAW]);
 		rotateAboutOrigin(vrSpace[0], vrSpace[1], angleYaw, r);
 	} else {
-		float angleYaw = cg.refdefViewAngles[YAW] - vr->hmdorientation[YAW];
+		float angleYaw;
+		if (cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW))
+		{
+			// Don't rotate HMD position when spectating/demo - use camera's own orientation
+			angleYaw = vr->clientviewangles[YAW] - vr->hmdorientation[YAW];
+		}
+		else
+		{
+			angleYaw = cg.refdefViewAngles[YAW] - vr->hmdorientation[YAW];
+		}
 		rotateAboutOrigin(vrSpace[0], vrSpace[1], angleYaw, r);
 	}
 

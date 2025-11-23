@@ -3194,7 +3194,7 @@ void CG_DrawActive( void ) {
 	// clear around the rendered view if sized down
 	CG_TileClear();
 
-	if(!vr->weapon_zoomed && !vr->virtual_screen)
+	if(!vr->weapon_zoomed && (!vr->virtual_screen || vr->first_person_following))
 		CG_DrawCrosshair3D();
 
 	// offset vieworg appropriately if we're doing stereo separation
