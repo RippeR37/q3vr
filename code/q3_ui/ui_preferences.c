@@ -134,7 +134,7 @@ static const char *s_damageeffect[] =
 	NULL
 };
 
-static int gamecodetoui[] = {0,2,1,5,3,4,6};
+static int gamecodetoui[] = {0,2,1,4,5,3,6};
 static int uitogamecode[] = {1,3,2,6,4,5,7};
 
 static void Preferences_SetMenuItems( void ) {

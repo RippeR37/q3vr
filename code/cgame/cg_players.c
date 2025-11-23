@@ -763,34 +763,6 @@ static qboolean CG_RegisterClientModelname( clientInfo_t *ci, const char *modelN
 }
 
 /*
-====================
-CG_ColorFromString
-====================
-*/
-static void CG_ColorFromString( const char *v, vec3_t color ) {
-	int val;
-
-	VectorClear( color );
-
-	val = atoi( v );
-
-	if ( val < 1 || val > 7 ) {
-		VectorSet( color, 1, 1, 1 );
-		return;
-	}
-
-	if ( val & 1 ) {
-		color[2] = 1.0f;
-	}
-	if ( val & 2 ) {
-		color[1] = 1.0f;
-	}
-	if ( val & 4 ) {
-		color[0] = 1.0f;
-	}
-}
-
-/*
 ===================
 CG_LoadClientInfo
 
@@ -1253,7 +1225,7 @@ void CG_NewClientInfo( int clientNum ) {
 
 	// colors
 	v = Info_ValueForKey( configstring, "c1" );
-	CG_ColorFromString( v, newInfo.color1 );
+	CG_ColorFromChar( v[0], newInfo.color1 );
 
 	newInfo.c1RGBA[0] = 255 * newInfo.color1[0];
 	newInfo.c1RGBA[1] = 255 * newInfo.color1[1];
@@ -1261,7 +1233,7 @@ void CG_NewClientInfo( int clientNum ) {
 	newInfo.c1RGBA[3] = 255;
 
 	v = Info_ValueForKey( configstring, "c2" );
-	CG_ColorFromString( v, newInfo.color2 );
+	CG_ColorFromChar( v[0], newInfo.color2 );
 
 	newInfo.c2RGBA[0] = 255 * newInfo.color2[0];
 	newInfo.c2RGBA[1] = 255 * newInfo.color2[1];

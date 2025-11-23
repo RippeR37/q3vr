@@ -117,22 +117,65 @@ foreach(LIBRARY IN LISTS CLIENT_DEPLOY_LIBRARIES)
 				COMPONENT game_engine)
 endforeach()
 
+# Build pakQ3VR.pk3 from source
+find_program(ZIP_EXECUTABLE NAMES 7z)
+if(ZIP_EXECUTABLE)
+    file(GLOB_RECURSE PAKQ3VR_SOURCE_FILES "${CMAKE_SOURCE_DIR}/assets/pakQ3VR/*")
+    add_custom_command(
+        OUTPUT "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
+        COMMAND ${ZIP_EXECUTABLE} a -tzip "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3" * -r
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/pakQ3VR"
+        DEPENDS ${PAKQ3VR_SOURCE_FILES}
+        COMMENT "Building pakQ3VR.pk3 from source"
+    )
+    add_custom_target(pakQ3VR ALL DEPENDS "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3")
+else()
+    message(WARNING "7z not found - pakQ3VR.pk3 will not be rebuilt automatically")
+endif()
+
 # Copy assets to output dir
 add_custom_command(TARGET ${CLIENT_BINARY} POST_BUILD
+    # Copy pakQ3VR.pk3 to both baseq3 and missionpack
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
     "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
+    "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/missionpack/"
+    # Copy baseq3a pak
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/assets/third_party/baseq3a/pak8a.pk3"
+    "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/"
+    # Copy missionpackplus pak
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${CMAKE_SOURCE_DIR}/assets/third_party/missionpackplus/pak3a.pk3"
+    "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/missionpack/"
+    # Copy point release files
 		COMMAND ${CMAKE_COMMAND} -E copy_directory
 		"${CMAKE_SOURCE_DIR}/assets/third_party/point_release_v1.32"
 		"$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/"
+    # Copy demo files
 		COMMAND ${CMAKE_COMMAND} -E copy_directory
 		"${CMAKE_SOURCE_DIR}/assets/third_party/demo"
 		"$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/"
 )
+if(ZIP_EXECUTABLE)
+    add_dependencies(${CLIENT_BINARY} pakQ3VR)
+endif()
 
+# Install targets
 install(FILES "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3" DESTINATION
     $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
 		COMPONENT game_engine)
+install(FILES "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3" DESTINATION
+    $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/missionpack/,${CMAKE_BINARY_DIR}/$<CONFIG>>
+		COMPONENT game_engine)
+install(FILES "${CMAKE_SOURCE_DIR}/assets/third_party/baseq3a/pak8a.pk3" DESTINATION
+    $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
+		COMPONENT baseq3a_mod)
+install(FILES "${CMAKE_SOURCE_DIR}/assets/third_party/missionpackplus/pak3a.pk3" DESTINATION
+    $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/missionpack/,${CMAKE_BINARY_DIR}/$<CONFIG>>
+		COMPONENT missionpackplus_mod)
 install(
     DIRECTORY "${CMAKE_SOURCE_DIR}/assets/third_party/point_release_v1.32/" DESTINATION
 		$<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
@@ -141,12 +184,3 @@ install(
     DIRECTORY "${CMAKE_SOURCE_DIR}/assets/third_party/demo/" DESTINATION
 		$<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
 		COMPONENT q3a_demo)
-
-add_custom_command(TARGET ${CLIENT_BINARY} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_SOURCE_DIR}/assets/pak8a.pk3"
-    "$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/")
-
-install(FILES "${CMAKE_SOURCE_DIR}/assets/pak8a.pk3" DESTINATION
-    # install() requires a relative path hence:
-    $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>)
