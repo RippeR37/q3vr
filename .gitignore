@@ -6,6 +6,9 @@ Makefile.local
 /.vscode/
 /baseq3
 
+# Built assets
+/assets/pakQ3VR.pk3
+
 # OS X
 ####################
 .Spotlight-V100/

@@ -1,0 +1,602 @@
+#include "ui/menudef.h"
+
+{
+\\ SETUP MENU \\
+
+menuDef {
+    	name "system_menu"
+    	visible 0
+    	fullscreen 0
+	rect 186 0 443 426
+    	focusColor 1 .75 0 1
+    	style 1
+    	border 1
+	onOpen { setitemcolor fadebox backcolor 0 0 0 1 ; fadeout fadebox ; hide grpSystem ; show graphics }
+	onEsc { close system_menu ; close setup_menu ; open main }
+
+
+itemDef {
+	name window
+	group grpSystembutton
+	rect 0 2 443 426	
+	style WINDOW_STYLE_FILLED
+	border 1
+	bordercolor .5 .5 .5 .5
+	forecolor 1 1 1 1
+	backcolor 0 0 0 .25
+	visible 1
+	decoration
+}
+
+
+
+
+// 	System		//
+
+itemDef {
+	name ctr_graphics
+	text "Graphics"
+	type 1
+	textscale .3
+	group grpSystembutton
+	style WINDOW_STYLE_FILLED
+	background "ui/assets/button_back.tga"
+	rect 56 395 100 26
+	textalign 1
+	textalignx 50
+	textaligny 20
+	forecolor 1 1 1 1
+	backcolor .37 .1 .1 1 
+	visible 1
+	action { play "sound/misc/kcaction.wav" ; 
+	hide grpSystem ; show graphics }
+	mouseEnter { show message_graphics ; setitemcolor ctr_graphics backcolor .1 .37 .1 1 } 
+	mouseExit { hide message_graphics ; setitemcolor ctr_graphics backcolor .37 .1 .1 1 } 
+	}
+
+itemDef {
+      	name ctr_graphics
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/framebutton.tga"
+ 	rect 56 395 100 26
+      	visible 1 
+	decoration  	  
+    	}
+
+itemDef {
+      	name ctr_graphics
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/leftbutton.tga"
+      	rect 44 395 13 26
+      	visible 1 
+	decoration  	  
+    	}
+
+itemDef {
+      	name ctr_graphics
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/rightbutton.tga"
+      	rect 155 395 13 26
+      	visible 1 
+	decoration  	  
+    	}
+
+	itemDef {
+  		name graphics
+		group grpSystem
+   		type ITEM_TYPE_MULTI
+		text "Refresh Rate:"
+		cvar "vr_refreshrate"
+		cvarFloatList { "60" 60 "72" 72 "80" 80 "90" 90 "120" 120 }
+		rect 99 42 256 20
+   		textalign ITEM_ALIGN_RIGHT
+  		textalignx 128
+   		textaligny 20
+		textscale .333        
+   		forecolor 1 1 1 1
+   		visible 0 
+	}
+
+	itemDef {
+      	name graphics
+		group grpSystem
+		type ITEM_TYPE_MULTI
+		text "Supersampling:"
+		cvar "vr_superSampling"
+		cvarFloatList { "0.8" 0.8 "0.9" 0.9 "1.0" 1.0 "1.1" 1.1 "1.2" 1.2 "1.3" 1.3 }
+		rect 99 67 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333
+      		forecolor 1 1 1 1
+      		visible 0
+    }
+
+	itemDef {
+   		name graphics
+		group grpSystem
+   		type ITEM_TYPE_SLIDER
+		text "Brightness:"
+		cvarfloat "r_gamma" 0.05 0.6 1.0
+		rect 99 92 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333
+      		forecolor 1 1 1 1
+      		visible 0
+	}
+
+	itemDef {
+  		name graphics
+		group grpSystem
+   		type ITEM_TYPE_MULTI
+		text "Railgun Effect:"
+		cvar "cg_oldRail"
+		cvarFloatList { "Q2 Style" 0 "Q3 Style" 1 }
+		rect 99 117 256 20
+   		textalign ITEM_ALIGN_RIGHT
+  		textalignx 128
+   		textaligny 20
+		textscale .333
+   		forecolor 1 1 1 1
+   		visible 0
+	}
+
+	itemDef {
+      		name graphics
+		group grpSystem
+      		type ITEM_TYPE_MULTI			
+		text "Lighting:"
+		cvar "r_vertexlight"
+		cvarFloatList { "Lightmap (High)" 0 "Vertex (Low)" 1  }
+		rect 99 142 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333        
+      		forecolor 1 1 1 1
+      		visible 0 
+		action { uiScript glCustom }
+	}
+
+	itemDef {
+  		name graphics
+		group grpSystem
+   		type ITEM_TYPE_MULTI
+		text "Opponent Shadows:"
+		cvar "cg_shadows"
+		cvarFloatList { "None" 0 "Low" 1 "High" 3 }
+		rect 99 167 256 20
+   		textalign ITEM_ALIGN_RIGHT
+  		textalignx 128
+   		textaligny 20
+		textscale .333
+   		forecolor 1 1 1 1
+   		visible 0
+	}
+
+	itemDef {
+  		name graphics
+		group grpSystem
+   		type ITEM_TYPE_MULTI
+		text "Player Shadow:"
+		cvar "cg_playerShadow"
+		cvarFloatList { "None" 0 "Low" 1 "High" 3 }
+		rect 99 192 256 20
+   		textalign ITEM_ALIGN_RIGHT
+  		textalignx 128
+   		textaligny 20
+		textscale .333
+   		forecolor 1 1 1 1
+   		visible 0
+	}
+
+	itemDef {
+   		name graphics
+		group grpSystem
+    		type ITEM_TYPE_MULTI
+		text "Geometric Detail:"
+		cvar "r_lodbias"
+		cvarFloatList { "High" -1 "Medium" 1 "Low" 2 }
+		rect 99 217 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333        
+      		forecolor 1 1 1 1
+      		visible 0 
+		action { uiScript glCustom ; uiScript update "r_lodbias" }
+	}
+
+	itemDef {
+  		name graphics
+		group grpSystem
+   		type ITEM_TYPE_MULTI
+		text "Texture Detail:"
+		cvar "r_picmip"
+		cvarFloatList { "Low" 2 "Normal" 1 "High" 0 }
+		rect 99 242 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333        
+      		forecolor 1 1 1 1
+      		visible 0 
+		action { uiScript glCustom }
+	}
+
+	itemDef {
+      		name graphics
+		group grpSystem
+      		type ITEM_TYPE_YESNO
+		text "Compress Textures:"
+		cvar "r_ext_compressed_textures"
+		rect 99 267 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333
+      		forecolor 1 1 1 1
+      		visible 0
+		action { uiScript glCustom }
+		}
+
+	itemDef {
+      		name graphics
+		group grpSystem
+      		type ITEM_TYPE_YESNO
+		text "Low Quality Sky:"
+		cvar "r_fastsky"
+		rect 99 292 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333
+      		forecolor 1 1 1 1
+      		visible 0
+		action { uiScript glCustom }
+    	}
+
+itemDef {
+	name graphics
+	text "Apply"
+	type 1
+	group grpSystem
+	textscale .3
+	style WINDOW_STYLE_FILLED
+	background "ui/assets/button_back.tga"
+	rect 181 357 100 26
+	textalign 1
+	textalignx 50
+	textaligny 20
+	forecolor 1 1 1 1
+	backcolor .37 .1 .1 1 
+	visible 1
+	action { play "sound/misc/kcaction.wav" ; 
+	open vid_restart_popmenu }
+	mouseEnter { setitemcolor graphics backcolor .1 .37 .1 1 } 
+	mouseExit { setitemcolor graphics backcolor .37 .1 .1 1 } 
+		}
+	
+	itemDef {
+      		name graphics
+		group grpSystem
+		style WINDOW_STYLE_SHADER
+		background "ui/assets/framebutton.tga"
+ 		rect 181 357 100 26
+      		visible 1 
+		decoration  	  
+    		}
+
+	itemDef {
+      		name graphics
+		group grpSystem
+		style WINDOW_STYLE_SHADER
+		background "ui/assets/leftbutton.tga"
+   	   	rect 169 357 13 26
+   	   	visible 1 
+		decoration  	  
+   	 	}
+
+	itemDef {
+	      	name graphics
+		group grpSystem
+		style WINDOW_STYLE_SHADER
+		background "ui/assets/rightbutton.tga"
+      		rect 280 357 13 26
+     	 	visible 1 
+		decoration  	  
+    		}
+
+	
+    		
+
+
+itemDef {
+	name ctr_driver
+	text "Driver Info"
+	type 1
+	textscale .3
+	group grpSystembutton
+	style WINDOW_STYLE_FILLED
+	background "ui/assets/button_back.tga"
+	rect 181 395 100 26
+	textalign 1
+	textalignx 50
+	textaligny 20
+	forecolor 1 1 1 1
+	backcolor .37 .1 .1 1 
+	visible 1
+	action { play "sound/misc/kcaction.wav" ; 
+	hide grpSystem ; show driver }
+	mouseEnter { show message_driver ; setitemcolor ctr_driver backcolor .1 .37 .1 1 } 
+	mouseExit { hide message_driver ; setitemcolor ctr_driver backcolor .37 .1 .1 1 } 
+	}
+
+itemDef {
+      	name ctr_driver
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/framebutton.tga"
+ 	rect 181 395 100 26
+      	visible 1 
+	decoration  	  
+    	}
+
+itemDef {
+      	name ctr_driver
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/leftbutton.tga"
+      	rect 169 395 13 26
+      	visible 1 
+	decoration  	  
+    	}
+
+itemDef {
+      	name ctr_driver
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/rightbutton.tga"
+      	rect 280 395 13 26
+      	visible 1 
+	decoration  	  
+    	}
+
+	itemDef {
+		name driver
+		group grpSystem
+		rect 0 32 454 256	
+		text "Driver Information" 
+		textalign 1
+		textscale .333
+		textalignx 227
+		textaligny 23
+		forecolor 1 1 1 1
+		visible 0
+		decoration
+	}
+	
+	itemDef {
+		name driver
+		group grpSystem
+		rect 10 70 400 300	
+		ownerdraw UI_GLINFO
+		textalign 0
+		textalignx 0
+		textaligny 23
+		textscale .25
+		forecolor 1 1 1 1
+		visible 0
+		decoration
+		style 1
+		
+	}
+ 	
+
+
+itemDef {
+	name ctr_other
+	text "Other"
+	type 1
+	textscale .3
+	group grpSystembutton
+	style WINDOW_STYLE_FILLED
+	background "ui/assets/button_back.tga"
+	rect 306 395 100 26
+	textalign 1
+	textalignx 50
+	textaligny 20
+	forecolor 1 1 1 1
+	backcolor .37 .1 .1 1 
+	visible 1
+	action { play "sound/misc/kcaction.wav" ; 
+	hide grpSystem ; show other }
+	mouseEnter { show message_other ; setitemcolor ctr_other backcolor .1 .37 .1 1 } 
+	mouseExit { hide message_other ; setitemcolor ctr_other backcolor .37 .1 .1 1} 	
+	}
+
+itemDef {
+      	name ctr_other
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/framebutton.tga"
+ 	rect 306 395 100 26
+      	visible 1 
+	decoration  	  
+    	}
+
+itemDef {
+      	name ctr_other
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/leftbutton.tga"
+      	rect 294 395 13 26
+      	visible 1 
+	decoration  	  
+    	}
+
+itemDef {
+      	name ctr_other
+	style WINDOW_STYLE_SHADER
+	background "ui/assets/rightbutton.tga"
+      	rect 405 395 13 26
+      	visible 1 
+	decoration  	  
+    	}
+
+itemDef {
+      	name other			
+	group grpSystem
+      	style 1
+	text "Sound"
+	rect 163 48 128 20
+      	textalign ITEM_ALIGN_CENTER
+      	textalignx 64 
+      	textaligny 20
+	textscale .333
+      	forecolor .4 .4 .65 1
+      	visible 0 
+	decoration
+    	}
+
+	itemDef {
+      		name other
+		group grpSystem
+      		type ITEM_TYPE_SLIDER
+		text "Effects Volume:"
+		cvarfloat "s_volume" 0.1 0 0.7
+		rect 99 92 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333       
+      		forecolor 1 1 1 1
+      		visible 0 
+    		}
+	
+	itemDef {
+      		name other
+		group grpSystem
+      		type ITEM_TYPE_SLIDER
+		text "Music Volume:"
+		cvarfloat "s_musicvolume" 0.1 0 0.7
+		rect 99 119 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333        
+      		forecolor 1 1 1 1
+      		visible 0 
+    		}
+
+	itemDef {
+      		name other
+		group grpSystem
+      		type ITEM_TYPE_MULTI
+		text "Sound Quality:"
+		cvar "s_khz"
+		cvarFloatList { "22 khz (high)" 22 "11 khz (low)" 11 }
+		rect 99 146 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333        
+      		forecolor 1 1 1 1
+      		visible 0 
+    		}
+
+	itemDef {
+      		name other
+		group grpSystem
+      		type ITEM_TYPE_YESNO
+		text "Doppler Sound:"
+		cvar "s_doppler"
+		rect 99 173 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333        
+      		forecolor 1 1 1 1
+      		visible 0 
+    		}
+
+
+
+itemDef {
+      	name other			
+	group grpSystem
+      	style 1
+	text "Network"
+	rect 163 217 128 20
+      	textalign 1
+      	textalignx 64 
+      	textaligny 20
+	textscale .333        
+      	forecolor .4 .4 .65 1
+      	visible 0 
+	decoration
+    	}
+
+	itemDef {
+      		name other
+		group grpSystem
+      		type ITEM_TYPE_MULTI
+		text "Net Data Rate:"
+		cvar "rate"
+		cvarFloatList { "<=28.8k" 2500 "33.6k" 3000 "56k" 4000 "ISDN" 5000 "LAN/CABLE/xDSl" 25000  }
+		rect 99 259 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333        
+      		forecolor 1 1 1 1
+      		visible 0 
+			action { uiScript update ui_setRate }
+   		}
+
+	itemDef {
+      		name other
+		group grpSystem
+      		type ITEM_TYPE_YESNO
+		text "Auto-Download:"
+		cvar "cl_allowDownload"
+		rect 99 286 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333
+      		forecolor 1 1 1 1
+      		visible 1 
+    		}
+
+	itemDef {
+      		name other
+		group grpSystem
+      		type ITEM_TYPE_YESNO
+		text "Send Roll Angle:"
+		cvar "vr_sendRollToServer"
+		rect 99 313 256 20
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 20
+		textscale .333
+      		forecolor 1 1 1 1
+      		visible 1 
+    		}
+
+itemDef {
+      	name fadebox
+      	style WINDOW_STYLE_FILLED
+ 	background "ui/assets/fadebox.tga"
+	forecolor 0 0 0 1
+	backcolor 0 0 0 1
+	rect 0 0 640 480
+      	visible 1 
+	decoration
+    	}
+
+	
+
+
+}
+
+
+}

@@ -1,0 +1,388 @@
+#include "ui/menudef.h"
+
+{
+\\ SETUP MENU \\
+
+menuDef {
+    	name "options_menu"
+    	visible 0
+    	fullscreen 0
+	rect 186 0 443 426
+    	focusColor 1 .75 0 1
+    	style 1
+    	border 1
+	onOpen { setitemcolor fadebox backcolor 0 0 0 1 ; 
+		fadeout fadebox }
+	onEsc { close options_menu ; close setup_menu ; open main }
+	
+
+
+
+itemDef {
+	name window
+	group grpControlbutton
+	rect 0 2 443 426	
+	style WINDOW_STYLE_FILLED
+	border 1
+	bordercolor .5 .5 .5 .5
+	forecolor 1 1 1 1
+	backcolor 0 0 0 .25
+	visible 1
+	decoration
+}
+
+
+
+
+itemDef {
+      		name options
+		group grpOptions
+		text "Crosshair:"
+		ownerdraw UI_CROSSHAIR
+		rect 227 15 20 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 0
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_SLIDER
+		text "Crosshair Size:"
+		cvarfloat "cg_crosshairSize" 8 8 24
+		rect 99 33 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+		text "Crosshair Color:"
+		ownerdraw UI_CROSSHAIRCOLOR
+		rect 99 51 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+	}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Laser Sight:"
+		cvar "vr_lasersight"
+		rect 99 69 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Simple Items (World):"
+		cvar "cg_simpleItems"
+		rect 99 87 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Simple Items (Weapon Wheel):"
+		cvar "cg_weaponSelectorSimple2DIcons"
+		rect 99 105 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Show Item In Hand:"
+		cvar "vr_showItemInHand"
+		rect 99 123 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Marks On Walls:"
+		cvar "cg_marks"
+		rect 99 141 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Show Floating Scores:"
+		cvar "cg_scorePlums"
+		rect 99 159 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+		text "Ejecting Brass:"
+		type ITEM_TYPE_MULTI
+		cvar "cg_brassTime"
+		cvarFloatList { "High" 2500 "Med" 1250 "Off" 0 }
+		rect 99 177 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Identify Target:"
+		cvar "cg_drawCrosshairNames"
+		rect 99 195 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Force Player Models:"
+		cvar "cg_forceModel"
+		rect 99 213 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Draw Team Overlay:"
+		cvar "cg_drawTeamOverlay"
+		rect 99 231 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Show Time:"
+		cvar "cg_drawTimer"
+		rect 99 249 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Taunts Off:"
+		cvar "cg_noTaunt"
+		rect 99 267 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "In Game Video:"
+		cvar "r_inGameVideo"
+		rect 99 285 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_MULTI
+		text "HUD Type:"
+		cvar "cg_hudfiles"
+		cvarStrList { Normal "ui/hud.txt" Small "ui/hud2.txt" }
+		rect 99 303 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+	}
+
+itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_MULTI
+		text "HUD Mode:"
+		cvar "vr_hudDrawStatus"
+		cvarFloatList { "Off" 0 "Floating" 1 "Fixed to View" 2 }
+		rect 99 321 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+      		action { uiScript update "vr_hudDrawStatus" }
+	}
+
+itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Draw HUD On Weapon Wheel:"
+		cvar "vr_weaponSelectorWithHud"
+		rect 99 339 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+	}
+
+itemDef {
+      		name options
+		group grpOptions
+      		type ITEM_TYPE_YESNO
+		text "Show Console Messages:"
+		cvar "vr_showConsoleMessages"
+		rect 99 357 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 128
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+	}
+
+	itemDef {
+      		name options
+		group grpOptions
+		text "Gore:"
+		type ITEM_TYPE_MULTI
+		cvar "vr_goreLevel"
+		cvarFloatList { "None" 0 "Blood Only" 1 "Blood & Gibs (Default)" 2 "Extra Gore (Performance Hit)" 3 }
+		rect 99 375 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 70
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+      		action { uiScript update "vr_goreLevel" }
+    		}
+
+	itemDef {
+      		name options
+		group grpOptions
+		text "Blood Spatter Effect:"
+		type ITEM_TYPE_MULTI
+		cvar "cg_damageEffect"
+		cvarFloatList { "Classic" 0 "Modern" 1 }
+		rect 99 393 256 18
+      		textalign ITEM_ALIGN_RIGHT
+      		textalignx 70
+      		textaligny 18
+		textscale .3
+      		forecolor 1 1 1 1
+      		visible 1
+    		}
+
+itemDef {
+      	name fadebox
+      	style WINDOW_STYLE_FILLED
+ 	background "ui/assets/fadebox.tga"
+	forecolor 0 0 0 1
+	backcolor 0 0 0 1
+	rect 0 0 640 480
+      	visible 1 
+	decoration
+    	}
+
+
+
+	
+
+
+}
