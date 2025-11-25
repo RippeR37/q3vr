@@ -278,13 +278,13 @@ static void CG_OffsetVRThirdPersonView( void ) {
 			// Primary thumbstick (right): controls camera rotation and height
 			// [0] = left/right (affects yaw), [1] = up/down (affects pitch)
 			int primaryThumb = vr->right_handed ? THUMB_RIGHT : THUMB_LEFT;
-			float yawInput = vr->thumbstick_location[primaryThumb][0];
-			float pitchInput = vr->thumbstick_location[primaryThumb][1];
+			float yawInput = vr->virtual_screen ? 0.0f : vr->thumbstick_location[primaryThumb][0];
+			float pitchInput = vr->virtual_screen ? 0.0f : vr->thumbstick_location[primaryThumb][1];
 
 			// Secondary thumbstick (left): controls camera distance
 			// [1] = up/down (affects distance)
 			int secondaryThumb = vr->right_handed ? THUMB_LEFT : THUMB_RIGHT;
-			float distanceInput = vr->thumbstick_location[secondaryThumb][1];
+			float distanceInput = vr->virtual_screen ? 0.0f : vr->thumbstick_location[secondaryThumb][1];
 
 			// Update camera spherical coordinates based on thumbstick input
 			// Yaw: rotate around player (left/right on primary stick)
@@ -407,8 +407,7 @@ static void CG_OffsetVRThirdPersonView( void ) {
 			vr->recenter_follow_camera = qfalse;
 		}
 
-		// Do NOT allow movement when following in FIRSTPERSON mode (even if followed player is dead)
-		if (!vr->first_person_following)
+		if (!vr->virtual_screen)
 		{
 			//Move camera if the user is pushing thumbstick
 			vec3_t angles, forward, right, up;
@@ -924,6 +923,14 @@ Sets cg.refdef view values
 */
 static int CG_CalcViewValues( void ) {
 	playerState_t	*ps;
+
+	// When the player is in a menu, freeze the camera position/angle
+	// This prevents odd/nauseating situation where both the screen in
+	// the "virtual theater" and in-game view projected on the screen are
+	// both rotating based on the HMD movement.
+	if (vr->virtual_screen && !vr->first_person_following) {
+		return CG_CalcFov();
+	}
 
 	memset( &cg.refdef, 0, sizeof( cg.refdef ) );
 

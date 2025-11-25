@@ -2172,7 +2172,8 @@ static void CG_DrawCrosshair3D(void)
 	}
 
 	// ensure crosshair is aligned with world, not HMD/view
-	ent.rotation = vr->hmdorientation[ROLL];
+	// Don't apply roll when rendering to virtual screen
+	ent.rotation = vr->virtual_screen ? 0 : vr->hmdorientation[ROLL];
 
 	trap_R_AddRefEntityToScene(&ent);
 }
@@ -3223,13 +3224,10 @@ void CG_DrawActive( void ) {
 		trap_Cvar_SetValue("vr_worldscaleScaler", zoomCoeff);
 	}
 
-	if (vr->first_person_following)
+	if (vr->virtual_screen || CG_IsDeathCam() || CG_IsThirdPersonFollowMode(VRFM_QUERY))
 	{
-		//Do nothing to view height if we are following in first person
-	}
-	else if (CG_IsDeathCam() || CG_IsThirdPersonFollowMode(VRFM_QUERY))
-	{
-		//Do nothing to view height - CG_OffsetVRThirdPersonView already positioned the camera
+		// Do nothing to view height if we are viewing the virtual screen or in a camera mode
+		// view is already positioned correctly
 	}
 	else
 	{
@@ -3237,7 +3235,7 @@ void CG_DrawActive( void ) {
 		cg.refdef.vieworg[2] += (vr->hmdposition[1] + heightOffset) * worldscale;
 	}
 
-	if (vr->use_fake_6dof)
+	if (vr->use_fake_6dof && !vr->virtual_screen)
 	{
 		//If running multiplayer, allow some amount of faked positional tracking
 		if (cg.snap->ps.stats[STAT_HEALTH] > 0 &&
