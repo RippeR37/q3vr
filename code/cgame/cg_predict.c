@@ -313,8 +313,9 @@ Save events that may be dropped during prediction
 */
 void CG_StoreEvent( entity_event_t evt, int eventParm, int entityNum )
 {
-	if ( eventStack >= MAX_PREDICTED_EVENTS )
+	if ( !cg.enhancedPrediction || eventStack >= MAX_PREDICTED_EVENTS ) {
 		return;
+	}
 
 	if ( evt == EV_FALL_FAR ) {
 		CG_AddFallDamage( 10 );
@@ -355,10 +356,6 @@ void CG_PlayDroppedEvents( playerState_t *ps, playerState_t *ops ) {
 	for ( i = 0; i < eventStack - MAX_PS_EVENTS ; i++ ) {
 		cent->currentState.event = events[ i ];
 		cent->currentState.eventParm = eventParms[ i ];
-		if ( cg_showmiss.integer )
-		{
-			CG_Printf( "Playing dropped event: %s %i", eventnames[ events[ i ] ], eventParms[ i ] );
-		}
 		CG_EntityEvent( cent, cent->lerpOrigin, eventParm2[ i ] );
 		cg.eventSequence++;
 	}
@@ -370,15 +367,231 @@ void CG_PlayDroppedEvents( playerState_t *ps, playerState_t *ops ) {
 
 /*
 ===================
+CG_AddArmor
+
+Predict armor pickup
+===================
+*/
+static void CG_AddArmor( const gitem_t *item, int quantity ) {
+	cg.predictedPlayerState.stats[STAT_ARMOR] += quantity;
+
+	if ( cg.predictedPlayerState.stats[STAT_ARMOR] > cg.predictedPlayerState.stats[STAT_MAX_HEALTH] * 2 )
+		cg.predictedPlayerState.stats[STAT_ARMOR] = cg.predictedPlayerState.stats[STAT_MAX_HEALTH] * 2;
+}
+
+
+/*
+===================
+CG_AddAmmo
+
+Predict ammo pickup
+===================
+*/
+static void CG_AddAmmo( int weapon, int count ) {
+	if ( weapon == WP_GAUNTLET || weapon == WP_GRAPPLING_HOOK ) {
+		cg.predictedPlayerState.ammo[weapon] = -1;
+	} else {
+		cg.predictedPlayerState.ammo[weapon] += count;
+		if ( weapon >= WP_MACHINEGUN && weapon <= WP_BFG ) {
+			if ( cg.predictedPlayerState.ammo[weapon] > AMMO_HARD_LIMIT ) {
+				cg.predictedPlayerState.ammo[weapon] = AMMO_HARD_LIMIT;
+			}
+		}
+	}
+}
+
+
+/*
+===================
+CG_AddWeapon
+
+Predict weapon pickup
+===================
+*/
+static void CG_AddWeapon( int weapon, int quantity, qboolean dropped ) {
+	// dropped items and teamplay weapons always have full ammo
+	if ( !dropped && cgs.gametype != GT_TEAM ) {
+		if ( cg.predictedPlayerState.ammo[ weapon ] < quantity ) {
+			quantity = quantity - cg.predictedPlayerState.ammo[ weapon ];
+		} else {
+			quantity = 1;
+		}
+	}
+
+	// add the weapon
+	cg.predictedPlayerState.stats[STAT_WEAPONS] |= ( 1 << weapon );
+
+	CG_AddAmmo( weapon, quantity );
+}
+
+
+/*
+===================
+CG_PickupPrediction
+
+Predict item pickup effects (health, armor, ammo, weapons, powerups)
+===================
+*/
+static void CG_PickupPrediction( centity_t *cent, const gitem_t *item ) {
+
+	// health prediction
+	if ( item->giType == IT_HEALTH && cent->currentState.time2 > 0 ) {
+		int limit;
+
+		limit = cg.predictedPlayerState.stats[ STAT_MAX_HEALTH ]; // soft limit
+		if ( !Q_stricmp( item->classname, "item_health_small" ) || !Q_stricmp( item->classname, "item_health_mega" ) ) {
+			limit *= 2; // hard limit
+		}
+
+		cg.predictedPlayerState.stats[STAT_HEALTH] += cent->currentState.time2;
+		if ( cg.predictedPlayerState.stats[ STAT_HEALTH ] > limit ) {
+			cg.predictedPlayerState.stats[ STAT_HEALTH ] = limit;
+		}
+	}
+
+	// armor prediction
+	if ( item->giType == IT_ARMOR && cent->currentState.time2 > 0 ) {
+		CG_AddArmor( item, cent->currentState.time2 );
+		return;
+	}
+
+	// ammo prediction
+	if ( item->giType == IT_AMMO && cent->currentState.time2 > 0 ) {
+		CG_AddAmmo( item->giTag, cent->currentState.time2 );
+		return;
+	}
+
+	// weapon prediction
+	if ( item->giType == IT_WEAPON && cent->currentState.time2 > 0 ) {
+		CG_AddWeapon( item->giTag, cent->currentState.time2, (cent->currentState.modelindex2 == 1) );
+		return;
+	}
+
+	// powerups prediction
+	if ( item->giType == IT_POWERUP && item->giTag >= PW_QUAD && item->giTag <= PW_FLIGHT ) {
+		// round timing to seconds to make multiple powerup timers count in sync
+		if ( !cg.predictedPlayerState.powerups[ item->giTag ] ) {
+			cg.predictedPlayerState.powerups[ item->giTag ] = cg.predictedPlayerState.commandTime - ( cg.predictedPlayerState.commandTime % 1000 );
+			// this assumption is correct only on transition and implies hardcoded 1.3 coefficient:
+			if ( item->giTag == PW_HASTE ) {
+				cg.predictedPlayerState.speed *= 1.3f;
+			}
+		}
+		cg.predictedPlayerState.powerups[ item->giTag ] += cent->currentState.time2 * 1000;
+	}
+
+	// holdable prediction
+	if ( item->giType == IT_HOLDABLE && ( item->giTag == HI_TELEPORTER || item->giTag == HI_MEDKIT ) ) {
+		cg.predictedPlayerState.stats[ STAT_HOLDABLE_ITEM ] = item - bg_itemlist;
+	}
+}
+
+
+/*
+===================
+CG_TouchItem_Enhanced
+
+Enhanced prediction path (baseq3a-style).
+Uses ping-aware dedup window and entity tracking for sound dedup.
+===================
+*/
+static void CG_TouchItem_Enhanced( centity_t *cent ) {
+	const gitem_t *item;
+
+	if ( cg.allowPickupPrediction && cg.allowPickupPrediction > cg.time ) {
+		return;
+	}
+
+	if ( !cg_predictItems.integer ) {
+		return;
+	}
+
+	if ( !BG_PlayerTouchesItem( &cg.predictedPlayerState, &cent->currentState, cg.time ) ) {
+		return;
+	}
+
+	// never pick an item up twice in a prediction
+	if ( cent->delaySpawn > cg.time ) {
+		return;
+	}
+
+	if ( !BG_CanItemBeGrabbed( cgs.gametype, &cent->currentState, &cg.predictedPlayerState ) ) {
+		return;	// can't hold it
+	}
+
+	item = &bg_itemlist[ cent->currentState.modelindex ];
+
+	// Special case for flags.
+	// We don't predict touching our own flag
+#ifdef MISSIONPACK
+	if( cgs.gametype == GT_1FCTF ) {
+		if( item->giType == IT_TEAM && item->giTag != PW_NEUTRALFLAG ) {
+			return;
+		}
+	}
+	if( cgs.gametype == GT_CTF || cgs.gametype == GT_HARVESTER ) {
+#else
+	if( cgs.gametype == GT_CTF ) {
+#endif
+		if (cg.predictedPlayerState.persistant[PERS_TEAM] == TEAM_RED &&
+			item->giType == IT_TEAM && item->giTag == PW_REDFLAG)
+			return;
+		if (cg.predictedPlayerState.persistant[PERS_TEAM] == TEAM_BLUE &&
+			item->giType == IT_TEAM && item->giTag == PW_BLUEFLAG)
+			return;
+	}
+
+	// grab it
+	BG_AddPredictableEventToPlayerstate( EV_ITEM_PICKUP, cent->currentState.modelindex, &cg.predictedPlayerState, cent - cg_entities );
+
+	// perform prediction
+	CG_PickupPrediction( cent, item );
+
+	// remove it from the frame so it won't be drawn
+	cent->currentState.eFlags |= EF_NODRAW;
+
+	// don't touch it again this prediction
+	cent->miscTime = cg.time;
+
+	// delay next potential pickup for some time
+	cent->delaySpawn = cg.time + ( cg.meanPing > 0 ? cg.meanPing * 2 + 100 : 333 );
+	cent->delaySpawnPlayed = qfalse;
+
+	// if it's a weapon, give them some predicted ammo so the autoswitch will work
+	if ( item->giType == IT_WEAPON ) {
+		cg.predictedPlayerState.stats[ STAT_WEAPONS ] |= 1 << item->giTag;
+		if ( !cg.predictedPlayerState.ammo[ item->giTag ] ) {
+			cg.predictedPlayerState.ammo[ item->giTag ] = 1;
+		}
+	}
+}
+
+
+/*
+===================
 CG_TouchItem
+
+Vanilla prediction path (ioq3-style).
+Redirects to CG_TouchItem_Enhanced when connected to a baseq3a server.
 ===================
 */
 static void CG_TouchItem( centity_t *cent ) {
 	gitem_t		*item;
 
-	if ( cg.allowPickupPrediction && cg.allowPickupPrediction > cg.time ) {
+	// Detect enhanced server support on first item we see with time2 set
+	// time2 contains item quantity - vanilla servers don't set this
+	if ( !cg.enhancedPrediction && cent->currentState.time2 > 0 ) {
+		cg.enhancedPrediction = qtrue;
+		CG_Printf( "Enhanced prediction ^2ENABLED^7 (baseq3a server detected)\n" );
+	}
+
+	// Redirect to enhanced prediction if server supports it
+	if ( cg.enhancedPrediction ) {
+		CG_TouchItem_Enhanced( cent );
 		return;
 	}
+
+	// === Vanilla ioq3 prediction below ===
 
 	if ( !cg_predictItems.integer ) {
 		return;
@@ -392,18 +605,13 @@ static void CG_TouchItem( centity_t *cent ) {
 		return;
 	}
 
-	// never pick an item up twice in a prediction
-	if ( cent->delaySpawn > cg.time ) {
-		return;
-	}
-
 	if ( !BG_CanItemBeGrabbed( cgs.gametype, &cent->currentState, &cg.predictedPlayerState ) ) {
 		return;		// can't hold it
 	}
 
 	item = &bg_itemlist[ cent->currentState.modelindex ];
 
-	// Special case for flags.  
+	// Special case for flags.
 	// We don't predict touching our own flag
 #ifdef MISSIONPACK
 	if( cgs.gametype == GT_1FCTF ) {
@@ -411,8 +619,10 @@ static void CG_TouchItem( centity_t *cent ) {
 			return;
 		}
 	}
-#endif
+	if( cgs.gametype == GT_CTF || cgs.gametype == GT_HARVESTER ) {
+#else
 	if( cgs.gametype == GT_CTF ) {
+#endif
 		if (cg.predictedPlayerState.persistant[PERS_TEAM] == TEAM_RED &&
 			item->giType == IT_TEAM && item->giTag == PW_REDFLAG)
 			return;
@@ -422,17 +632,13 @@ static void CG_TouchItem( centity_t *cent ) {
 	}
 
 	// grab it
-	BG_AddPredictableEventToPlayerstate( EV_ITEM_PICKUP, cent->currentState.modelindex , &cg.predictedPlayerState, cent - cg_entities );
+	BG_AddPredictableEventToPlayerstate( EV_ITEM_PICKUP, cent->currentState.modelindex, &cg.predictedPlayerState, -1 );
 
 	// remove it from the frame so it won't be drawn
 	cent->currentState.eFlags |= EF_NODRAW;
 
 	// don't touch it again this prediction
 	cent->miscTime = cg.time;
-
-	// delay next potential pickup for some time
-	cent->delaySpawn = cg.time + ( cg.meanPing > 0 ? cg.meanPing * 2 + 100 : 333 );
-	cent->delaySpawnPlayed = qfalse;
 
 	// if it's a weapon, give them some predicted ammo so the autoswitch will work
 	if ( item->giType == IT_WEAPON ) {
@@ -776,31 +982,13 @@ static void CG_CheckTimers( void ) {
 
 /*
 =================
-CG_PredictPlayerState
+CG_PredictPlayerState_Enhanced
 
-Generates cg.predictedPlayerState for the current cg.time
-cg.predictedPlayerState is guaranteed to be valid after exiting.
-
-For demo playback, this will be an interpolation between two valid
-playerState_t.
-
-For normal gameplay, it will be the result of predicted usercmd_t on
-top of the most recent playerState_t received from the server.
-
-Each new snapshot will usually have one or more new usercmd over the last,
-but we simulate all unacknowledged commands each time, not just the new ones.
-This means that on an internet connection, quite a few pmoves may be issued
-each frame.
-
-OPTIMIZE: don't re-simulate unless the newly arrived snapshot playerState_t
-differs from the predicted one.  Would require saving all intermediate
-playerState_t during prediction.
-
-We detect prediction errors and allow them to be decayed off over several frames
-to ease the jerk.
+Enhanced prediction path (baseq3a-style).
+Includes optimized incremental prediction with saved states.
 =================
 */
-void CG_PredictPlayerState( void ) {
+static void CG_PredictPlayerState_Enhanced( void ) {
 	int			cmdNum, current;
 	playerState_t	oldPlayerState;
 	qboolean	moved;
@@ -844,7 +1032,6 @@ void CG_PredictPlayerState( void ) {
 	if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ) {
 		cg_pmove.tracemask &= ~CONTENTS_BODY;	// spectators can fly through bodies
 	}
-	cg_pmove.noFootsteps = ( cgs.dmflags & DF_NO_FOOTSTEPS ) > 0;
 
 	// save the state before the pmove so we can detect transitions
 	oldPlayerState = cg.predictedPlayerState;
@@ -856,7 +1043,7 @@ void CG_PredictPlayerState( void ) {
 	// the last good position we had
 	cmdNum = current - CMD_BACKUP + 1;
 	trap_GetUserCmd( cmdNum, &oldestCmd );
-	if ( oldestCmd.serverTime > cg.snap->ps.commandTime 
+	if ( oldestCmd.serverTime > cg.snap->ps.commandTime
 		&& oldestCmd.serverTime < cg.time ) {	// special check for map_restart
 		if ( cg_showmiss.integer ) {
 			CG_Printf ("exceeded PACKET_BACKUP on commands\n");
@@ -869,7 +1056,7 @@ void CG_PredictPlayerState( void ) {
 
 	// get the most recent information we have, even if
 	// the server time is beyond our current cg.time,
-	// because predicted player positions are going to 
+	// because predicted player positions are going to
 	// be ahead of everything else anyway
 	if ( cg.nextSnap && !cg.nextFrameTeleport && !cg.thisFrameTeleport ) {
 		cg.predictedPlayerState = cg.nextSnap->ps;
@@ -879,19 +1066,10 @@ void CG_PredictPlayerState( void ) {
 		cg.physicsTime = cg.snap->serverTime;
 	}
 
-	if ( pmove_msec.integer < 8 ) {
-		trap_Cvar_Set("pmove_msec", "8");
-		trap_Cvar_Update(&pmove_msec);
-	}
-	else if (pmove_msec.integer > 33) {
-		trap_Cvar_Set("pmove_msec", "33");
-		trap_Cvar_Update(&pmove_msec);
-	}
-
-	cg_pmove.pmove_fixed = pmove_fixed.integer;// | cg_pmove_fixed.integer;
+	cg_pmove.pmove_fixed = pmove_fixed.integer;
 	cg_pmove.pmove_msec = pmove_msec.integer;
 
-	// reset event stack
+	// clean event stack
 	eventStack = 0;
 
 	// run cmds
@@ -1017,7 +1195,259 @@ void CG_PredictPlayerState( void ) {
 				cg.allowPickupPrediction = cg.time + PICKUP_PREDICTION_DELAY;
 			} else {
 				vec3_t adjusted, new_angles;
-				CG_AdjustPositionForMover( cg.predictedPlayerState.origin, 
+				CG_AdjustPositionForMover( cg.predictedPlayerState.origin,
+					cg.predictedPlayerState.groundEntityNum, cg.physicsTime, cg.oldTime, adjusted, cg.predictedPlayerState.viewangles, new_angles);
+
+				if ( cg_showmiss.integer ) {
+					if ( !VectorCompare( oldPlayerState.origin, adjusted ) ) {
+						CG_Printf( "prediction error\n" );
+					}
+				}
+				VectorSubtract( oldPlayerState.origin, adjusted, delta );
+				len = VectorLengthSquared( delta );
+				if ( len > (0.01f * 0.01f) ) {
+					if ( cg_showmiss.integer ) {
+						CG_Printf( "Prediction miss: %f\n", sqrt( len ) );
+					}
+					if ( cg_errorDecay.integer ) {
+						int		t;
+						float	f;
+
+						t = cg.time - cg.predictedErrorTime;
+						f = ( cg_errorDecay.value - t ) / cg_errorDecay.value;
+						if ( f < 0 ) {
+							f = 0;
+						} else if ( f > 0 && cg_showmiss.integer ) {
+							CG_Printf("Double prediction decay: %f\n", f);
+						}
+						VectorScale( cg.predictedError, f, cg.predictedError );
+					} else {
+						VectorClear( cg.predictedError );
+					}
+					VectorAdd( delta, cg.predictedError, cg.predictedError );
+					cg.predictedErrorTime = cg.oldTime;
+				}
+			}
+		}
+
+		// don't predict gauntlet firing, which is only supposed to happen
+		// when it actually inflicts damage
+		cg_pmove.gauntletHit = qfalse;
+
+		if ( cg_pmove.pmove_fixed ) {
+			cg_pmove.cmd.serverTime = ((cg_pmove.cmd.serverTime + cg_pmove.pmove_msec-1) / cg_pmove.pmove_msec) * cg_pmove.pmove_msec;
+		}
+
+		if ( cmdNum >= predictCmd || ( stateIndex + 1 ) % NUM_SAVED_STATES == cg.stateHead ) {
+
+			Pmove( &cg_pmove );
+
+			// add push trigger movement effects
+			CG_TouchTriggerPrediction();
+
+			// check for expired powerups etc.
+			CG_CheckTimers();
+
+			// record the last predicted command
+			cg.lastPredictedCommand = cmdNum;
+
+			// if we haven't run out of space in the saved states queue
+			if( ( stateIndex + 1 ) % NUM_SAVED_STATES != cg.stateHead ) {
+				// save the state for the false case ( of cmdNum >= predictCmd )
+				// in later calls to this function
+				cg.savedPmoveStates[ stateIndex ] = *cg_pmove.ps;
+				stateIndex = ( stateIndex + 1 ) % NUM_SAVED_STATES;
+				cg.stateTail = stateIndex;
+			}
+		} else {
+			*cg_pmove.ps = cg.savedPmoveStates[ stateIndex ];
+			stateIndex = ( stateIndex + 1 ) % NUM_SAVED_STATES;
+		}
+
+		moved = qtrue;
+	}
+
+	if ( cg_showmiss.integer > 3 ) {
+		CG_Printf( "[%i : %i] ", cg_pmove.cmd.serverTime, cg.time );
+	}
+
+	if ( !moved ) {
+		if ( cg_showmiss.integer ) {
+			CG_Printf( "not moved\n" );
+		}
+		// clean event stack
+		eventStack = 0;
+		return;
+	}
+
+	// adjust for the movement of the groundentity
+	CG_AdjustPositionForMover( cg.predictedPlayerState.origin, cg.predictedPlayerState.groundEntityNum,
+		cg.physicsTime, cg.time, cg.predictedPlayerState.origin,
+		cg.predictedPlayerState.viewangles, cg.predictedPlayerState.viewangles );
+
+	if ( cg_showmiss.integer ) {
+		if ( cg.predictedPlayerState.eventSequence > oldPlayerState.eventSequence + MAX_PS_EVENTS ) {
+			CG_Printf( "WARNING: dropped event\n" );
+		}
+	}
+
+	// fire events and other transition triggered things
+	CG_TransitionPlayerState( &cg.predictedPlayerState, &oldPlayerState );
+
+	if ( cg_showmiss.integer ) {
+		if ( cg.eventSequence > cg.predictedPlayerState.eventSequence ) {
+			CG_Printf( "WARNING: double event\n" );
+			cg.eventSequence = cg.predictedPlayerState.eventSequence;
+		}
+	}
+}
+
+
+/*
+=================
+CG_PredictPlayerState
+
+Vanilla prediction path (q3vr master-style).
+Redirects to CG_PredictPlayerState_Enhanced when connected to a baseq3a server.
+=================
+*/
+void CG_PredictPlayerState( void ) {
+	int			cmdNum, current;
+	playerState_t	oldPlayerState;
+	qboolean	moved;
+	usercmd_t	oldestCmd;
+	usercmd_t	latestCmd;
+
+	// Redirect to enhanced prediction if server supports it
+	if ( cg.enhancedPrediction ) {
+		CG_PredictPlayerState_Enhanced();
+		return;
+	}
+
+	// === Vanilla q3vr master prediction below ===
+
+	cg.hyperspace = qfalse;	// will be set if touching a trigger_teleport
+
+	// if this is the first frame we must guarantee
+	// predictedPlayerState is valid even if there is some
+	// other error condition
+	if ( !cg.validPPS ) {
+		cg.validPPS = qtrue;
+		cg.predictedPlayerState = cg.snap->ps;
+	}
+
+
+	// demo playback just copies the moves
+	if ( cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW) ) {
+		CG_InterpolatePlayerState( qfalse );
+		return;
+	}
+
+	// non-predicting local movement will grab the latest angles
+	if ( cg_nopredict.integer || cg_synchronousClients.integer ) {
+		CG_InterpolatePlayerState( qtrue );
+		return;
+	}
+
+	// prepare for pmove
+	cg_pmove.ps = &cg.predictedPlayerState;
+	cg_pmove.trace = CG_Trace;
+	cg_pmove.pointcontents = CG_PointContents;
+	if ( cg_pmove.ps->pm_type == PM_DEAD ) {
+		cg_pmove.tracemask = MASK_PLAYERSOLID & ~CONTENTS_BODY;
+	}
+	else {
+		cg_pmove.tracemask = MASK_PLAYERSOLID;
+	}
+	if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ) {
+		cg_pmove.tracemask &= ~CONTENTS_BODY;	// spectators can fly through bodies
+	}
+	cg_pmove.noFootsteps = ( cgs.dmflags & DF_NO_FOOTSTEPS ) > 0;
+
+	// save the state before the pmove so we can detect transitions
+	oldPlayerState = cg.predictedPlayerState;
+
+	current = trap_GetCurrentCmdNumber();
+
+	// if we don't have the commands right after the snapshot, we
+	// can't accurately predict a current position, so just freeze at
+	// the last good position we had
+	cmdNum = current - CMD_BACKUP + 1;
+	trap_GetUserCmd( cmdNum, &oldestCmd );
+	if ( oldestCmd.serverTime > cg.snap->ps.commandTime
+		&& oldestCmd.serverTime < cg.time ) {	// special check for map_restart
+		if ( cg_showmiss.integer ) {
+			CG_Printf ("exceeded PACKET_BACKUP on commands\n");
+		}
+		return;
+	}
+
+	// get the latest command so we can know which commands are from previous map_restarts
+	trap_GetUserCmd( current, &latestCmd );
+
+	// get the most recent information we have, even if
+	// the server time is beyond our current cg.time,
+	// because predicted player positions are going to
+	// be ahead of everything else anyway
+	if ( cg.nextSnap && !cg.nextFrameTeleport && !cg.thisFrameTeleport ) {
+		cg.predictedPlayerState = cg.nextSnap->ps;
+		cg.physicsTime = cg.nextSnap->serverTime;
+	} else {
+		cg.predictedPlayerState = cg.snap->ps;
+		cg.physicsTime = cg.snap->serverTime;
+	}
+
+	if ( pmove_msec.integer < 8 ) {
+		trap_Cvar_Set("pmove_msec", "8");
+		trap_Cvar_Update(&pmove_msec);
+	}
+	else if (pmove_msec.integer > 33) {
+		trap_Cvar_Set("pmove_msec", "33");
+		trap_Cvar_Update(&pmove_msec);
+	}
+
+	cg_pmove.pmove_fixed = pmove_fixed.integer;// | cg_pmove_fixed.integer;
+	cg_pmove.pmove_msec = pmove_msec.integer;
+
+	// run cmds
+	moved = qfalse;
+	for ( cmdNum = current - CMD_BACKUP + 1 ; cmdNum <= current ; cmdNum++ ) {
+		// get the command
+		trap_GetUserCmd( cmdNum, &cg_pmove.cmd );
+
+		if ( cg_pmove.pmove_fixed ) {
+			PM_UpdateViewAngles( cg_pmove.ps, &cg_pmove.cmd );
+		}
+
+		// don't do anything if the time is before the snapshot player time
+		if ( cg_pmove.cmd.serverTime <= cg.predictedPlayerState.commandTime ) {
+			continue;
+		}
+
+		// don't do anything if the command was from a previous map_restart
+		if ( cg_pmove.cmd.serverTime > latestCmd.serverTime ) {
+			continue;
+		}
+
+		// check for a prediction error from last frame
+		// on a lan, this will often be the exact value
+		// from the snapshot, but on a wan we will have
+		// to predict several commands to get to the point
+		// we want to compare
+		if ( cg.predictedPlayerState.commandTime == oldPlayerState.commandTime ) {
+			vec3_t	delta;
+			float	len;
+
+			if ( cg.thisFrameTeleport ) {
+				// a teleport will not cause an error decay
+				VectorClear( cg.predictedError );
+				if ( cg_showmiss.integer ) {
+					CG_Printf( "PredictionTeleport\n" );
+				}
+				cg.thisFrameTeleport = qfalse;
+			} else {
+				vec3_t adjusted, new_angles;
+				CG_AdjustPositionForMover( cg.predictedPlayerState.origin,
 				cg.predictedPlayerState.groundEntityNum, cg.physicsTime, cg.oldTime, adjusted, cg.predictedPlayerState.viewangles, new_angles);
 
 				if ( cg_showmiss.integer ) {
@@ -1026,10 +1456,10 @@ void CG_PredictPlayerState( void ) {
 					}
 				}
 				VectorSubtract( oldPlayerState.origin, adjusted, delta );
-				len = VectorLengthSquared( delta );
-				if ( len > (0.01f * 0.01f) ) {
+				len = VectorLength( delta );
+				if ( len > 0.1 ) {
 					if ( cg_showmiss.integer ) {
-						CG_Printf("Prediction miss: %f\n", sqrt( len ));
+						CG_Printf("Prediction miss: %f\n", len);
 					}
 					if ( cg_errorDecay.integer ) {
 						int		t;
@@ -1061,34 +1491,12 @@ void CG_PredictPlayerState( void ) {
 			cg_pmove.cmd.serverTime = ((cg_pmove.cmd.serverTime + pmove_msec.integer-1) / pmove_msec.integer) * pmove_msec.integer;
 		}
 
-		// Run the pmove and save state for incremental prediction
-		if ( cmdNum >= predictCmd || ( stateIndex + 1 ) % NUM_SAVED_STATES == cg.stateHead ) {
-
-			Pmove( &cg_pmove );
-
-			// add push trigger movement effects
-			CG_TouchTriggerPrediction();
-
-			// check for expired powerups etc.
-			CG_CheckTimers();
-
-			// record the last predicted command
-			cg.lastPredictedCommand = cmdNum;
-
-			// if we haven't run out of space in the saved states queue
-			if( ( stateIndex + 1 ) % NUM_SAVED_STATES != cg.stateHead ) {
-				// save the state for the false case ( of cmdNum >= predictCmd )
-				// in later calls to this function
-				cg.savedPmoveStates[ stateIndex ] = *cg_pmove.ps;
-				stateIndex = ( stateIndex + 1 ) % NUM_SAVED_STATES;
-				cg.stateTail = stateIndex;
-			}
-		} else {
-			*cg_pmove.ps = cg.savedPmoveStates[ stateIndex ];
-			stateIndex = ( stateIndex + 1 ) % NUM_SAVED_STATES;
-		}
+		Pmove (&cg_pmove);
 
 		moved = qtrue;
+
+		// add push trigger movement effects
+		CG_TouchTriggerPrediction();
 
 		// check for predictable events that changed from previous predictions
 		//CG_CheckChangedPredictableEvents(&cg.predictedPlayerState);
@@ -1102,14 +1510,12 @@ void CG_PredictPlayerState( void ) {
 		if ( cg_showmiss.integer ) {
 			CG_Printf( "not moved\n" );
 		}
-		// reset event stack
-		eventStack = 0;
 		return;
 	}
 
 	// adjust for the movement of the groundentity
-	CG_AdjustPositionForMover( cg.predictedPlayerState.origin, 
-		cg.predictedPlayerState.groundEntityNum, 
+	CG_AdjustPositionForMover( cg.predictedPlayerState.origin,
+		cg.predictedPlayerState.groundEntityNum,
 		cg.physicsTime, cg.time, cg.predictedPlayerState.origin, cg.predictedPlayerState.viewangles, cg.predictedPlayerState.viewangles);
 
 	if ( cg_showmiss.integer ) {

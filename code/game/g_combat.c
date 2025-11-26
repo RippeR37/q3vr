@@ -119,13 +119,16 @@ void TossClientItems( gentity_t *self ) {
 		}
 	}
 
-	if ( weapon > WP_MACHINEGUN && weapon != WP_GRAPPLING_HOOK && 
+	if ( weapon > WP_MACHINEGUN && weapon != WP_GRAPPLING_HOOK &&
 		self->client->ps.ammo[ weapon ] ) {
 		// find the item type for this weapon
 		item = BG_FindItemForWeapon( weapon );
 
 		// spawn the item
-		Drop_Item( self, item, 0 );
+		drop = Drop_Item( self, item, 0 );
+
+		// for pickup prediction
+		drop->s.time2 = item->quantity;
 	}
 
 	// drop all the powerups if not in teamplay
@@ -143,6 +146,8 @@ void TossClientItems( gentity_t *self ) {
 				if ( drop->count < 1 ) {
 					drop->count = 1;
 				}
+				// for pickup prediction
+				drop->s.time2 = drop->count;
 				angle += 45;
 			}
 		}
