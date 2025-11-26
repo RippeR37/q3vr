@@ -356,6 +356,10 @@ void CG_PlayDroppedEvents( playerState_t *ps, playerState_t *ops ) {
 	for ( i = 0; i < eventStack - MAX_PS_EVENTS ; i++ ) {
 		cent->currentState.event = events[ i ];
 		cent->currentState.eventParm = eventParms[ i ];
+		if ( cg_showmiss.integer ) 
+		{
+			CG_Printf( "Playing dropped event: %s %i", eventnames[ events[ i ] ], eventParms[ i ] );
+		}
 		CG_EntityEvent( cent, cent->lerpOrigin, eventParm2[ i ] );
 		cg.eventSequence++;
 	}
