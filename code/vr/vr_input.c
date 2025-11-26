@@ -115,6 +115,7 @@ extern cvar_t *vr_refreshrate;
 extern cvar_t *vr_weaponScope;
 extern cvar_t *vr_hapticIntensity;
 extern cvar_t *vr_thumbstickDeadzone;
+extern cvar_t *vr_weaponSelectorMode;
 
 qboolean alt_key_mode_active = qfalse;
 
@@ -1246,7 +1247,9 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 			// Use joystick X axis for analog turning in smooth turn mode only
 			// This provides smooth analog turn speed control like gamepads
 			// Scale to match SDL joystick range (-32768 to +32767) since j_yaw is calibrated for that range
-			if (vr_snapturn->integer <= 0)
+			// Skip analog turning if weapon selector uses thumbstick (WS_HMD mode) to avoid
+			// turning while initiating weapon selection with a sideways thumbstick push
+			if (vr_snapturn->integer <= 0 && vr_weaponSelectorMode->integer != WS_HMD)
 			{
 				Com_QueueEvent(in_vrEventTime, SE_JOYSTICK_AXIS, 2, curvedX * 32767.0f, 0, NULL);
 			}
