@@ -153,6 +153,7 @@ typedef struct {
 	lerpFrame_t		legs, torso, flag;
 	int				painTime;
 	int				painDirection;	// flip from 0 to 1
+	qboolean		painIgnore;
 	int				lightningFiring;
 
 	int				railFireTime;
@@ -700,6 +701,7 @@ typedef struct {
 	int				meanPing;
 	int				timeResidual;
 	int				allowPickupPrediction;
+	qboolean		enhancedPrediction;	// qtrue when connected to server with enhanced prediction support (time2 > 0)
 
 	int				followTime;
 	int				followClient;
@@ -1611,7 +1613,6 @@ void CG_PlayBufferedVoiceChats( void );
 //
 void CG_Respawn( void );
 void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops );
-void CG_CheckChangedPredictableEvents( playerState_t *ps );
 
 
 //===============================================
