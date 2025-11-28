@@ -799,9 +799,9 @@ static void CG_LoadClientInfo( int clientNum, clientInfo_t *ci ) {
 		if( cgs.gametype >= GT_TEAM) {
 			// keep skin name
 			if( ci->team == TEAM_BLUE ) {
-				Q_strncpyz(teamname, DEFAULT_BLUETEAM_NAME, sizeof(teamname) );
+				Com_sprintf(teamname, sizeof(teamname), "%s/", DEFAULT_BLUETEAM_NAME);
 			} else {
-				Q_strncpyz(teamname, DEFAULT_REDTEAM_NAME, sizeof(teamname) );
+				Com_sprintf(teamname, sizeof(teamname), "%s/", DEFAULT_REDTEAM_NAME);
 			}
 			if ( !CG_RegisterClientModelname( ci, DEFAULT_TEAM_MODEL, ci->skinName, DEFAULT_TEAM_HEAD, ci->skinName, teamname ) ) {
 				CG_Error( "DEFAULT_TEAM_MODEL / skin (%s/%s) failed to register", DEFAULT_TEAM_MODEL, ci->skinName );
@@ -1198,7 +1198,6 @@ void CG_NewClientInfo( int clientNum ) {
 	clientInfo_t newInfo;
 	const char	*configstring;
 	const char	*v;
-	char		*slash;
 
 	// For colored skins and deferred loading
 	qboolean	allowNativeModel;
@@ -1331,21 +1330,11 @@ void CG_NewClientInfo( int clientNum ) {
 		}
 	}
 
-	// head model (use same model/skin as body for now)
+	// head model
 	v = Info_ValueForKey( configstring, "hmodel" );
-	if ( newInfo.modelName[0] ) {
-		Q_strncpyz( newInfo.headModelName, newInfo.modelName, sizeof( newInfo.headModelName ) );
-		Q_strncpyz( newInfo.headSkinName, newInfo.skinName, sizeof( newInfo.headSkinName ) );
-	} else {
-		Q_strncpyz( newInfo.headModelName, v, sizeof( newInfo.headModelName ) );
-		slash = strchr( newInfo.headModelName, '/' );
-		if ( !slash ) {
-			Q_strncpyz( newInfo.headSkinName, "default", sizeof( newInfo.headSkinName ) );
-		} else {
-			Q_strncpyz( newInfo.headSkinName, slash + 1, sizeof( newInfo.headSkinName ) );
-			*slash = 0;
-		}
-	}
+	CG_SetSkinAndModel( &newInfo, ci, v, allowNativeModel, clientNum, myClientNum,
+		myTeam, qfalse, newInfo.headModelName, sizeof(newInfo.headModelName),
+		newInfo.headSkinName, sizeof(newInfo.headSkinName) );
 
 	// Allow deferred load at some conditions - only defer spectators when viewer is on a team
 	can_defer = cg_deferPlayers.integer == 2 || ( cg_deferPlayers.integer == 1 && myTeam != TEAM_SPECTATOR && team == TEAM_SPECTATOR );
