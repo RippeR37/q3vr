@@ -209,8 +209,42 @@ void SCR_DrawSmallChar( int x, int y, int ch ) {
 	size = 0.0625;
 
 	re.DrawStretchPic( x, y, SMALLCHAR_WIDTH, SMALLCHAR_HEIGHT,
-					   fcol, frow, 
-					   fcol + size, frow + size, 
+					   fcol, frow,
+					   fcol + size, frow + size,
+					   cls.charSetShader );
+}
+
+/*
+** SCR_DrawSmallCharScaled
+** small chars drawn with scaling factor
+*/
+void SCR_DrawSmallCharScaled( int x, int y, int ch, int scale ) {
+	int row, col;
+	float frow, fcol;
+	float size;
+	int charW = SMALLCHAR_WIDTH * scale;
+	int charH = SMALLCHAR_HEIGHT * scale;
+
+	ch &= 255;
+
+	if ( ch == ' ' ) {
+		return;
+	}
+
+	if ( y < -charH ) {
+		return;
+	}
+
+	row = ch>>4;
+	col = ch&15;
+
+	frow = row*0.0625;
+	fcol = col*0.0625;
+	size = 0.0625;
+
+	re.DrawStretchPic( x, y, charW, charH,
+					   fcol, frow,
+					   fcol + size, frow + size,
 					   cls.charSetShader );
 }
 
@@ -249,6 +283,43 @@ void SCR_DrawStringExt( int x, int y, float size, const char *string, float *set
 
 
 	// draw the colored text
+	s = string;
+	xx = x;
+	re.SetColor( setColor );
+	while ( *s ) {
+		if ( Q_IsColorString( s ) ) {
+			if ( !forceColor ) {
+				Com_Memcpy( color, g_color_table[ColorIndex(*(s+1))], sizeof( color ) );
+				color[3] = setColor[3];
+				re.SetColor( color );
+			}
+			if ( !noColorEscape ) {
+				s += 2;
+				continue;
+			}
+		}
+		SCR_DrawChar( xx, y, size, *s );
+		xx += size;
+		s++;
+	}
+	re.SetColor( NULL );
+}
+
+/*
+==================
+SCR_DrawStringExtNoShadow
+
+Same as SCR_DrawStringExt but without drop shadow.
+Coordinates are at 640 by 480 virtual resolution.
+==================
+*/
+void SCR_DrawStringExtNoShadow( int x, int y, float size, const char *string, float *setColor, qboolean forceColor,
+		qboolean noColorEscape ) {
+	vec4_t		color;
+	const char	*s;
+	int			xx;
+
+	// draw the colored text (no shadow)
 	s = string;
 	xx = x;
 	re.SetColor( setColor );
@@ -317,6 +388,43 @@ void SCR_DrawSmallStringExt( int x, int y, const char *string, float *setColor, 
 		}
 		SCR_DrawSmallChar( xx, y, *s );
 		xx += SMALLCHAR_WIDTH;
+		s++;
+	}
+	re.SetColor( NULL );
+}
+
+/*
+==================
+SCR_DrawSmallStringExtScaled
+
+Draws a multi-colored string with scaling, optionally forcing to a fixed color.
+==================
+*/
+void SCR_DrawSmallStringExtScaled( int x, int y, const char *string, float *setColor, qboolean forceColor,
+		qboolean noColorEscape, int scale ) {
+	vec4_t		color;
+	const char	*s;
+	int			xx;
+	int			charW = SMALLCHAR_WIDTH * scale;
+
+	// draw the colored text
+	s = string;
+	xx = x;
+	re.SetColor( setColor );
+	while ( *s ) {
+		if ( Q_IsColorString( s ) ) {
+			if ( !forceColor ) {
+				Com_Memcpy( color, g_color_table[ColorIndex(*(s+1))], sizeof( color ) );
+				color[3] = setColor[3];
+				re.SetColor( color );
+			}
+			if ( !noColorEscape ) {
+				s += 2;
+				continue;
+			}
+		}
+		SCR_DrawSmallCharScaled( xx, y, *s, scale );
+		xx += charW;
 		s++;
 	}
 	re.SetColor( NULL );
@@ -570,6 +678,9 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 
 	// console draws next
 	Con_DrawConsole ();
+
+	// virtual keyboard draws on top of console/UI
+	VKeyboard_Draw();
 
 	// debug graph can be drawn on top of anything
 	if ( cl_debuggraph->integer || cl_timegraph->integer || cl_debugMove->integer ) {

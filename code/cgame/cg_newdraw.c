@@ -1811,14 +1811,9 @@ int CG_ClientNumFromName(const char *p) {
 }
 
 void CG_ShowResponseHead(void) {
-	float x, y, w, h;
-
-	x = 72;
-	y = w = h = 0;
-	CG_AdjustFrom640( &x, &y, &w, &h );
-
+	// Don't scale the offset here - Con_DrawNotify will handle scaling
 	Menus_OpenByName("voiceMenu");
-	trap_Cvar_Set("cl_conXOffset", va("%d", (int)x));
+	trap_Cvar_Set("cl_conXOffset", "100");
 	cg.voiceTime = cg.time;
 }
 

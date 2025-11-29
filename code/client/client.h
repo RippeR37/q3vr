@@ -557,6 +557,15 @@ void CL_LoadConsoleHistory( void );
 void CL_SaveConsoleHistory( void );
 
 //
+// cl_keyboard.c
+//
+void		VKeyboard_Show( void );
+void		VKeyboard_Hide( void );
+qboolean	VKeyboard_IsActive( void );
+void		VKeyboard_Draw( void );
+qboolean	VKeyboard_HandleKey( int key );
+
+//
 // cl_scrn.c
 //
 void	SCR_Init (void);
@@ -567,7 +576,7 @@ void	SCR_DebugGraph (float value);
 int		SCR_GetBigStringWidth( const char *str );	// returns in virtual 640x480 coordinates
 
 void	SCR_AdjustFrom640( float *x, float *y, float *w, float *h );
-void	SCR_FillRect( float x, float y, float width, float height, 
+void	SCR_FillRect( float x, float y, float width, float height,
 					 const float *color );
 void	SCR_DrawPic( float x, float y, float width, float height, qhandle_t hShader );
 void	SCR_DrawNamedPic( float x, float y, float width, float height, const char *picname );
@@ -575,7 +584,10 @@ void	SCR_DrawNamedPic( float x, float y, float width, float height, const char *
 void	SCR_DrawBigString( int x, int y, const char *s, float alpha, qboolean noColorEscape );			// draws a string with embedded color control characters with fade
 void	SCR_DrawBigStringColor( int x, int y, const char *s, vec4_t color, qboolean noColorEscape );	// ignores embedded color control characters
 void	SCR_DrawSmallStringExt( int x, int y, const char *string, float *setColor, qboolean forceColor, qboolean noColorEscape );
+void	SCR_DrawSmallStringExtScaled( int x, int y, const char *string, float *setColor, qboolean forceColor, qboolean noColorEscape, int scale );
+void	SCR_DrawStringExtNoShadow( int x, int y, float size, const char *string, float *setColor, qboolean forceColor, qboolean noColorEscape );
 void	SCR_DrawSmallChar( int x, int y, int ch );
+void	SCR_DrawSmallCharScaled( int x, int y, int ch, int scale );
 
 
 //

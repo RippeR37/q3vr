@@ -15,6 +15,7 @@ set(CLIENT_SOURCES
     ${SOURCE_DIR}/client/cl_cin.c
     ${SOURCE_DIR}/client/cl_console.c
     ${SOURCE_DIR}/client/cl_input.c
+    ${SOURCE_DIR}/client/cl_keyboard.c
     ${SOURCE_DIR}/client/cl_keys.c
     ${SOURCE_DIR}/client/cl_main.c
     ${SOURCE_DIR}/client/cl_net_chan.c

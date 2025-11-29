@@ -40,12 +40,13 @@ INGAME MENU
 #define ID_ADDBOTS				11
 #define ID_REMOVEBOTS			12
 #define ID_SETUP				13
-#define ID_SERVERINFO			14
-#define ID_LEAVEARENA			15
-#define ID_RESTART				16
-#define ID_QUIT					17
-#define ID_RESUME				18
-#define ID_TEAMORDERS			19
+#define ID_CONSOLE				14
+#define ID_SERVERINFO			15
+#define ID_LEAVEARENA			16
+#define ID_RESTART				17
+#define ID_QUIT					18
+#define ID_RESUME				19
+#define ID_TEAMORDERS			20
 
 
 typedef struct {
@@ -54,6 +55,7 @@ typedef struct {
 	menubitmap_s	frame;
 	menutext_s		team;
 	menutext_s		setup;
+	menutext_s		console;
 	menutext_s		server;
 	menutext_s		leave;
 	menutext_s		restart;
@@ -113,6 +115,10 @@ void InGame_Event( void *ptr, int notification ) {
 
 	case ID_SETUP:
 		UI_SetupMenu();
+		break;
+
+	case ID_CONSOLE:
+		trap_Cmd_ExecuteText( EXEC_APPEND, "toggleconsole\n" );
 		break;
 
 	case ID_LEAVEARENA:
@@ -244,10 +250,21 @@ void InGame_MenuInit( void ) {
 	s_ingame.setup.generic.x			= 320;
 	s_ingame.setup.generic.y			= y;
 	s_ingame.setup.generic.id			= ID_SETUP;
-	s_ingame.setup.generic.callback		= InGame_Event; 
+	s_ingame.setup.generic.callback		= InGame_Event;
 	s_ingame.setup.string				= "SETUP";
 	s_ingame.setup.color				= color_red;
 	s_ingame.setup.style				= UI_CENTER|UI_SMALLFONT;
+
+	y += INGAME_MENU_VERTICAL_SPACING;
+	s_ingame.console.generic.type		= MTYPE_PTEXT;
+	s_ingame.console.generic.flags		= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
+	s_ingame.console.generic.x			= 320;
+	s_ingame.console.generic.y			= y;
+	s_ingame.console.generic.id			= ID_CONSOLE;
+	s_ingame.console.generic.callback	= InGame_Event;
+	s_ingame.console.string				= "CONSOLE";
+	s_ingame.console.color				= color_red;
+	s_ingame.console.style				= UI_CENTER|UI_SMALLFONT;
 
 	y += INGAME_MENU_VERTICAL_SPACING;
 	s_ingame.server.generic.type		= MTYPE_PTEXT;
@@ -313,6 +330,7 @@ void InGame_MenuInit( void ) {
 	Menu_AddItem( &s_ingame.menu, &s_ingame.removebots );
 	Menu_AddItem( &s_ingame.menu, &s_ingame.teamorders );
 	Menu_AddItem( &s_ingame.menu, &s_ingame.setup );
+	Menu_AddItem( &s_ingame.menu, &s_ingame.console );
 	Menu_AddItem( &s_ingame.menu, &s_ingame.server );
 	Menu_AddItem( &s_ingame.menu, &s_ingame.restart );
 	Menu_AddItem( &s_ingame.menu, &s_ingame.resume );

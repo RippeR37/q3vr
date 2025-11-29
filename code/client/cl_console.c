@@ -62,6 +62,7 @@ console_t	con;
 cvar_t		*con_conspeed;
 cvar_t		*con_autoclear;
 cvar_t		*con_notifytime;
+cvar_t		*con_scale;
 
 #define	DEFAULT_CONSOLE_WIDTH	78
 
@@ -84,6 +85,16 @@ void Con_ToggleConsole_f (void) {
 	g_consoleField.widthInChars = g_console_field_width;
 
 	Con_ClearNotify ();
+
+	// Toggle keyboard along with console
+	if ( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) {
+		// Console is being closed
+		VKeyboard_Hide();
+	} else {
+		// Console is being opened
+		VKeyboard_Show();
+	}
+
 	Key_SetCatcher( Key_GetCatcher( ) ^ KEYCATCH_CONSOLE );
 }
 
@@ -286,8 +297,10 @@ void Con_CheckResize (void)
 {
 	int		i, j, width, oldwidth, oldtotallines, numlines, numchars;
 	short	tbuf[CON_TEXTSIZE];
+	int		scale = con_scale ? con_scale->integer : 2;
 
-	width = (SCREEN_WIDTH / SMALLCHAR_WIDTH) - 2;
+	// Always use actual video width for line wrapping
+	width = (cls.glconfig.vidWidth / (SMALLCHAR_WIDTH * scale)) - 2;
 
 	if (width == con.linewidth)
 		return;
@@ -363,6 +376,8 @@ void Con_Init (void) {
 	con_notifytime = Cvar_Get ("con_notifytime", "3", 0);
 	con_conspeed = Cvar_Get ("scr_conspeed", "3", 0);
 	con_autoclear = Cvar_Get("con_autoclear", "1", CVAR_ARCHIVE);
+	con_scale = Cvar_Get("con_scale", "2", CVAR_ARCHIVE);  // Default 2x for VR readability
+	Cvar_CheckRange(con_scale, 1, 4, qtrue);
 
 	Field_Clear( &g_consoleField );
 	g_consoleField.widthInChars = g_console_field_width;
@@ -532,6 +547,9 @@ DRAWING
 ==============================================================================
 */
 
+// Forward declarations
+static void Con_DrawChar_Scaled(int x, int y, int scale, int ch);
+void Field_Draw_Scaled( field_t *edit, int x, int y, int width, qboolean showCursor, qboolean noColorEscape, int scale );
 
 /*
 ================
@@ -542,19 +560,24 @@ Draw the editline after a ] prompt
 */
 void Con_DrawInput (void) {
 	int		y;
+	int		scale = con_scale ? con_scale->integer : 2;
+	int		charW, charH;
+
+	charW = SMALLCHAR_WIDTH * scale;
+	charH = SMALLCHAR_HEIGHT * scale;
 
 	if ( clc.state != CA_DISCONNECTED && !(Key_GetCatcher( ) & KEYCATCH_CONSOLE ) ) {
 		return;
 	}
 
-	y = con.vislines - ( SMALLCHAR_HEIGHT * 2 );
+	y = con.vislines - ( charH * 2 );
 
 	re.SetColor( con.color );
 
-	SCR_DrawSmallChar( con.xadjust + 1 * SMALLCHAR_WIDTH, y, ']' );
+	Con_DrawChar_Scaled( con.xadjust + 1 * charW, y, scale, ']' );
 
-	Field_Draw( &g_consoleField, con.xadjust + 2 * SMALLCHAR_WIDTH, y,
-		SCREEN_WIDTH - 3 * SMALLCHAR_WIDTH, qtrue, qtrue );
+	Field_Draw_Scaled( &g_consoleField, con.xadjust + 2 * charW, y,
+		SCREEN_WIDTH - 3 * charW, qtrue, qtrue, scale );
 }
 
 
@@ -569,6 +592,7 @@ static void Con_DrawChar_Scaled(int x, int y, int scale, int ch) {
 	int row, col;
 	float frow, fcol;
 	float size;
+	float fx, fy, fw, fh;
 
 	ch &= 255;
 
@@ -583,7 +607,14 @@ static void Con_DrawChar_Scaled(int x, int y, int scale, int ch) {
 	fcol = col * 0.0625f;
 	size = 0.0625f;
 
-	re.DrawStretchPic(x, y, SMALLCHAR_WIDTH * scale, SMALLCHAR_HEIGHT * scale,
+	// In mode 2, the base position is already transformed by Con_DrawNotify
+	// so we just use the coordinates directly
+	fx = (float)x;
+	fy = (float)y;
+	fw = (float)(SMALLCHAR_WIDTH * scale);
+	fh = (float)(SMALLCHAR_HEIGHT * scale);
+
+	re.DrawStretchPic((int)fx, (int)fy, (int)fw, (int)fh,
 		fcol, frow, fcol + size, frow + size, cls.charSetShader);
 }
 
@@ -608,24 +639,50 @@ void Con_DrawNotify (void)
 
 	re.HUDBufferStart(qfalse);
 
-	// Adjust scale based on HUD mode
-	int charScale = (vr_currentHudDrawStatus->integer == 1) ? 2 : 3;
-	// Use floating HUD positioning for mode 1, or for mode 2 when in VRFM_FIRSTPERSON (viewing on virtual screen)
-	int xadjust = (vr_currentHudDrawStatus->integer == 1 || vr.first_person_following) ? 10 : 500;
-	int yadjust;
-	if (vr_currentHudDrawStatus->integer == 1) {
-		yadjust = 10;
-	} else if (vr.first_person_following) {
-		// For VRFM_FIRSTPERSON, add Y offset to account for 4:3 safe area
-		int safeHeight = (cls.glconfig.vidWidth * 3) / 4;
-		int yMargin = (cls.glconfig.vidHeight - safeHeight) / 2;
-		yadjust = 10 + yMargin;
-	} else {
-		yadjust = 600;
+	// Use console scale setting for notify messages
+	int charScale = con_scale ? con_scale->integer : 2;
+	float xadjust = 10.0f;
+	float yadjust = 10.0f;
+
+	// Calculate scaling compensation for virtual screen mode
+	float virtualScreenScale = 1.0f;
+	if (vr.virtual_screen && vr_currentHudDrawStatus->integer == 2) {
+		// Virtual screen works in 640x480 virtual coordinates but needs larger text
+		// Compensation factor = average of HUD mode 2 reduction (2.75 + 2.25) / 2 = 2.5
+		virtualScreenScale = 2.5f;
 	}
 
-	v = 0;
-	for (i= con.current-NUM_CON_TIMES+1 ; i<=con.current ; i++)
+	// Apply effective scaling
+	int effectiveCharScale = (int)(charScale * virtualScreenScale);
+
+	// For HUD mode 2, transform the base position to screen coordinates
+	// Skip this when in virtual screen mode as it works in virtual coordinates
+	if (vr_currentHudDrawStatus->integer == 2 && !vr.virtual_screen) {
+		SCR_AdjustFrom640(&xadjust, &yadjust, NULL, NULL);
+	}
+
+	if (vr.virtual_screen) {
+		// For virtual screen, add Y offset to account for 4:3 safe area
+		int safeHeight = (cls.glconfig.vidWidth * 3) / 4;
+		int yMargin = (cls.glconfig.vidHeight - safeHeight) / 2;
+		yadjust = (yadjust * virtualScreenScale) + yMargin;
+	}
+
+	// We'll wrap at x=530 to leave margin, starting from x=10, giving us 520 units
+	int maxVirtualWidth = 520; // in 640x480 virtual space
+	int maxCharsPerLine = maxVirtualWidth / SMALLCHAR_WIDTH;
+
+	// Build array of wrapped line segments
+	typedef struct {
+		short *text;
+		int start;
+		int end;
+	} lineSegment_t;
+
+	lineSegment_t segments[NUM_CON_TIMES * 10]; // Max 10 wrapped lines per console message
+	int segmentCount = 0;
+
+	for (i = con.current - NUM_CON_TIMES + 1; i <= con.current; i++)
 	{
 		if (i < 0)
 			continue;
@@ -641,7 +698,48 @@ void Con_DrawNotify (void)
 			continue;
 		}
 
-		for (x = 0 ; x < con.linewidth ; x++) {
+		// Find the actual end of text (not including trailing spaces/nulls)
+		int textEnd = con.linewidth - 1;
+		while (textEnd >= 0 && ((text[textEnd] & 0xff) == ' ' || (text[textEnd] & 0xff) == 0)) {
+			textEnd--;
+		}
+		textEnd++; // Move back to one past last char
+
+		// Build wrapped segments for this console line
+		int lineStart = 0;
+		while (lineStart < textEnd && segmentCount < NUM_CON_TIMES * 10) {
+			int lineEnd = lineStart + maxCharsPerLine;
+			if (lineEnd >= textEnd) {
+				lineEnd = textEnd;
+			} else {
+				// Try to break at a space
+				int spacePos = lineEnd;
+				while (spacePos > lineStart && (text[spacePos] & 0xff) != ' ' && (text[spacePos] & 0xff) != 0) {
+					spacePos--;
+				}
+				if (spacePos > lineStart) {
+					lineEnd = spacePos + 1;
+				}
+			}
+
+			segments[segmentCount].text = text;
+			segments[segmentCount].start = lineStart;
+			segments[segmentCount].end = lineEnd;
+			segmentCount++;
+
+			lineStart = lineEnd;
+		}
+	}
+
+	// Draw only the last NUM_CON_TIMES segments
+	int startSegment = (segmentCount > NUM_CON_TIMES) ? (segmentCount - NUM_CON_TIMES) : 0;
+	v = 0;
+	for (i = startSegment; i < segmentCount; i++) {
+		text = segments[i].text;
+		int lineStart = segments[i].start;
+		int lineEnd = segments[i].end;
+
+		for (x = lineStart; x < lineEnd; x++) {
 			if ( ( text[x] & 0xff ) == ' ' ) {
 				continue;
 			}
@@ -652,13 +750,16 @@ void Con_DrawNotify (void)
 
 			if (vr_showConsoleMessages->integer)
 			{
+				// Apply virtual screen scaling to cl_conXOffset as well
+				int effectiveConXOffset = (int)(cl_conXOffset->integer * virtualScreenScale);
+
 				Con_DrawChar_Scaled(
-						cl_conXOffset->integer + con.xadjust + (x + 1) * SMALLCHAR_WIDTH * charScale + xadjust,
-						v + yadjust, charScale, text[x] & 0xff);
+					effectiveConXOffset + con.xadjust + (x - lineStart + 1) * SMALLCHAR_WIDTH * effectiveCharScale + xadjust,
+					v + yadjust, effectiveCharScale, text[x] & 0xff);
 			}
 		}
 
-		v += SMALLCHAR_HEIGHT * charScale;
+		v += SMALLCHAR_HEIGHT * effectiveCharScale;
 	}
 
 	re.SetColor( NULL );
@@ -705,6 +806,11 @@ void Con_DrawSolidConsole( float frac ) {
 //	qhandle_t		conShader;
 	int				currentColor;
 	vec4_t			color;
+	int				scale = con_scale ? con_scale->integer : 2;
+	int				charW, charH;
+
+	charW = SMALLCHAR_WIDTH * scale;
+	charH = SMALLCHAR_HEIGHT * scale;
 
 	lines = cls.glconfig.vidHeight * frac;
 	if (lines <= 0)
@@ -740,16 +846,16 @@ void Con_DrawSolidConsole( float frac ) {
 	i = strlen( Q3_VERSION );
 
 	for (x=0 ; x<i ; x++) {
-		SCR_DrawSmallChar( cls.glconfig.vidWidth - ( i - x + 1 ) * SMALLCHAR_WIDTH,
-			lines - SMALLCHAR_HEIGHT, Q3_VERSION[x] );
+		Con_DrawChar_Scaled( cls.glconfig.vidWidth - ( i - x + 1 ) * charW,
+			lines - charH, scale, Q3_VERSION[x] );
 	}
 
 
 	// draw the text
 	con.vislines = lines;
-	rows = (lines-SMALLCHAR_HEIGHT)/SMALLCHAR_HEIGHT;		// rows of text to draw
+	rows = (lines-charH)/charH;		// rows of text to draw
 
-	y = lines - (SMALLCHAR_HEIGHT*3);
+	y = lines - (charH*3);
 
 	// draw from the bottom up
 	if (con.display != con.current)
@@ -757,11 +863,11 @@ void Con_DrawSolidConsole( float frac ) {
 	// draw arrows to show the buffer is backscrolled
 		re.SetColor( g_color_table[ColorIndex(COLOR_RED)] );
 		for (x=0 ; x<con.linewidth ; x+=4)
-			SCR_DrawSmallChar( con.xadjust + (x+1)*SMALLCHAR_WIDTH, y, '^' );
-		y -= SMALLCHAR_HEIGHT;
+			Con_DrawChar_Scaled( con.xadjust + (x+1)*charW, y, scale, '^' );
+		y -= charH;
 		rows--;
 	}
-	
+
 	row = con.display;
 
 	if ( con.x == 0 ) {
@@ -771,13 +877,13 @@ void Con_DrawSolidConsole( float frac ) {
 	currentColor = 7;
 	re.SetColor( g_color_table[currentColor] );
 
-	for (i=0 ; i<rows ; i++, y -= SMALLCHAR_HEIGHT, row--)
+	for (i=0 ; i<rows ; i++, y -= charH, row--)
 	{
 		if (row < 0)
 			break;
 		if (con.current - row >= con.totallines) {
 			// past scrollback wrap point
-			continue;	
+			continue;
 		}
 
 		text = con.text + (row % con.totallines)*con.linewidth;
@@ -791,7 +897,7 @@ void Con_DrawSolidConsole( float frac ) {
 				currentColor = ColorIndexForNumber( text[x]>>8 );
 				re.SetColor( g_color_table[currentColor] );
 			}
-			SCR_DrawSmallChar(  con.xadjust + (x+1)*SMALLCHAR_WIDTH, y, text[x] & 0xff );
+			Con_DrawChar_Scaled( con.xadjust + (x+1)*charW, y, scale, text[x] & 0xff );
 		}
 	}
 

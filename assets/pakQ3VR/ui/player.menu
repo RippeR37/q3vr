@@ -266,34 +266,20 @@ itemDef {
 	cvar "ui_Name"
 	textstyle 6
 	maxChars 32
-      	rect 0 60 215 32
-      	textalign ITEM_ALIGN_LEFT		
+      	rect 0 62 280 52
+      	textalign ITEM_ALIGN_LEFT
       	textalignx 20
-      	textaligny 21 
-	textscale .333        
+      	textaligny 32
+	textscale .6
       	outlinecolor 1 .5 .5 .5
       	backcolor 0 0 0 0
       	forecolor 1 1 1 1
       	border 0
       	bordercolor 0 0 0 0
       	visible 1
-      	decoration
+	mouseEnter { show message_name }
+	mouseExit { hide message_name }
     	}
-
-itemDef {
-	name other
-	group grpSystem
-	style 1
-	text "To change player name use the companion app."
-	rect 0 80 215 32
-	textalign ITEM_ALIGN_LEFT
-	textalignx 20
-	textaligny 21
-	textscale .25
-	forecolor .4 .4 .65 1
-	visible 1
-	decoration
-}
 
 itemDef {
       	name handicapfield

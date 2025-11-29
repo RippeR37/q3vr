@@ -421,9 +421,80 @@ void Field_Draw( field_t *edit, int x, int y, int width, qboolean showCursor, qb
 	Field_VariableSizeDraw( edit, x, y, width, SMALLCHAR_WIDTH, showCursor, noColorEscape );
 }
 
-void Field_BigDraw( field_t *edit, int x, int y, int width, qboolean showCursor, qboolean noColorEscape ) 
+void Field_BigDraw( field_t *edit, int x, int y, int width, qboolean showCursor, qboolean noColorEscape )
 {
 	Field_VariableSizeDraw( edit, x, y, width, BIGCHAR_WIDTH, showCursor, noColorEscape );
+}
+
+/*
+===================
+Field_Draw_Scaled
+
+Draw an editable field with scaling for VR console
+===================
+*/
+void Field_Draw_Scaled( field_t *edit, int x, int y, int width, qboolean showCursor, qboolean noColorEscape, int scale )
+{
+	int		len;
+	int		drawLen;
+	int		prestep;
+	int		cursorChar;
+	char	str[MAX_STRING_CHARS];
+	int		i;
+	int		charW = SMALLCHAR_WIDTH * scale;
+
+	drawLen = edit->widthInChars - 1; // - 1 so there is always a space for the cursor
+	len = strlen( edit->buffer );
+
+	// guarantee that cursor will be visible
+	if ( len <= drawLen ) {
+		prestep = 0;
+	} else {
+		if ( edit->scroll + drawLen > len ) {
+			edit->scroll = len - drawLen;
+			if ( edit->scroll < 0 ) {
+				edit->scroll = 0;
+			}
+		}
+		prestep = edit->scroll;
+	}
+
+	if ( prestep + drawLen > len ) {
+		drawLen = len - prestep;
+	}
+
+	// extract <drawLen> characters from the field at <prestep>
+	if ( drawLen >= MAX_STRING_CHARS ) {
+		Com_Error( ERR_DROP, "drawLen >= MAX_STRING_CHARS" );
+	}
+
+	Com_Memcpy( str, edit->buffer + prestep, drawLen );
+	str[ drawLen ] = 0;
+
+	// draw it with scaling
+	{
+		float	color[4];
+
+		color[0] = color[1] = color[2] = color[3] = 1.0;
+		SCR_DrawSmallStringExtScaled( x, y, str, color, qfalse, noColorEscape, scale );
+	}
+
+	// draw the cursor
+	if ( showCursor ) {
+		if ( (int)( cls.realtime >> 8 ) & 1 ) {
+			return;		// off blink
+		}
+
+		if ( key_overstrikeMode ) {
+			cursorChar = 11;
+		} else {
+			cursorChar = 10;
+		}
+
+		i = drawLen - strlen( str );
+
+		SCR_DrawSmallCharScaled( x + ( edit->cursor - prestep - i ) * charW, y, cursorChar, scale );
+	}
 }
 
 /*
@@ -611,6 +682,12 @@ Handles history and console scrollback
 ====================
 */
 void Console_Key (int key) {
+	// Menu button closes console
+	if ( key == K_MENU ) {
+		Con_ToggleConsole_f();
+		return;
+	}
+
 	// ctrl-L clears screen
 	if ( key == 'l' && keys[K_CTRL].down ) {
 		Cbuf_AddText ("clear\n");
@@ -1265,6 +1342,10 @@ void CL_KeyDownEvent( int key, unsigned time )
 		return;
 	}
 
+	// virtual keyboard intercepts mouse clicks when active
+	if ( VKeyboard_IsActive() && VKeyboard_HandleKey( key ) ) {
+		return;
+	}
 
 	// keys can still be used for bound actions
 	if ( ( key < 128 || key == K_MOUSE1 ) &&

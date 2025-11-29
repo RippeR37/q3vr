@@ -1001,6 +1001,12 @@ qboolean		trap_VerifyCDKey( const char *key, const char *chksum);
 
 void			trap_SetPbClStatus( int status );
 
+// Virtual keyboard traps
+void			trap_VKeyboard_Show( void );
+void			trap_VKeyboard_Hide( void );
+qboolean		trap_VKeyboard_IsActive( void );
+qboolean		trap_VKeyboard_HandleKey( int key );
+
 //
 // ui_addbots.c
 //

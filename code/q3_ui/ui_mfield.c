@@ -65,10 +65,28 @@ void MField_Draw( mfield_t *edit, int x, int y, int style, vec4_t color ) {
 	memcpy( str, edit->buffer + prestep, drawLen );
 	str[ drawLen ] = 0;
 
-	UI_DrawString( x, y, str, style, color );
+	// When keyboard is active, draw characters one by one to show literal text
+	// (bypasses color code interpretation so ^1 ^2 etc are visible)
+	if ( VirtualKeyboard_IsActive() ) {
+		int i;
+		int drawStyle = style & ~(UI_CENTER|UI_RIGHT);  // force left-aligned for char drawing
+		if (style & UI_SMALLFONT) {
+			charw = SMALLCHAR_WIDTH;
+		} else if (style & UI_GIANTFONT) {
+			charw = GIANTCHAR_WIDTH;
+		} else {
+			charw = BIGCHAR_WIDTH;
+		}
+		for ( i = 0; str[i]; i++ ) {
+			UI_DrawChar( x + i * charw, y, str[i], drawStyle, color );
+		}
+	} else {
+		UI_DrawString( x, y, str, style, color );
+	}
 
 	// draw the cursor
-	if (!(style & UI_PULSE)) {
+	// When keyboard is active, always show cursor (don't require UI_PULSE)
+	if ( !VirtualKeyboard_IsActive() && !(style & UI_PULSE) ) {
 		return;
 	}
 
@@ -79,7 +97,10 @@ void MField_Draw( mfield_t *edit, int x, int y, int style, vec4_t color ) {
 	}
 
 	style &= ~UI_PULSE;
-	style |= UI_BLINK;
+	// When keyboard is active, show solid cursor; otherwise blink
+	if ( !VirtualKeyboard_IsActive() ) {
+		style |= UI_BLINK;
+	}
 
 	if (style & UI_SMALLFONT)
 	{
@@ -394,12 +415,23 @@ sfxHandle_t MenuField_Key( menufield_s* m, int* key )
 
 	switch ( keycode )
 	{
+		case K_MOUSE1:
+			// clicked on field - show virtual keyboard
+			if (m->generic.flags & QMF_HASMOUSEFOCUS) {
+				VirtualKeyboard_Show( m );
+			}
+			break;
+
 		case K_KP_ENTER:
 		case K_ENTER:
 		case K_JOY1:
 		case K_JOY2:
 		case K_JOY3:
 		case K_JOY4:
+			// If keyboard is active, don't navigate away
+			if (VirtualKeyboard_IsActive()) {
+				return 0;
+			}
 			// have enter go to next cursor point
 			*key = K_TAB;
 			break;
@@ -409,6 +441,10 @@ sfxHandle_t MenuField_Key( menufield_s* m, int* key )
 		case K_DOWNARROW:
 		case K_KP_UPARROW:
 		case K_UPARROW:
+			// If keyboard is active, block navigation - must use DONE to dismiss
+			if (VirtualKeyboard_IsActive()) {
+				return 0;
+			}
 			break;
 
 		default:
@@ -431,6 +467,32 @@ sfxHandle_t MenuField_Key( menufield_s* m, int* key )
 	}
 
 	return (0);
+}
+
+/*
+=================
+Virtual Keyboard wrappers
+
+These functions wrap the client-side virtual keyboard (cl_keyboard.c)
+via system traps, since the UI is a shared library that can't directly
+link to symbols in the main executable.
+=================
+*/
+
+void VirtualKeyboard_Show( menufield_s *field ) {
+	trap_VKeyboard_Show();
+}
+
+void VirtualKeyboard_Hide( void ) {
+	trap_VKeyboard_Hide();
+}
+
+qboolean VirtualKeyboard_IsActive( void ) {
+	return trap_VKeyboard_IsActive();
+}
+
+qboolean VirtualKeyboard_Key( int key ) {
+	return trap_VKeyboard_HandleKey( key );
 }
 
 

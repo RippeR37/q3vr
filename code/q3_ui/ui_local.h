@@ -313,6 +313,14 @@ extern void			MenuField_Draw( menufield_s *f );
 extern sfxHandle_t	MenuField_Key( menufield_s* m, int* key );
 
 //
+// ui_mfield.c - virtual keyboard wrappers (calls client keyboard)
+//
+void			VirtualKeyboard_Show( menufield_s *field );
+void			VirtualKeyboard_Hide( void );
+qboolean		VirtualKeyboard_IsActive( void );
+qboolean		VirtualKeyboard_Key( int key );
+
+//
 // ui_menu.c
 //
 extern void MainMenu_Cache( void );
@@ -710,6 +718,12 @@ void			trap_SetPbClStatus( int status );
 
 //Haptics
 int			trap_HapticEvent( char *description, int position, int channel, int intensity, float yaw, float height);
+
+// Virtual keyboard traps
+void			trap_VKeyboard_Show( void );
+void			trap_VKeyboard_Hide( void );
+qboolean		trap_VKeyboard_IsActive( void );
+qboolean		trap_VKeyboard_HandleKey( int key );
 
 //
 // ui_addbots.c
