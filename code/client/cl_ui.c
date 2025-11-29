@@ -1079,7 +1079,22 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 	case UI_HAPTICEVENT:
 		VR_HapticEvent( VMA(1), args[2], args[3], args[4], VMF(5), VMF(6) );
 		return 0;
-		
+
+	// Virtual keyboard traps
+	case UI_VKEYBOARD_SHOW:
+		VKeyboard_Show();
+		return 0;
+
+	case UI_VKEYBOARD_HIDE:
+		VKeyboard_Hide();
+		return 0;
+
+	case UI_VKEYBOARD_ISACTIVE:
+		return VKeyboard_IsActive();
+
+	case UI_VKEYBOARD_HANDLEKEY:
+		return VKeyboard_HandleKey( args[1] );
+
 	default:
 		Com_Error( ERR_DROP, "Bad UI system trap: %ld", (long int) args[0] );
 
@@ -1096,6 +1111,7 @@ CL_ShutdownUI
 void CL_ShutdownUI( void ) {
 	Key_SetCatcher( Key_GetCatcher( ) & ~KEYCATCH_UI );
 	cls.uiStarted = qfalse;
+	VKeyboard_Hide();
 	if ( !uivm ) {
 		return;
 	}

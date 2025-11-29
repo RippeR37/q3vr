@@ -279,18 +279,26 @@ static qboolean IN_SendInputAction(const char* action, qboolean inputActive, flo
 		}
 		else if (strcmp(action, "+weapon_select") == 0)
 		{
-			vr.weapon_select = inputActive;
-			if (inputActive)
+			// Don't allow weapon select in demo playback or follow mode
+			if (clc.demoplaying || (cl.snap.ps.pm_flags & PMF_FOLLOW))
 			{
-				int selectorType = (int) Cvar_VariableValue("vr_weaponSelectorMode");
-				vr.weapon_select_using_thumbstick = (selectorType == WS_HMD);
-				vr.weapon_select_autoclose = vr.weapon_select_using_thumbstick && thumbstickAxis;
+				vr.weapon_select = qfalse;
 			}
 			else
 			{
-				vr.weapon_select_using_thumbstick = qfalse;
-				vr.weapon_select_autoclose = qfalse;
-				Cbuf_AddText("weapon_select");
+				vr.weapon_select = inputActive;
+				if (inputActive)
+				{
+					int selectorType = (int) Cvar_VariableValue("vr_weaponSelectorMode");
+					vr.weapon_select_using_thumbstick = (selectorType == WS_HMD);
+					vr.weapon_select_autoclose = vr.weapon_select_using_thumbstick && thumbstickAxis;
+				}
+				else
+				{
+					vr.weapon_select_using_thumbstick = qfalse;
+					vr.weapon_select_autoclose = qfalse;
+					Cbuf_AddText("weapon_select");
+				}
 			}
 		}
 		else if (action[0] == '+')
@@ -1155,16 +1163,18 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 			if (!IN_InputActivated(&controller->axisButtons, VR_TOUCH_AXIS_UP))
 			{
 				IN_ActivateInput(&controller->axisButtons, VR_TOUCH_AXIS_UP);
-				Com_QueueEvent(in_vrEventTime, SE_KEY, K_PGUP, qtrue, 0, NULL);
 			}
+			// Send key down event every frame while held - engine handles repeat timing
+			Com_QueueEvent(in_vrEventTime, SE_KEY, K_PGUP, qtrue, 0, NULL);
 		}
 		else if (curvedY < -0.05f)
 		{
 			if (!IN_InputActivated(&controller->axisButtons, VR_TOUCH_AXIS_DOWN))
 			{
 				IN_ActivateInput(&controller->axisButtons, VR_TOUCH_AXIS_DOWN);
-				Com_QueueEvent(in_vrEventTime, SE_KEY, K_PGDN, qtrue, 0, NULL);
 			}
+			// Send key down event every frame while held - engine handles repeat timing
+			Com_QueueEvent(in_vrEventTime, SE_KEY, K_PGDN, qtrue, 0, NULL);
 		}
 		else if (curvedY < 0.05f && curvedY > -0.05f)
 		{

@@ -1945,6 +1945,12 @@ void CG_TrailItem( centity_t *cent, qhandle_t hModel, vec3_t offset, float scale
 
 	if (cent->currentState.clientNum == vr->clientNum)
 	{
+		// Don't draw offhand item in demo playback or follow mode
+		if (cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW))
+		{
+			return;
+		}
+
 		qboolean show_in_hand_enabled = trap_Cvar_VariableValue( "vr_showItemInHand" ) != 0.0f;
 		qboolean two_handed_enabled = trap_Cvar_VariableValue("vr_twoHandedWeapons") != 0.0f;
 		if (!show_in_hand_enabled || (two_handed_enabled && vr->weapon_stabilised))
@@ -2189,7 +2195,8 @@ static void CG_PlayerPowerups( centity_t *cent, refEntity_t *torso ) {
 			const qboolean shouldRenderOffhand =
 				(cg.predictedPlayerState.pm_type != PM_INTERMISSION) &&
 				(cg.predictedPlayerState.pm_type != PM_SPECTATOR) &&
-				!vr->first_person_following &&
+				!cg.demoPlayback &&
+				!(cg.snap->ps.pm_flags & PMF_FOLLOW) &&
 				!(trap_Key_GetCatcher() & KEYCATCH_UI);
 
 			if (shouldRenderOffhand && cg_vr_showOffhand.integer) {

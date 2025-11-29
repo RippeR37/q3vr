@@ -313,6 +313,14 @@ extern void			MenuField_Draw( menufield_s *f );
 extern sfxHandle_t	MenuField_Key( menufield_s* m, int* key );
 
 //
+// ui_mfield.c - virtual keyboard wrappers (calls client keyboard)
+//
+void			VirtualKeyboard_Show( menufield_s *field );
+void			VirtualKeyboard_Hide( void );
+qboolean		VirtualKeyboard_IsActive( void );
+qboolean		VirtualKeyboard_Key( int key );
+
+//
 // ui_menu.c
 //
 extern void MainMenu_Cache( void );

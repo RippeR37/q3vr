@@ -909,6 +909,13 @@ void UI_KeyEvent( int key, int down ) {
 		return;
 	}
 
+	// handle virtual keyboard input first
+	if (VirtualKeyboard_IsActive()) {
+		if (VirtualKeyboard_Key( key )) {
+			return;
+		}
+	}
+
 	if (uis.activemenu->key)
 		s = uis.activemenu->key( key );
 	else
@@ -943,6 +950,11 @@ void UI_MouseEvent( int dx, int dy )
 		uis.cursory = -16;
 	else if (uis.cursory > SCREEN_HEIGHT+16)
 		uis.cursory = SCREEN_HEIGHT+16;
+
+	// Don't change menu cursor while keyboard is active - keep focus on the field
+	if (VirtualKeyboard_IsActive()) {
+		return;
+	}
 
 	// region test the active menu items
 	for (i=0; i<uis.activemenu->nitems; i++)

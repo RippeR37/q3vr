@@ -518,6 +518,96 @@ void Text_PaintWithCursor(float x, float y, float scale, vec4_t color, const cha
   }
 }
 
+// Version of Text_PaintWithCursor that shows color codes literally (^1, ^2, etc)
+// instead of interpreting them. Used when virtual keyboard is active.
+void Text_PaintWithCursor_NoColorEscape(float x, float y, float scale, vec4_t color, const char *text, int cursorPos, char cursor, int limit, int style) {
+  int len, count;
+	glyphInfo_t *glyph, *glyph2;
+	float yadj;
+	float useScale;
+	fontInfo_t *font = &uiInfo.uiDC.Assets.textFont;
+	if (scale <= ui_smallFont.value) {
+		font = &uiInfo.uiDC.Assets.smallFont;
+	} else if (scale >= ui_bigFont.value) {
+		font = &uiInfo.uiDC.Assets.bigFont;
+	}
+	useScale = scale * font->glyphScale;
+  if (text) {
+    const char *s = text;
+		trap_R_SetColor( color );
+    len = strlen(text);
+		if (limit > 0 && len > limit) {
+			len = limit;
+		}
+		count = 0;
+		glyph2 = &font->glyphs[cursor & 255];
+		while (s && *s && count < len) {
+			glyph = &font->glyphs[*s & 255];
+			// No color code interpretation - just draw each character
+			yadj = useScale * glyph->top;
+			if (style == ITEM_TEXTSTYLE_SHADOWED || style == ITEM_TEXTSTYLE_SHADOWEDMORE) {
+				int ofs = style == ITEM_TEXTSTYLE_SHADOWED ? 1 : 2;
+				colorBlack[3] = color[3];
+				trap_R_SetColor( colorBlack );
+				Text_PaintChar(x + ofs, y - yadj + ofs,
+											glyph->imageWidth,
+											glyph->imageHeight,
+											useScale,
+											glyph->s,
+											glyph->t,
+											glyph->s2,
+											glyph->t2,
+											glyph->glyph);
+				colorBlack[3] = 1.0;
+				trap_R_SetColor( color );
+			}
+			Text_PaintChar(x, y - yadj,
+										glyph->imageWidth,
+										glyph->imageHeight,
+										useScale,
+										glyph->s,
+										glyph->t,
+										glyph->s2,
+										glyph->t2,
+										glyph->glyph);
+
+      yadj = useScale * glyph2->top;
+	    if (count == cursorPos) {
+				// Show solid cursor, no blinking when keyboard is active
+				Text_PaintChar(x, y - yadj,
+											glyph2->imageWidth,
+											glyph2->imageHeight,
+											useScale,
+											glyph2->s,
+											glyph2->t,
+											glyph2->s2,
+											glyph2->t2,
+											glyph2->glyph);
+			}
+
+			x += (glyph->xSkip * useScale);
+			s++;
+			count++;
+    }
+    // need to paint cursor at end of text
+    if (cursorPos == len) {
+        yadj = useScale * glyph2->top;
+        Text_PaintChar(x, y - yadj,
+                          glyph2->imageWidth,
+                          glyph2->imageHeight,
+                          useScale,
+                          glyph2->s,
+                          glyph2->t,
+                          glyph2->s2,
+                          glyph2->t2,
+                          glyph2->glyph);
+
+    }
+
+	  trap_R_SetColor( NULL );
+  }
+}
+
 
 static void Text_Paint_Limit(float *maxX, float x, float y, float scale, vec4_t color, const char* text, float adjust, int limit) {
   int len, count;
@@ -5314,6 +5404,7 @@ void _UI_Init( qboolean inGameLoad ) {
 	uiInfo.uiDC.getCVarString = trap_Cvar_VariableStringBuffer;
 	uiInfo.uiDC.getCVarValue = trap_Cvar_VariableValue;
 	uiInfo.uiDC.drawTextWithCursor = &Text_PaintWithCursor;
+	uiInfo.uiDC.drawTextWithCursor_NoColorEscape = &Text_PaintWithCursor_NoColorEscape;
 	uiInfo.uiDC.setOverstrikeMode = &trap_Key_SetOverstrikeMode;
 	uiInfo.uiDC.getOverstrikeMode = &trap_Key_GetOverstrikeMode;
 	uiInfo.uiDC.startLocalSound = &trap_S_StartLocalSound;
@@ -5337,6 +5428,10 @@ void _UI_Init( qboolean inGameLoad ) {
 	uiInfo.uiDC.stopCinematic = &UI_StopCinematic;
 	uiInfo.uiDC.drawCinematic = &UI_DrawCinematic;
 	uiInfo.uiDC.runCinematicFrame = &UI_RunCinematicFrame;
+	uiInfo.uiDC.vkeyboardShow = &trap_VKeyboard_Show;
+	uiInfo.uiDC.vkeyboardHide = &trap_VKeyboard_Hide;
+	uiInfo.uiDC.vkeyboardIsActive = &trap_VKeyboard_IsActive;
+	uiInfo.uiDC.vkeyboardHandleKey = &trap_VKeyboard_HandleKey;
 
 	Init_Display(&uiInfo.uiDC);
 

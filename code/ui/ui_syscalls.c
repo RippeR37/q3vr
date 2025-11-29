@@ -406,3 +406,20 @@ void trap_SetPbClStatus( int status ) {
 int trap_HapticEvent( char *description, int position, int channel, int intensity, float yaw, float height ) {
 	return syscall( UI_HAPTICEVENT, description, position, channel, intensity, PASSFLOAT(yaw), PASSFLOAT(height));
 }
+
+// Virtual keyboard traps
+void trap_VKeyboard_Show( void ) {
+	syscall( UI_VKEYBOARD_SHOW );
+}
+
+void trap_VKeyboard_Hide( void ) {
+	syscall( UI_VKEYBOARD_HIDE );
+}
+
+qboolean trap_VKeyboard_IsActive( void ) {
+	return syscall( UI_VKEYBOARD_ISACTIVE );
+}
+
+qboolean trap_VKeyboard_HandleKey( int key ) {
+	return syscall( UI_VKEYBOARD_HANDLEKEY, key );
+}

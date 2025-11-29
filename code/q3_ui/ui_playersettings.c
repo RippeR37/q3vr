@@ -137,19 +137,30 @@ static void PlayerSettings_DrawName( void *self ) {
 	txt = f->field.buffer;
 	color = g_color_table[ColorIndex(COLOR_WHITE)];
 	x = basex;
-	while ( (c = *txt) != 0 ) {
-		if ( !focus && Q_IsColorString( txt ) ) {
-			n = ColorIndex( *(txt+1) );
-			if( n == 0 ) {
-				n = 7;
-			}
-			color = g_color_table[n];
-			txt += 2;
-			continue;
+
+	// When keyboard is active, draw characters literally (show color codes)
+	if ( VirtualKeyboard_IsActive() && focus ) {
+		int i;
+		for ( i = 0; f->field.buffer[i]; i++ ) {
+			UI_DrawChar( x, y, f->field.buffer[i], UI_LEFT|UI_SMALLFONT, color );
+			x += SMALLCHAR_WIDTH;
 		}
-		UI_DrawChar( x, y, c, style, color );
-		txt++;
-		x += SMALLCHAR_WIDTH;
+	} else {
+		// Normal drawing with color code interpretation
+		while ( (c = *txt) != 0 ) {
+			if ( Q_IsColorString( txt ) ) {
+				n = ColorIndex( *(txt+1) );
+				if( n == 0 ) {
+					n = 7;
+				}
+				color = g_color_table[n];
+				txt += 2;
+				continue;
+			}
+			UI_DrawChar( x, y, c, UI_LEFT|UI_SMALLFONT, color );
+			txt++;
+			x += SMALLCHAR_WIDTH;
+		}
 	}
 
 	// draw cursor if we have focus
@@ -160,8 +171,11 @@ static void PlayerSettings_DrawName( void *self ) {
 			c = 10;
 		}
 
-		style &= ~UI_PULSE;
-		style |= UI_BLINK;
+		style = UI_LEFT|UI_SMALLFONT;
+		// When keyboard is active, show solid cursor; otherwise blink
+		if ( !VirtualKeyboard_IsActive() ) {
+			style |= UI_BLINK;
+		}
 
 		UI_DrawChar( basex + f->field.cursor * SMALLCHAR_WIDTH, y, c, style, color_white );
 	}
