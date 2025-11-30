@@ -255,6 +255,7 @@ static void CG_OffsetVRThirdPersonView( void ) {
 		{
 			// Smooth follow with thumbstick camera controls
 			static qboolean initialized = qfalse;
+			static float hmdYawOffset = 0.0f;  // Captures HMD yaw at recenter to offset view direction
 
 			// Handle camera recentering when B button is pressed or followed player changes
 			if (vr->recenter_follow_camera)
@@ -264,6 +265,9 @@ static void CG_OffsetVRThirdPersonView( void ) {
 				// Set yaw to place camera behind player (180 degrees from their facing)
 				cg.smoothFollow_yaw = cg.snap->ps.viewangles[YAW] + 180.0f;
 				cg.smoothFollow_pitch = 0.0f;
+				// Capture current HMD yaw so we can offset the view direction
+				// This makes the current head orientation become "forward" toward the player
+				hmdYawOffset = vr->hmdorientation[YAW];
 				vr->recenter_follow_camera = qfalse;
 			}
 
@@ -272,6 +276,7 @@ static void CG_OffsetVRThirdPersonView( void ) {
 				cg.smoothFollow_distance = 200.0f;
 				cg.smoothFollow_yaw = cg.snap->ps.viewangles[YAW] + 180.0f;
 				cg.smoothFollow_pitch = 0.0f;
+				hmdYawOffset = vr->hmdorientation[YAW];
 				initialized = qtrue;
 			}
 
@@ -325,6 +330,8 @@ static void CG_OffsetVRThirdPersonView( void ) {
 			vec3_t lookDir;
 			VectorSubtract(cg.refdef.vieworg, cg.vr_vieworigin, lookDir);
 			vectoangles(lookDir, vr->clientviewangles);
+			// Apply HMD yaw offset so the view direction accounts for head orientation at recenter
+			vr->clientviewangles[YAW] -= hmdYawOffset;
 		}
 		else
 		{
