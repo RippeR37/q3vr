@@ -2186,7 +2186,8 @@ static void CG_PlayerPowerups( centity_t *cent, refEntity_t *torso ) {
 	clientInfo_t	*ci;
 
 	//Player held items should render in the off-hand
-	if ( cent->currentState.number == cg.snap->ps.clientNum && !cg.renderingThirdPerson )
+	if ( cent->currentState.number == cg.snap->ps.clientNum && !cg.renderingThirdPerson &&
+	     !cg.demoPlayback && !(cg.snap->ps.pm_flags & PMF_FOLLOW) )
 	{
 		int		value;
 		value = cg.snap->ps.stats[STAT_HOLDABLE_ITEM];

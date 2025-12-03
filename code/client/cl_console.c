@@ -297,10 +297,10 @@ void Con_CheckResize (void)
 {
 	int		i, j, width, oldwidth, oldtotallines, numlines, numchars;
 	short	tbuf[CON_TEXTSIZE];
-	int		scale = con_scale ? con_scale->integer : 2;
+	float	scale = con_scale ? con_scale->value : 2.0f;
 
 	// Always use actual video width for line wrapping
-	width = (cls.glconfig.vidWidth / (SMALLCHAR_WIDTH * scale)) - 2;
+	width = (int)(cls.glconfig.vidWidth / (SMALLCHAR_WIDTH * scale)) - 2;
 
 	if (width == con.linewidth)
 		return;
@@ -548,7 +548,7 @@ DRAWING
 */
 
 // Forward declarations
-static void Con_DrawChar_Scaled(int x, int y, int scale, int ch);
+static void Con_DrawChar_Scaled(float x, float y, float scale, int ch);
 void Field_Draw_Scaled( field_t *edit, int x, int y, int width, qboolean showCursor, qboolean noColorEscape, int scale );
 
 /*
@@ -560,11 +560,11 @@ Draw the editline after a ] prompt
 */
 void Con_DrawInput (void) {
 	int		y;
-	int		scale = con_scale ? con_scale->integer : 2;
+	float	scale = con_scale ? con_scale->value : 2.0f;
 	int		charW, charH;
 
-	charW = SMALLCHAR_WIDTH * scale;
-	charH = SMALLCHAR_HEIGHT * scale;
+	charW = (int)(SMALLCHAR_WIDTH * scale);
+	charH = (int)(SMALLCHAR_HEIGHT * scale);
 
 	if ( clc.state != CA_DISCONNECTED && !(Key_GetCatcher( ) & KEYCATCH_CONSOLE ) ) {
 		return;
@@ -588,11 +588,11 @@ Con_DrawChar_Scaled
 Helper to draw a character with optional scaling for HUD buffer
 ================
 */
-static void Con_DrawChar_Scaled(int x, int y, int scale, int ch) {
+static void Con_DrawChar_Scaled(float x, float y, float scale, int ch) {
 	int row, col;
 	float frow, fcol;
 	float size;
-	float fx, fy, fw, fh;
+	float fw, fh;
 
 	ch &= 255;
 
@@ -607,14 +607,10 @@ static void Con_DrawChar_Scaled(int x, int y, int scale, int ch) {
 	fcol = col * 0.0625f;
 	size = 0.0625f;
 
-	// In mode 2, the base position is already transformed by Con_DrawNotify
-	// so we just use the coordinates directly
-	fx = (float)x;
-	fy = (float)y;
-	fw = (float)(SMALLCHAR_WIDTH * scale);
-	fh = (float)(SMALLCHAR_HEIGHT * scale);
+	fw = SMALLCHAR_WIDTH * scale;
+	fh = SMALLCHAR_HEIGHT * scale;
 
-	re.DrawStretchPic((int)fx, (int)fy, (int)fw, (int)fh,
+	re.DrawStretchPic((int)x, (int)y, (int)fw, (int)fh,
 		fcol, frow, fcol + size, frow + size, cls.charSetShader);
 }
 
@@ -640,36 +636,21 @@ void Con_DrawNotify (void)
 	re.HUDBufferStart(qfalse);
 
 	// Use console scale setting for notify messages
-	int charScale = con_scale ? con_scale->integer : 2;
+	float charScale = con_scale ? con_scale->value : 2.0f;
 	float xadjust = 10.0f;
 	float yadjust = 10.0f;
 
-	// Calculate scaling compensation for virtual screen mode
-	float virtualScreenScale = 1.0f;
-	if (vr.virtual_screen && vr_currentHudDrawStatus->integer == 2) {
-		// Virtual screen works in 640x480 virtual coordinates but needs larger text
-		// Compensation factor = average of HUD mode 2 reduction (2.75 + 2.25) / 2 = 2.5
-		virtualScreenScale = 2.5f;
-	}
-
-	// Apply effective scaling
-	int effectiveCharScale = (int)(charScale * virtualScreenScale);
-
 	// For HUD mode 2, transform the base position to screen coordinates
-	// Skip this when in virtual screen mode as it works in virtual coordinates
-	if (vr_currentHudDrawStatus->integer == 2 && !vr.virtual_screen) {
+	// and scale down character size to try to match floating HUD scaling
+	if (vr_currentHudDrawStatus->integer == 2) {
+		if (!vr.virtual_screen) {
+			charScale /= 1.5f;
+		}
 		SCR_AdjustFrom640(&xadjust, &yadjust, NULL, NULL);
 	}
 
-	if (vr.virtual_screen) {
-		// For virtual screen, add Y offset to account for 4:3 safe area
-		int safeHeight = (cls.glconfig.vidWidth * 3) / 4;
-		int yMargin = (cls.glconfig.vidHeight - safeHeight) / 2;
-		yadjust = (yadjust * virtualScreenScale) + yMargin;
-	}
-
-	// We'll wrap at x=530 to leave margin, starting from x=10, giving us 520 units
-	int maxVirtualWidth = 520; // in 640x480 virtual space
+	// We'll wrap to leave room for upper-right HUD elements (speed meter is widest at ~112px)
+	int maxVirtualWidth = 510; // in 640x480 virtual space
 	int maxCharsPerLine = maxVirtualWidth / SMALLCHAR_WIDTH;
 
 	// Build array of wrapped line segments
@@ -734,6 +715,35 @@ void Con_DrawNotify (void)
 	// Draw only the last NUM_CON_TIMES segments
 	int startSegment = (segmentCount > NUM_CON_TIMES) ? (segmentCount - NUM_CON_TIMES) : 0;
 	v = 0;
+
+	// cl_conXOffset is in virtual 640x480 coordinates
+	// Scale it to match HUD buffer coordinates for each mode
+	float effectiveConXOffset = 0.0f;
+	if (cl_conXOffset->integer > 0) {
+		if (vr_currentHudDrawStatus->integer == 1) {
+			// HUD mode 1: fixed 1280x960 buffer = 2x virtual coordinates
+			effectiveConXOffset = cl_conXOffset->integer * 2.0f;
+		} else if (vr_currentHudDrawStatus->integer == 2) {
+			if (vr.virtual_screen) {
+				// Virtual screen mode: scale to full screen width
+				float xscale = cls.glconfig.vidWidth / 640.0f;
+				effectiveConXOffset = cl_conXOffset->integer * xscale;
+			} else {
+				// HUD mode 2 in-world: scale by screenXScale / 2.25
+				// This matches how CG_AdjustFrom640 scales HUD content
+				float xscale = cls.glconfig.vidWidth / 640.0f;
+				float screenXScale = xscale / 2.25f;
+				effectiveConXOffset = cl_conXOffset->integer * screenXScale;
+				// Note: The xadjust local variable (calculated via SCR_AdjustFrom640)
+				// provides the centering offset that matches what CG_AdjustFrom640 adds
+			}
+		} else {
+			// HUD mode 0 or non-HUD: scale to full screen
+			float xscale = cls.glconfig.vidWidth / 640.0f;
+			effectiveConXOffset = cl_conXOffset->integer * xscale;
+		}
+	}
+
 	for (i = startSegment; i < segmentCount; i++) {
 		text = segments[i].text;
 		int lineStart = segments[i].start;
@@ -750,16 +760,13 @@ void Con_DrawNotify (void)
 
 			if (vr_showConsoleMessages->integer)
 			{
-				// Apply virtual screen scaling to cl_conXOffset as well
-				int effectiveConXOffset = (int)(cl_conXOffset->integer * virtualScreenScale);
-
 				Con_DrawChar_Scaled(
-					effectiveConXOffset + con.xadjust + (x - lineStart + 1) * SMALLCHAR_WIDTH * effectiveCharScale + xadjust,
-					v + yadjust, effectiveCharScale, text[x] & 0xff);
+					effectiveConXOffset + con.xadjust + (x - lineStart + 1) * SMALLCHAR_WIDTH * charScale + xadjust,
+					v + yadjust, charScale, text[x] & 0xff);
 			}
 		}
 
-		v += SMALLCHAR_HEIGHT * effectiveCharScale;
+		v += SMALLCHAR_HEIGHT * charScale;
 	}
 
 	re.SetColor( NULL );
@@ -806,11 +813,11 @@ void Con_DrawSolidConsole( float frac ) {
 //	qhandle_t		conShader;
 	int				currentColor;
 	vec4_t			color;
-	int				scale = con_scale ? con_scale->integer : 2;
+	float			scale = con_scale ? con_scale->value : 2.0f;
 	int				charW, charH;
 
-	charW = SMALLCHAR_WIDTH * scale;
-	charH = SMALLCHAR_HEIGHT * scale;
+	charW = (int)(SMALLCHAR_WIDTH * scale);
+	charH = (int)(SMALLCHAR_HEIGHT * scale);
 
 	lines = cls.glconfig.vidHeight * frac;
 	if (lines <= 0)

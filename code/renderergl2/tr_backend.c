@@ -214,7 +214,17 @@ void GL_State( unsigned long stateBits )
 				break;
 			}
 
-			qglBlendFunc( srcFactor, dstFactor );
+			// Use separate blend for HUD 3D rendering to preserve specular while ensuring opaque alpha
+			// RGB: normal blend so specular shows through texture alpha
+			// Alpha: GL_ONE, GL_ONE accumulates alpha to saturate toward 1.0
+			if (glState.isDrawingHUD && backEnd.currentEntity != &backEnd.entity2D)
+			{
+				qglBlendFuncSeparate(srcFactor, dstFactor, GL_ONE, GL_ONE);
+			}
+			else
+			{
+				qglBlendFunc(srcFactor, dstFactor);
+			}
 		}
 	}
 

@@ -49,6 +49,7 @@ extern void (APIENTRYP qglUnlockArraysEXT) (void);
 #define QGL_1_1_PROCS \
 	GLE(void, BindTexture, GLenum target, GLuint texture) \
 	GLE(void, BlendFunc, GLenum sfactor, GLenum dfactor) \
+	GLE(void, BlendFuncSeparate, GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha) \
 	GLE(void, ClearColor, GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) \
 	GLE(void, Clear, GLbitfield mask) \
 	GLE(void, ClearStencil, GLint s) \

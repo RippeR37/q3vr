@@ -1186,6 +1186,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 
 		GLSL_SetUniformInt(sp, UNIFORM_ISDRAWINGHUD, glState.isDrawingHUD);
 		GLSL_SetUniformInt(sp, UNIFORM_IS2DDRAW, backEnd.currentEntity == &backEnd.entity2D);
+		GLSL_SetUniformInt(sp, UNIFORM_ISBLENDING, (pStage->stateBits & (GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS)) != 0);
 
 		{
 			vec4_t baseColor;

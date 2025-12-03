@@ -79,22 +79,30 @@ void SCR_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 	xscale = cls.glconfig.vidWidth / 640.0;
 	yscale = cls.glconfig.vidHeight / 480.0;
 
-	if (vr.virtual_screen || vr_currentHudDrawStatus->integer != 2) {
+	if (vr.virtual_screen) {
+		// In virtual screen mode, scale to 4:3 viewable area and center vertically
+		float viewableHeight = cls.glconfig.vidWidth * 0.75f;
+		float viewableYScale = viewableHeight / 480.0f;
+		float yoffset = (cls.glconfig.vidHeight - viewableHeight) / 2.0f;
+
 		if (x) {
 			*x *= xscale;
 		}
 		if (y) {
-			*y *= yscale;
+			*y *= viewableYScale;
+			*y += yoffset;
 		}
 		if (w) {
 			*w *= xscale;
 		}
 		if (h) {
-			*h *= yscale;
+			*h *= viewableYScale;
 		}
-	} else {
-		float screenXScale = xscale / 2.75f;
-		float screenYScale = yscale / 2.25f;
+	} else if (vr_currentHudDrawStatus->integer == 2) {
+		// HUD mode 2: scaled down for in-world display
+		// Use xscale for both to match cg_drawtools.c HUD rendering
+		float screenXScale = xscale / 2.25f;
+		float screenYScale = xscale / 2.25f;
 
 		if (x) {
 			*x *= screenXScale;
@@ -109,6 +117,19 @@ void SCR_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 		}
 		if (h) {
 			*h *= screenYScale;
+		}
+	} else {
+		if (x) {
+			*x *= xscale;
+		}
+		if (y) {
+			*y *= yscale;
+		}
+		if (w) {
+			*w *= xscale;
+		}
+		if (h) {
+			*h *= yscale;
 		}
 	}
 }

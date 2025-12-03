@@ -68,12 +68,10 @@ float UI_GetXScale()
 float UI_GetYScale()
 {
 	if (vr == NULL || vr->virtual_screen) {
-		// For VRFM_FIRSTPERSON, adjust Y scale based on 4:3 safe area
-		if (vr != NULL && vr->first_person_following) {
-			int safeHeight = (uiInfo.uiDC.glconfig.vidWidth * 3) / 4;
-			return safeHeight / 480.0f;
-		}
-		return uiInfo.uiDC.yscale;
+		// In virtual screen mode, scale to 4:3 viewable area (width * 0.75)
+		// not the full framebuffer height, to avoid squishing
+		float viewableHeight = uiInfo.uiDC.glconfig.vidWidth * 0.75f;
+		return viewableHeight / 480.0f;
 	} else {
 		return uiInfo.uiDC.yscale / 3.25f;
 	}
@@ -91,13 +89,9 @@ float UI_GetXOffset()
 float UI_GetYOffset()
 {
 	if (vr == NULL || vr->virtual_screen) {
-		// For VRFM_FIRSTPERSON, add Y offset to account for 4:3 safe area
-		if (vr != NULL && vr->first_person_following) {
-			int safeHeight = (uiInfo.uiDC.glconfig.vidWidth * 3) / 4;
-			int yMargin = (uiInfo.uiDC.glconfig.vidHeight - safeHeight) / 2;
-			return yMargin;
-		}
-		return 0;
+		// In virtual screen mode, center the 4:3 content vertically
+		float viewableHeight = uiInfo.uiDC.glconfig.vidWidth * 0.75f;
+		return (uiInfo.uiDC.glconfig.vidHeight - viewableHeight) / 2.0f;
 	} else {
 		return (uiInfo.uiDC.glconfig.vidHeight - (480 * UI_GetYScale())) / 2.0f;
 	}
