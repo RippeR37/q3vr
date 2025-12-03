@@ -167,8 +167,13 @@ void CG_DrawInformation( void ) {
 	CG_DrawPic( 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, levelshot );
 
 	// blend a detail texture over it
+	// Use 4:3 constrained area in virtual screen mode to avoid drawing outside the viewable area
 	detail = trap_R_RegisterShader( "levelShotDetail" );
-	trap_R_DrawStretchPic( 0, 0, cgs.glconfig.vidWidth, cgs.glconfig.vidHeight, 0, 0, 2.5, 2, detail );
+	{
+		float x = 0, y = 0, w = SCREEN_WIDTH, h = SCREEN_HEIGHT;
+		CG_AdjustFrom640( &x, &y, &w, &h );
+		trap_R_DrawStretchPic( x, y, w, h, 0, 0, 2.5, 2, detail );
+	}
 
 	// draw the icons of things as they are loaded
 	CG_DrawLoadingIcons();

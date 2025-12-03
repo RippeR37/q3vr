@@ -543,26 +543,17 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 	}
 }
 
-void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, qboolean use4x3Crop)
+void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex)
 {
-	int srcX, srcY, srcWidth, srcHeight;
+	// Always crop to 4:3 since the virtual screen display surface is 4:3 aspect ratio
+	// (see _VR_GetVirtualScreenModelMatrix which scales Y by 3/4)
+	// Without this, the full VR framebuffer would be squished to fit the 4:3 surface
 
-	if (use4x3Crop)
-	{
-		// Take full width, calculate 4:3 height, center vertically
-		srcWidth = swapchains->color.width;
-		srcHeight = (srcWidth * 3) / 4;
-		srcX = 0;
-		srcY = (swapchains->color.height - srcHeight) / 2;
-	}
-	else
-	{
-		// Use full framebuffer (for menus, console, etc.)
-		srcX = 0;
-		srcY = 0;
-		srcWidth = swapchains->color.width;
-		srcHeight = swapchains->color.height;
-	}
+	// Take full width, calculate 4:3 height, center vertically
+	int srcWidth = swapchains->color.width;
+	int srcHeight = (srcWidth * 3) / 4;
+	int srcX = 0;
+	int srcY = (swapchains->color.height - srcHeight) / 2;
 
 	// Blit the source region to fill the entire virtual screen texture
 	qglBlitNamedFramebuffer(

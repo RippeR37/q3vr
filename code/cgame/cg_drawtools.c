@@ -60,10 +60,22 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 
 	if (!cg.drawingHUD)
 	{
+		float screenYScale = cgs.screenYScale;
+		float yOffset = 0.0f;
+
+		// In virtual screen mode, scale Y to fit 4:3 aspect within the framebuffer
+		// This ensures 2D elements are positioned correctly for the 4:3 crop
+		if (vr && vr->virtual_screen) {
+			float viewableHeight = cgs.glconfig.vidWidth * 0.75f;
+			screenYScale = viewableHeight / 480.0f;
+			yOffset = (cgs.glconfig.vidHeight - viewableHeight) / 2.0f;
+		}
+
 		*x *= cgs.screenXScale;
-		*y *= cgs.screenYScale;
+		*y *= screenYScale;
+		*y += yOffset;
 		*w *= cgs.screenXScale;
-		*h *= cgs.screenYScale;
+		*h *= screenYScale;
 	}
 	else  // scale to clearly visible portion of VR screen
 	{
@@ -92,8 +104,9 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 				yOffset = yMargin;
 			}
 		} else {
-			screenXScale = cgs.screenXScale / 2.8f;
-			screenYScale = cgs.screenYScale / 2.3f;
+			// HUD mode 2: scaled down for in-world display
+			screenXScale = cgs.screenXScale / 2.25f;
+			screenYScale = (cgs.screenXScale / 2.25f);
 		}
 
 		*x *= screenXScale;

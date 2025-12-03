@@ -48,6 +48,7 @@ uniform vec4      u_CubeMapInfo;
 uniform int       u_AlphaTest;
 uniform int       u_IsDrawingHUD;
 uniform int       u_Is2DDraw;
+uniform int       u_IsBlending;
 
 varying vec4      var_TexCoords;
 
@@ -519,15 +520,12 @@ void main()
 
 #endif
 
-	// When rendering 3D models to HUD, ensure minimum alpha so they're visible
-	// Text/2D UI should keep original alpha for proper blending
-	// For alpha-tested surfaces (custom enemy models), output fully opaque
-	if (u_IsDrawingHUD != 0 && u_Is2DDraw == 0)
+	// For HUD 3D models: if blending is enabled, use natural alpha for proper
+	// multi-stage specular effects (glBlendFuncSeparate handles final opacity).
+	// If not blending (single-stage), force opaque to avoid transparent models.
+	if (u_IsDrawingHUD != 0 && u_Is2DDraw == 0 && u_IsBlending == 0)
 	{
-		if (u_AlphaTest == 2 || u_AlphaTest == 3)
-			gl_FragColor.a = 1.0;
-		else
-			gl_FragColor.a = max(alpha, 0.5);
+		gl_FragColor.a = 1.0;
 	}
 	else
 	{

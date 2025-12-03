@@ -547,7 +547,7 @@ static void CG_DrawSelectedPlayerHead( rectDef_t *rect, qboolean draw2D, qboolea
     	angles[YAW] = 180;
     	angles[ROLL] = 0;
   	
-      CG_Draw3DModel( rect->x, rect->y, rect->w, rect->h, ci->headModel, ci->headSkin, origin, angles );
+      CG_Draw3DModelColor( rect->x, rect->y, rect->w, rect->h, ci->headModel, ci->headSkin, origin, angles, ci->headColor );
   	} else if ( cg_drawIcons.integer ) {
 	  	CG_DrawPic( rect->x, rect->y, rect->w, rect->h, ci->modelIcon );
   	}
@@ -1813,7 +1813,7 @@ int CG_ClientNumFromName(const char *p) {
 void CG_ShowResponseHead(void) {
 	// Don't scale the offset here - Con_DrawNotify will handle scaling
 	Menus_OpenByName("voiceMenu");
-	trap_Cvar_Set("cl_conXOffset", "100");
+	trap_Cvar_Set("cl_conXOffset", "50");
 	cg.voiceTime = cg.time;
 }
 

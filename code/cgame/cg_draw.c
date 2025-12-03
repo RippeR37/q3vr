@@ -288,6 +288,11 @@ void CG_Draw3DModel( float x, float y, float w, float h, qhandle_t model, qhandl
 	ent.customSkin = skin;
 	ent.renderfx = RF_NOSHADOW;		// no stencil shadows
 
+	ent.shaderRGBA[0] = 255;
+	ent.shaderRGBA[1] = 255;
+	ent.shaderRGBA[2] = 255;
+	ent.shaderRGBA[3] = 255;
+
 	refdef.rdflags = RDF_NOWORLDMODEL;
 
 	AxisClear( refdef.viewaxis );
@@ -2451,14 +2456,13 @@ static qboolean CG_DrawFollow( void ) {
 	color[2] = 1;
 	color[3] = 1;
 
-
-	CG_DrawBigString( 320 - 9 * 8, 24, "following", 1.0F );
+	CG_DrawSmallString( 320 - 9 * SMALLCHAR_WIDTH / 2, 56, "following", 1.0F );
 
 	name = cgs.clientinfo[ cg.snap->ps.clientNum ].name;
 
-	x = 0.5 * ( 640 - GIANT_WIDTH * CG_DrawStrlen( name ) );
+	x = 0.5 * ( 640 - BIGCHAR_WIDTH * CG_DrawStrlen( name ) );
 
-	CG_DrawStringExt( x, 40, name, color, qtrue, qtrue, GIANT_WIDTH, GIANT_HEIGHT, 0 );
+	CG_DrawStringExt( x, 72, name, color, qtrue, qtrue, BIGCHAR_WIDTH, BIGCHAR_HEIGHT, 0 );
 
 	return qtrue;
 }
@@ -2770,17 +2774,20 @@ static void CG_DrawVignette( void )
 		int y = (int)(0 + currentComfortVignetteValue * cg.refdef.height / 3.5f);
 		int h = (int)(cg.refdef.height - 2 * y);
 
+		// Account for vertical offset when viewport is centered (e.g., virtual screen mode)
+		int yOffset = cg.refdef.y;
+
 		vec4_t black = {0.0, 0.0, 0.0, 1};
 		trap_R_SetColor( black );
 
 		// sides
-		trap_R_DrawStretchPic( 0, 0, x, cg.refdef.height, 0, 0, 1, 1, cgs.media.whiteShader );
-		trap_R_DrawStretchPic( cg.refdef.width - x, 0, x, cg.refdef.height, 0, 0, 1, 1, cgs.media.whiteShader );
+		trap_R_DrawStretchPic( 0, yOffset, x, cg.refdef.height, 0, 0, 1, 1, cgs.media.whiteShader );
+		trap_R_DrawStretchPic( cg.refdef.width - x, yOffset, x, cg.refdef.height, 0, 0, 1, 1, cgs.media.whiteShader );
 		// top/bottom
-		trap_R_DrawStretchPic( x, 0, cg.refdef.width - x, y, 0, 0, 1, 1, cgs.media.whiteShader );
-		trap_R_DrawStretchPic( x, cg.refdef.height - y, cg.refdef.width - x, y, 0, 0, 1, 1, cgs.media.whiteShader );
+		trap_R_DrawStretchPic( x, yOffset, cg.refdef.width - x, y, 0, 0, 1, 1, cgs.media.whiteShader );
+		trap_R_DrawStretchPic( x, yOffset + cg.refdef.height - y, cg.refdef.width - x, y, 0, 0, 1, 1, cgs.media.whiteShader );
 		// vignette
-		trap_R_DrawStretchPic( x, y, w, h, 0, 0, 1, 1, cgs.media.vignetteShader );
+		trap_R_DrawStretchPic( x, yOffset + y, w, h, 0, 0, 1, 1, cgs.media.vignetteShader );
 
 		trap_R_SetColor( NULL );
 	}
@@ -3337,18 +3344,27 @@ void CG_DrawActive( void ) {
 
 		if (!vr->weapon_zoomed && (!vr->virtual_screen || vr->first_person_following))
 		{
-			cg.drawingHUD = qtrue;
+			if (trap_Cvar_VariableValue( "vr_currentHudDrawStatus" ) != 0)
+			{
+				cg.drawingHUD = qtrue;
 
-			//Tell renderer we want to draw to the HUD buffer
-			trap_R_HUDBufferStart(qtrue);
-			// play warmup sounds and display text
-			CG_WarmupEvents();
-			// draw status bar and other floating elements
-			CG_DrawHUD2D();
+				//Tell renderer we want to draw to the HUD buffer
+				trap_R_HUDBufferStart(qtrue);
 
-			trap_R_HUDBufferEnd();
+				CG_WarmupEvents();
+				// draw status bar and other floating elements
+				CG_DrawHUD2D();
 
-			cg.drawingHUD = qfalse;
+				trap_R_HUDBufferEnd();
+
+				cg.drawingHUD = qfalse;
+			}
+			else
+			{
+				// HUD disabled - just clear the buffer to remove any stale content
+				trap_R_HUDBufferStart(qtrue);
+				trap_R_HUDBufferEnd();
+			}
 		}
 	}
 

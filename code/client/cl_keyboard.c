@@ -48,6 +48,7 @@ typedef struct {
 	int			mode;
 	qboolean	capsLock;
 	int			lastShiftTime;
+	sfxHandle_t	clickSound;
 } vKeyboardState_t;
 
 static vKeyboardState_t vkb;
@@ -310,6 +311,10 @@ void VKeyboard_Show( void ) {
 	vkb.mode = MODE_LOWERCASE;
 	vkb.capsLock = qfalse;
 	vkb.lastShiftTime = 0;
+	// Register click sound if not already registered
+	if ( !vkb.clickSound ) {
+		vkb.clickSound = S_RegisterSound( "sound/misc/click.wav", qfalse );
+	}
 }
 
 /*
@@ -555,6 +560,17 @@ static void VKeyboard_SendKey( int key, qboolean down ) {
 
 /*
 =================
+VKeyboard_PlayClickSound
+=================
+*/
+static void VKeyboard_PlayClickSound( void ) {
+	if ( vkb.clickSound ) {
+		S_StartLocalSound( vkb.clickSound, CHAN_LOCAL_SOUND );
+	}
+}
+
+/*
+=================
 VKeyboard_HandleKey
 
 Returns qtrue if the keyboard handled this key event
@@ -603,6 +619,9 @@ qboolean VKeyboard_HandleKey( int key ) {
 		VKeyboard_Hide();
 		return qtrue;
 	}
+
+	// Play click sound for all key presses
+	VKeyboard_PlayClickSound();
 
 	if (keyDef->special) {
 		switch (keyDef->special) {

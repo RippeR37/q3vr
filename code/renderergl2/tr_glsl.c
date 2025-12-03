@@ -175,6 +175,7 @@ static uniformInfo_t uniformsInfo[] =
 	{ "u_AlphaTest", GLSL_INT },
 	{ "u_IsDrawingHUD", GLSL_INT },
 	{ "u_Is2DDraw", GLSL_INT },
+	{ "u_IsBlending", GLSL_INT },
 
 	{ "u_BoneMatrix", GLSL_MAT16_BONEMATRIX },
 };

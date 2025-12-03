@@ -118,18 +118,15 @@ foreach(LIBRARY IN LISTS CLIENT_DEPLOY_LIBRARIES)
 				COMPONENT game_engine)
 endforeach()
 
-# Build pakQ3VR.pk3 from source
+# Build pakQ3VR.pk3 from source (always regenerate to catch new files)
 find_program(ZIP_EXECUTABLE NAMES 7z)
 if(ZIP_EXECUTABLE)
-    file(GLOB_RECURSE PAKQ3VR_SOURCE_FILES "${CMAKE_SOURCE_DIR}/assets/pakQ3VR/*")
-    add_custom_command(
-        OUTPUT "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
+    add_custom_target(pakQ3VR ALL
+        COMMAND ${CMAKE_COMMAND} -E remove -f "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
         COMMAND ${ZIP_EXECUTABLE} a -tzip "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3" * -r
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/pakQ3VR"
-        DEPENDS ${PAKQ3VR_SOURCE_FILES}
         COMMENT "Building pakQ3VR.pk3 from source"
     )
-    add_custom_target(pakQ3VR ALL DEPENDS "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3")
 else()
     message(WARNING "7z not found - pakQ3VR.pk3 will not be rebuilt automatically")
 endif()

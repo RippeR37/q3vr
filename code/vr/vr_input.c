@@ -115,6 +115,7 @@ extern cvar_t *vr_refreshrate;
 extern cvar_t *vr_weaponScope;
 extern cvar_t *vr_hapticIntensity;
 extern cvar_t *vr_thumbstickDeadzone;
+extern cvar_t *vr_thumbstickFullDeflection;
 extern cvar_t *vr_weaponSelectorMode;
 
 qboolean alt_key_mode_active = qfalse;
@@ -1237,12 +1238,22 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 				}
 			}
 
-			// Snap joystick values close to ±1.0 after rotation to ensure full speed
-            const float snapThreshold = 0.96f;
-            if (joystick[0] >= snapThreshold) joystick[0] = 1.0f;
-            else if (joystick[0] <= -snapThreshold) joystick[0] = -1.0f;
-            if (joystick[1] >= snapThreshold) joystick[1] = 1.0f;
-            else if (joystick[1] <= -snapThreshold) joystick[1] = -1.0f;
+			// After rotation, ensure something close to maximum deflection is scaled to full
+			// deflection on the high axis. Otherwise, we end up running slower max speed when
+			// use_fake_6dof is true (in multiplayer, in other words), and this gets us fragged
+			// by our KBM-using friends.
+			float magnitude = sqrtf(joystick[0] * joystick[0] + joystick[1] * joystick[1]);
+			if (magnitude >= vr_thumbstickFullDeflection->value) {
+				// Input is at or near full deflection - scale so max component is 1.0
+				float absX = fabsf(joystick[0]);
+				float absY = fabsf(joystick[1]);
+				float maxComponent = (absX > absY) ? absX : absY;
+				if (maxComponent > 0.0f) {
+					float scaleFactor = 1.0f / maxComponent;
+					joystick[0] *= scaleFactor;
+					joystick[1] *= scaleFactor;
+				}
+			}
 
 			//sideways
 			Com_QueueEvent(in_vrEventTime, SE_JOYSTICK_AXIS, 0, joystick[0] * 127.0f + positional[0] * 127.0f, 0, NULL);

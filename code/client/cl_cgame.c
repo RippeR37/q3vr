@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../vr/vr_input.h"
 #include "../vr/vr_clientinfo.h"
+#include "../vr/vr_gameplay.h"
 
 #ifdef USE_MUMBLE
 #include "libmumblelink.h"
@@ -472,6 +473,8 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 // We can't call Com_EventLoop here, a restart will crash and this _does_ happen
 // if there is a map change while we are downloading at pk3.
 // ZOID
+		// Update virtual_screen before rendering - called outside normal frame loop during loading
+		vr.virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen();
 		SCR_UpdateScreen();
 		return 0;
 	case CG_CM_LOADMAP:

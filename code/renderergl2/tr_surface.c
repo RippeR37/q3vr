@@ -243,26 +243,35 @@ RB_SurfaceSprite
 static void RB_SurfaceSprite( void ) {
 	vec3_t		left, up;
 	float		radius;
+	float		radiusY;
 	float			colors[4];
 	trRefEntity_t	*ent = backEnd.currentEntity;
 
 	// calculate the xyz locations for the four corners
 	radius = ent->e.radius;
+
+	// For HUD shader, apply 4:3 aspect ratio correction (960/1280 = 0.75)
+	if ( tess.shader == tr.hudShader ) {
+		radiusY = radius * 0.75f;
+	} else {
+		radiusY = radius;
+	}
+
 	if ( ent->e.rotation == 0 ) {
 		VectorScale( backEnd.viewParms.or.axis[1], radius, left );
-		VectorScale( backEnd.viewParms.or.axis[2], ent->e.invert ? -radius : radius, up );
+		VectorScale( backEnd.viewParms.or.axis[2], ent->e.invert ? -radiusY : radiusY, up );
 	} else {
 		float	s, c;
 		float	ang;
-		
+
 		ang = M_PI * ent->e.rotation / 180;
 		s = sin( ang );
 		c = cos( ang );
 
 		VectorScale( backEnd.viewParms.or.axis[1], c * radius, left );
-		VectorMA( left, -s * radius, backEnd.viewParms.or.axis[2], left );
+		VectorMA( left, -s * radiusY, backEnd.viewParms.or.axis[2], left );
 
-		VectorScale( backEnd.viewParms.or.axis[2], c * radius, up );
+		VectorScale( backEnd.viewParms.or.axis[2], c * radiusY, up );
 		VectorMA( up, s * radius, backEnd.viewParms.or.axis[1], up );
 	}
 	if ( backEnd.viewParms.isMirror ) {

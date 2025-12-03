@@ -29,7 +29,13 @@ qboolean VR_IsInMenu( void )
 
 qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void )
 {
-	// intermission is never full screen
+	// Always use screen layer for UI/console, even during intermission
+	if ( VR_IsInMenu() )
+	{
+		return qtrue;
+	}
+
+	// Intermission without menu is rendered in-world
 	if ( cl.snap.ps.pm_type == PM_INTERMISSION )
 	{
 		return qfalse;
@@ -38,7 +44,6 @@ qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void )
 	return (
 		clc.state == CA_CINEMATIC ||
 		clc.state != CA_ACTIVE ||
-		VR_IsInMenu() ||
 		VR_IsFollowingInFirstPerson()
 	);
 }
