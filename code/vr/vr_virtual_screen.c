@@ -461,7 +461,18 @@ XrQuaternionf lastKnownVirtualScreenOrientation = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 void _VR_GetVirtualScreenModelMatrix(XrMatrix4x4f* model, XrPosef* leftEyePose)
 {
-	float aspectRatioCoeff = 3.0 / 4.0;
+	// Base 4:3 aspect ratio for the virtual screen content
+	float aspectRatioCoeff = 3.0f / 4.0f;
+
+	// Correct for FOV asymmetry: when fov_y > fov_x, vertical angles are compressed
+	// in the projection, making content appear shorter. We compensate by making the
+	// quad taller by the FOV aspect ratio.
+	if (vr.fov_x > 0.0f && vr.fov_y > 0.0f)
+	{
+		float fovAspect = vr.fov_y / vr.fov_x;
+		aspectRatioCoeff *= fovAspect;
+	}
+
 	XrVector3f translation = GetCurrentVirtualScreenPosition(leftEyePose);
 	XrQuaternionf rotation = YawFacingQuaternion(&translation, &leftEyePose->position);
 	XrVector3f scale = {3.0f, 3.0f * aspectRatioCoeff, 3.0f};
