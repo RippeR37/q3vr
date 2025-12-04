@@ -482,7 +482,7 @@ CG_DrawStatusBarHead
 ================
 */
 #ifndef MISSIONPACK
-
+#define STATUSBAR_HEIGHT 60
 static void CG_DrawStatusBarHead( float x ) {
 	vec3_t		angles;
 	float		size, stretch;
@@ -607,7 +607,7 @@ static void CG_DrawStatusBar( void ) {
 	}
 
 	// draw the team background
-	CG_DrawTeamBackground( 0, 420, 640, 60, 0.33f, cg.snap->ps.persistant[PERS_TEAM] );
+	CG_DrawTeamBackground( 0, 480 - STATUSBAR_HEIGHT + 1, 640, STATUSBAR_HEIGHT, 0.33f, cg.snap->ps.persistant[PERS_TEAM] );
 
 	cent = &cg_entities[cg.snap->ps.clientNum];
 	ps = &cg.snap->ps;
@@ -1145,7 +1145,7 @@ static float CG_DrawScores( float y ) {
 	s1 = cgs.scores1;
 	s2 = cgs.scores2;
 
-	y -=  BIGCHAR_HEIGHT + 8;
+	y -=  BIGCHAR_HEIGHT + 4;
 
 	y1 = y;
 
@@ -1396,7 +1396,7 @@ CG_DrawLowerRight
 static void CG_DrawLowerRight( void ) {
 	float	y;
 
-	y = 480 - ICON_SIZE;
+	y = 480 - STATUSBAR_HEIGHT;
 
 	if ( cgs.gametype >= GT_TEAM && cg_drawTeamOverlay.integer == 2 ) {
 		y = CG_DrawTeamOverlay( y, qtrue, qfalse );
@@ -3273,9 +3273,7 @@ void CG_DrawActive( void ) {
 	if (trap_Cvar_VariableValue("vr_currentHudDrawStatus") != 2.0f && !vr->weapon_zoomed && !vr->virtual_screen)
 	{
 		refEntity_t ent;
-		trace_t trace;
-		vec3_t viewaxis[3];
-		vec3_t origin, endpos, angles;
+		vec3_t endpos, angles;
 		vec3_t forward, right, up;
 
 		float scale = trap_Cvar_VariableValue("vr_worldscaleScaler");
