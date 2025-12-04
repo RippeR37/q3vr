@@ -207,17 +207,8 @@ static void CG_CalcVrect (void) {
 
 	}
 
-	// In virtual screen, the middle 4:3 portion of the content will be blitted
-	// to the screen. We need to play some games with cg.refdef in order to make
-	// sure that headsets without 1:1 aspect ratio end up looking correct.
-	if (vr && vr->virtual_screen) {
-		viewWidth = cgs.glconfig.vidWidth;
-		float aspectCorrection = (float)cgs.glconfig.vidHeight / cgs.glconfig.vidWidth;
-		viewHeight = cgs.glconfig.vidHeight * aspectCorrection * aspectCorrection;
-	} else {
-		viewWidth = cgs.glconfig.vidWidth;
-		viewHeight = cgs.glconfig.vidHeight;
-	}
+	viewWidth = cgs.glconfig.vidWidth;
+	viewHeight = cgs.glconfig.vidHeight;
 
 	cg.refdef.width = viewWidth*size/100;
 	cg.refdef.width &= ~1;
@@ -779,7 +770,14 @@ static int CG_CalcFov( void ) {
 
 	// set it
 	cg.refdef.fov_x = vr->fov_x;
-	cg.refdef.fov_y = vr->fov_y;
+	// In virtual screen mode, use symmetric FOV, because the 4:3 virtual screen
+	// crops content to 4:3 by calculating height = 3/4 width. Otherwise, we get
+	// _very_ slightly stretched/squished content.
+	if (vr && vr->virtual_screen) {
+		cg.refdef.fov_y = vr->fov_x;
+	} else {
+		cg.refdef.fov_y = vr->fov_y;
+	}
 
 	if ( !cg.zoomed ) {
 		cg.zoomSensitivity = 1;
