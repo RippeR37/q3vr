@@ -643,7 +643,9 @@ void Con_DrawNotify (void)
 	// For HUD mode 2, transform the base position to screen coordinates
 	// and scale down character size to try to match floating HUD scaling
 	if (vr_currentHudDrawStatus->integer == 2) {
-		if (!vr.virtual_screen) {
+		if (vr.virtual_screen) {
+			charScale *= 1.5f;
+		} else {
 			charScale /= 1.5f;
 		}
 		SCR_AdjustFrom640(&xadjust, &yadjust, NULL, NULL);

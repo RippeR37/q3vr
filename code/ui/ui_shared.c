@@ -3926,12 +3926,23 @@ void Item_ListBox_Paint(itemDef_t *item) {
 				// fit++;
 			}
 		} else {
+			int currentClient = (DC->getCurrentClientNum) ? DC->getCurrentClientNum() : -1;
+
 			x = item->window.rect.x + 1;
 			y = item->window.rect.y + 1;
 			for (i = listPtr->startPos; i < count; i++) {
 				const char *text;
 				// always draw at least one
 				// which may overdraw the box if it is too small for the element
+
+				// Highlight current client row (for scoreboard)
+				if (currentClient >= 0 && DC->feederItemClientNum) {
+					int clientNum = DC->feederItemClientNum(item->special, i);
+					if (clientNum == currentClient) {
+						vec4_t highlightColor = {1.0f, 0.9f, 0.5f, 0.5f};  // light yellow
+						DC->fillRect(x + 2, y + 6, item->window.rect.w - SCROLLBAR_SIZE - 4, listPtr->elementHeight - 3, highlightColor);
+					}
+				}
 
 				if (listPtr->numColumns > 0) {
 					int j;

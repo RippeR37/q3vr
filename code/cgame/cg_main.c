@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // cg_main.c -- initialization and primary entry point for cgame
 #include "cg_local.h"
 
+#include "../client/keycodes.h"
 #include "../vr/vr_clientinfo.h"
 
 #ifdef MISSIONPACK
@@ -1765,22 +1766,64 @@ static qhandle_t CG_FeederItemImage(float feederID, int index) {
 	return 0;
 }
 
-static void CG_FeederSelection(float feederID, int index) {
-	if ( cgs.gametype >= GT_TEAM ) {
-		int i, count;
-		int team = (feederID == FEEDER_REDTEAM_LIST) ? TEAM_RED : TEAM_BLUE;
-		count = 0;
+// Returns the score index for a given feeder index, or -1 if not found
+static int CG_ScoreIndexFromFeederIndex(float feederID, int index) {
+	int id = (int)feederID;
+
+	if (id == FEEDER_SCOREBOARD) {
+		if (index >= 0 && index < cg.numScores) {
+			return index;
+		}
+	} else if (id == FEEDER_REDTEAM_LIST || id == FEEDER_BLUETEAM_LIST) {
+		int i, count = 0;
+		int team = (id == FEEDER_REDTEAM_LIST) ? TEAM_RED : TEAM_BLUE;
 		for (i = 0; i < cg.numScores; i++) {
 			if (cg.scores[i].team == team) {
-				if (index == count) {
-					cg.selectedScore = i;
+				if (count == index) {
+					return i;
 				}
 				count++;
 			}
 		}
-	} else {
-		cg.selectedScore = index;
 	}
+	return -1;
+}
+
+static void CG_FeederSelection(float feederID, int index) {
+	int scoreIndex = CG_ScoreIndexFromFeederIndex(feederID, index);
+	int clientNum = -1;
+
+	if (scoreIndex >= 0) {
+		cg.selectedScore = scoreIndex;
+		clientNum = cg.scores[scoreIndex].client;
+	}
+
+	// Send follow command if spectating and a valid player was selected
+	// Skip if we're already following this player
+	if ( clientNum >= 0 && cg.snap && !cg.demoPlayback ) {
+		qboolean spectator = cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+		                     ( cg.snap->ps.pm_flags & PMF_FOLLOW );
+		qboolean alreadyFollowing = (cg.snap->ps.pm_flags & PMF_FOLLOW) &&
+		                            (cg.snap->ps.clientNum == clientNum);
+		if ( spectator && !alreadyFollowing && cg.scores[cg.selectedScore].team != TEAM_SPECTATOR ) {
+			trap_SendClientCommand( va( "follow %i", clientNum ) );
+		}
+	}
+}
+
+static int CG_GetCurrentClientNum(void) {
+	if (cg.snap) {
+		return cg.snap->ps.clientNum;
+	}
+	return -1;
+}
+
+static int CG_FeederItemClientNum(float feederID, int index) {
+	int scoreIndex = CG_ScoreIndexFromFeederIndex(feederID, index);
+	if (scoreIndex >= 0) {
+		return cg.scores[scoreIndex].client;
+	}
+	return -1;
 }
 
 static float CG_Cvar_Get(const char *cvar) {
@@ -1877,6 +1920,8 @@ void CG_LoadHudMenu( void ) {
 	cgDC.feederItemImage = &CG_FeederItemImage;
 	cgDC.feederItemText = &CG_FeederItemText;
 	cgDC.feederSelection = &CG_FeederSelection;
+	cgDC.feederItemClientNum = &CG_FeederItemClientNum;
+	cgDC.getCurrentClientNum = &CG_GetCurrentClientNum;
 	//cgDC.setBinding = &trap_Key_SetBinding;
 	//cgDC.getBindingBuf = &trap_Key_GetBindingBuf;
 	//cgDC.keynumToStringBuf = &trap_Key_KeynumToStringBuf;
@@ -2091,9 +2136,9 @@ void CG_KeyEvent(int key, qboolean down) {
 	{
 		if ( key == cgs.score_key )
 			return;
-		if ( key == 178 ) // K_MOUSE1
+		if ( key == K_MOUSE1 )
 			CG_ScoreboardClick();
-		else
+		else if ( key != K_PGUP && key != K_PGDN )
 			CG_SetScoreCatcher( qfalse );
 	}
 }

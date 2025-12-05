@@ -2356,10 +2356,10 @@ static void CG_DrawTeamVote(void) {
 static qboolean CG_DrawScoreboard( void ) {
 #ifdef MISSIONPACK
 	static qboolean firstTime = qtrue;
+	static qboolean scoreboardCursorActive = qfalse;
+	static int lastFollowedClient = -1;
+	qboolean spectator;
 
-	if (menuScoreboard) {
-		menuScoreboard->window.flags &= ~WINDOW_FORCED;
-	}
 	if (cg_paused.integer) {
 		cg.deferredPlayerLoading = 0;
 		firstTime = qtrue;
@@ -2385,10 +2385,20 @@ static qboolean CG_DrawScoreboard( void ) {
 			cg.deferredPlayerLoading = 0;
 			cg.killerName[0] = 0;
 			firstTime = qtrue;
+			// Disable VR scoreboard cursor when scoreboard fades
+			if ( scoreboardCursorActive ) {
+				vr->scoreboardCursorX = NULL;
+				vr->scoreboardCursorY = NULL;
+				scoreboardCursorActive = qfalse;
+				if (menuScoreboard) {
+					menuScoreboard->window.flags &= ~WINDOW_FORCED;
+				}
+			}
 			return qfalse;
 		}
 	}
 
+	// Find scoreboard menu if not already cached
 	if (menuScoreboard == NULL) {
 		if ( cgs.gametype >= GT_TEAM ) {
 			menuScoreboard = Menus_FindByName("teamscore_menu");
@@ -2397,12 +2407,56 @@ static qboolean CG_DrawScoreboard( void ) {
 		}
 	}
 
-	if (menuScoreboard) {
-		if (firstTime) {
+	if (menuScoreboard == NULL) {
+		return qfalse;
+	}
+
+	// Clear WINDOW_FORCED unless scoreboard cursor is active
+	// (keeping it set allows Menu_HandleMouseMove to work for click-to-follow)
+	if (!scoreboardCursorActive) {
+		menuScoreboard->window.flags &= ~WINDOW_FORCED;
+	}
+
+	if (firstTime) {
+		CG_SetScoreSelection(menuScoreboard);
+		firstTime = qfalse;
+	}
+
+	// Update selection when followed player changes
+	if ( cg.snap && (cg.snap->ps.pm_flags & PMF_FOLLOW) ) {
+		if ( cg.snap->ps.clientNum != lastFollowedClient ) {
 			CG_SetScoreSelection(menuScoreboard);
-			firstTime = qfalse;
+			lastFollowedClient = cg.snap->ps.clientNum;
 		}
-		Menu_Paint(menuScoreboard, qtrue);
+	}
+
+	Menu_Paint(menuScoreboard, qtrue);
+
+	// VR scoreboard cursor for spectators (enables click-to-follow)
+	spectator = cg.snap && (cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+	            ( cg.snap->ps.pm_flags & PMF_FOLLOW ));
+	if ( cg.showScores && spectator && !scoreboardCursorActive ) {
+		// Center cursor and link VR input to cgs cursor
+		cgs.cursorX = SCREEN_WIDTH / 2;
+		cgs.cursorY = SCREEN_HEIGHT / 2;
+		vr->scoreboardCursorX = &cgs.cursorX;
+		vr->scoreboardCursorY = &cgs.cursorY;
+		// Enable KEYCATCH_CGAME so key events reach CG_KeyEvent
+		trap_Key_SetCatcher( trap_Key_GetCatcher() | KEYCATCH_CGAME );
+		// Set WINDOW_FORCED so Menu_HandleMouseMove processes the scoreboard
+		menuScoreboard->window.flags |= WINDOW_FORCED;
+		scoreboardCursorActive = qtrue;
+	} else if ( !cg.showScores && scoreboardCursorActive ) {
+		vr->scoreboardCursorX = NULL;
+		vr->scoreboardCursorY = NULL;
+		trap_Key_SetCatcher( trap_Key_GetCatcher() & ~KEYCATCH_CGAME );
+		scoreboardCursorActive = qfalse;
+		menuScoreboard->window.flags &= ~WINDOW_FORCED;
+	}
+
+	// Draw VR cursor if scoreboard cursor is active
+	if ( scoreboardCursorActive ) {
+		CG_DrawPic( cgs.cursorX - 12, cgs.cursorY - 12, 24, 24, cgDC.Assets.cursor );
 	}
 
 	// load any models that have been deferred

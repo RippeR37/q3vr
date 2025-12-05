@@ -601,7 +601,9 @@ void CG_SetScoreCatcher( qboolean enable )
 	if ( enable && spectator ) {
 		cgs.score_key = trap_Key_GetKey( "+scores" );
 		cgs.score_catched = qtrue;
-		// Point VR scoreboard cursor to cgame cursor so controller drives it
+		// Center cursor on HUD and point VR scoreboard cursor to cgame cursor
+		cgs.cursorX = SCREEN_WIDTH / 2;
+		cgs.cursorY = SCREEN_HEIGHT / 2;
 		vr->scoreboardCursorX = &cgs.cursorX;
 		vr->scoreboardCursorY = &cgs.cursorY;
 		newCatcher = currentCatcher | KEYCATCH_CGAME;
