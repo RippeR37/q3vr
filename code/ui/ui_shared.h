@@ -352,6 +352,8 @@ typedef struct {
   const char *(*feederItemText)(float feederID, int index, int column, qhandle_t *handle);
   qhandle_t (*feederItemImage)(float feederID, int index);
   void (*feederSelection)(float feederID, int index);
+  int (*feederItemClientNum)(float feederID, int index);  // returns client number for scoreboard items
+  int (*getCurrentClientNum)(void);                        // returns current client number (for highlighting)
 	void (*keynumToStringBuf)( int keynum, char *buf, int buflen );
 	void (*getBindingBuf)( int keynum, char *buf, int buflen );
 	void (*setBinding)( int keynum, const char *binding );

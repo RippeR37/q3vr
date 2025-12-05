@@ -950,10 +950,32 @@ static void IN_VRController( qboolean isRightController, XrPosef pose )
 
 			lastMenuCursorX = *vr.menuCursorX = x;
 			lastMenuCursorY = *vr.menuCursorY = y;
-			if (vr.scoreboardCursorX) *vr.scoreboardCursorX = x;
-			if (vr.scoreboardCursorY) *vr.scoreboardCursorY = y;
 
 			Com_QueueEvent(in_vrEventTime, SE_MOUSE, 0, 0, 0, NULL);
+		}
+		if (vr.scoreboardCursorX && vr.scoreboardCursorY)
+		{
+			float yaw;
+			float pitch;
+			if (vr.menuLeftHanded)
+			{
+				yaw = (vr_righthanded->integer != 0) ? vr.offhandangles[YAW] : vr.weaponangles[YAW];
+				pitch = (vr_righthanded->integer != 0) ? vr.offhandangles[PITCH] : vr.weaponangles[PITCH];
+			}
+			else
+			{
+				yaw = (vr_righthanded->integer != 0) ? vr.weaponangles[YAW] : vr.offhandangles[YAW];
+				pitch = (vr_righthanded->integer != 0) ? vr.weaponangles[PITCH] : vr.offhandangles[PITCH];
+			}
+			int x = 320 - tan((yaw - vr.menuYaw) * (M_PI*2 / 360)) * 400;
+			int y = 240 + tan((pitch + vr_weaponPitch->value) * (M_PI*2 / 360)) * 400;
+			// Clamp cursor to HUD bounds (640x480 virtual screen)
+			if (x < 0) x = 0;
+			if (x > 640) x = 640;
+			if (y < 0) y = 0;
+			if (y > 480) y = 480;
+			*vr.scoreboardCursorX = x;
+			*vr.scoreboardCursorY = y;
 		}
 	}
 	else

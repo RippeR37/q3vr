@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 extern displayContextDef_t cgDC;
 extern vr_clientinfo_t *vr;
+extern menuDef_t *menuScoreboard;
 
 
 // set in CG_ParseTeamInfo
@@ -1715,10 +1716,14 @@ void CG_MouseEvent(int x, int y) {
 		cgs.activeCursor = cgs.media.sizeCursor;
 	}
 
-  if (cgs.capturedItem) {
-	  Display_MouseMove(cgs.capturedItem, x, y);
-  } else {
-	  Display_MouseMove(NULL, cgs.cursorX, cgs.cursorY);
+  // Skip Display_MouseMove when scoreboard is shown - we handle mouse interaction
+  // in CG_KeyEvent on click only, to avoid focus sound when hovering between team lists
+  if ( !cg.showScores ) {
+    if (cgs.capturedItem) {
+      Display_MouseMove(cgs.capturedItem, x, y);
+    } else {
+      Display_MouseMove(NULL, cgs.cursorX, cgs.cursorY);
+    }
   }
 
 }
@@ -1770,26 +1775,41 @@ void CG_EventHandling(int type) {
 
 
 void CG_KeyEvent(int key, qboolean down) {
+	qboolean isFollowing;
 
 	if (!down) {
 		return;
 	}
 
-	if ( cg.predictedPlayerState.pm_type == PM_NORMAL || (cg.predictedPlayerState.pm_type == PM_SPECTATOR && cg.showScores == qfalse)) {
+	isFollowing = cg.snap && ( cg.snap->ps.pm_flags & PMF_FOLLOW );
+
+	// Allow key events through when scoreboard is shown (for click-to-follow)
+	if ( cg.showScores && (cg.predictedPlayerState.pm_type == PM_SPECTATOR || isFollowing) ) {
+		// Only process mouse clicks for scoreboard click-to-follow.
+		// Other keys like K_PGUP/K_PGDN would call feederSelection which sends follow commands.
+		if ( key != K_MOUSE1 && key != K_MOUSE2 ) {
+			return;
+		}
+
+		// Sync cgDC cursor from cgs cursor before handling key (VR updates cgs cursor directly)
+		cgDC.cursorx = cgs.cursorX;
+		cgDC.cursory = cgs.cursorY;
+		// Ensure WINDOW_FORCED is set so Menu_HandleMouseMove will process the scoreboard
+		// (scoreboard menu has visible 0, so it needs WINDOW_FORCED to be processed)
+		if (menuScoreboard) {
+			menuScoreboard->window.flags |= WINDOW_FORCED;
+		}
+
+		Menu_HandleMouseMove(menuScoreboard, cgs.cursorX, cgs.cursorY);
+		Menu_HandleKey(menuScoreboard, key, down);
+		return;
+	} else if ( cg.predictedPlayerState.pm_type == PM_NORMAL || (cg.predictedPlayerState.pm_type == PM_SPECTATOR && cg.showScores == qfalse)) {
 		CG_EventHandling(CGAME_EVENT_NONE);
-    trap_Key_SetCatcher(0);
+		trap_Key_SetCatcher(0);
 		return;
 	}
 
-  //if (key == trap_Key_GetKey("teamMenu") || !Display_CaptureItem(cgs.cursorX, cgs.cursorY)) {
-    // if we see this then we should always be visible
-  //  CG_EventHandling(CGAME_EVENT_NONE);
-  //  trap_Key_SetCatcher(0);
-  //}
-
-
-
-  Display_HandleKey(key, down, cgs.cursorX, cgs.cursorY);
+	Display_HandleKey(key, down, cgs.cursorX, cgs.cursorY);
 
 	if (cgs.capturedItem) {
 		cgs.capturedItem = NULL;
