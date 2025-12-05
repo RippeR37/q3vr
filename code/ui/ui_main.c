@@ -68,10 +68,10 @@ static const int numSkillLevels = ARRAY_LEN( skillLevels );
 
 static const char *netSources[] = {
 	"Local",
-	"Internet",
-	"Master1",
-	"Master2",
-	"Master3",
+	"Internet (all)",
+	"VR Master",
+	"Q3A Master",
+	"ioq3 Master",
 	"Master4",
 	"Master5",
 	"Favorites"
@@ -6307,6 +6307,8 @@ static void UI_DoServerRefresh( void )
 UI_StartServerRefresh
 =================
 */
+static int lastQueriedMaster = -1;
+
 static void UI_StartServerRefresh(qboolean full, qboolean force)
 {
 	char	*ptr;
@@ -6316,9 +6318,10 @@ static void UI_StartServerRefresh(qboolean full, qboolean force)
 	// This function is called with force=qfalse when server browser menu opens or net source changes.
 	// Automatically update local and favorite servers.
 	// Only auto update master server list if there is no server info cache.
+	// Also force refresh when switching between different masters since they share the same server list.
 	if ( !force && ( ui_netSource.integer >= UIAS_GLOBAL0 && ui_netSource.integer <= UIAS_GLOBAL5 ) ) {
-		if ( trap_LAN_GetServerCount( UI_SourceForLAN() ) > 0 ) {
-			return; // have cached list
+		if ( ui_netSource.integer == lastQueriedMaster && trap_LAN_GetServerCount( UI_SourceForLAN() ) > 0 ) {
+			return; // have cached list from the same master
 		}
 	}
 
@@ -6350,6 +6353,7 @@ static void UI_StartServerRefresh(qboolean full, qboolean force)
 
 	uiInfo.serverStatus.refreshtime = uiInfo.uiDC.realTime + 5000;
 	if( ui_netSource.integer >= UIAS_GLOBAL0 && ui_netSource.integer <= UIAS_GLOBAL5 ) {
+		lastQueriedMaster = ui_netSource.integer;
 
 		ptr = UI_Cvar_VariableString("debug_protocol");
 		if (strlen(ptr)) {
