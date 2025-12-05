@@ -29,8 +29,11 @@ qboolean VR_IsInMenu( void )
 
 qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void )
 {
-	// Always use screen layer for UI/console, even during intermission
-	if ( VR_IsInMenu() )
+	// Use screen layer for UI/console, EXCEPT during single-player intermission
+	// where we want the in-world podium view even with the postgame menu active
+	qboolean isSPIntermission = (cl.snap.ps.pm_type == PM_INTERMISSION) &&
+	                            (Cvar_VariableValue("g_gametype") == GT_SINGLE_PLAYER);
+	if ( VR_IsInMenu() && !isSPIntermission )
 	{
 		return qtrue;
 	}
