@@ -12,6 +12,10 @@
 typedef struct {
 	float fov_x;
 	float fov_y;
+	float fov_angle_up;    // Raw OpenXR FOV angle in radians (positive = up)
+	float fov_angle_down;  // Raw OpenXR FOV angle in radians (negative = down)
+	float fov_angle_left;  // Raw OpenXR FOV angle in radians (negative = left)
+	float fov_angle_right; // Raw OpenXR FOV angle in radians (positive = right)
 
 	qboolean weapon_stabilised;
 	qboolean weapon_zoomed;
