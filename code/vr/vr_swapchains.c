@@ -423,8 +423,14 @@ void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swap
 		"Invalid swapchainImageIndex value - out of bounds");
 
 	qglBindFramebuffer(GL_DRAW_FRAMEBUFFER, swapchains->framebuffers[swapchainColorIndex]);
-	qglFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, swapchains->color.images[swapchainColorIndex], 0, 0, 2);
-	qglFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, swapchains->depth.images[swapchainDepthIndex], 0, 0, 2);
+
+	// Framebuffers are pre-created with color[idx] paired with depth[idx].
+	// Only re-attach if OpenXR gave us mismatched indices (rare but possible).
+	if (swapchainColorIndex != swapchainDepthIndex)
+	{
+		qglFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, swapchains->color.images[swapchainColorIndex], 0, 0, 2);
+		qglFramebufferTextureMultiviewOVR(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, swapchains->depth.images[swapchainDepthIndex], 0, 0, 2);
+	}
 }
 
 void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrDesktopViewConfiguration viewConfig, qboolean useVirtualScreen)

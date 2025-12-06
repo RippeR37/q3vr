@@ -132,6 +132,17 @@ unsigned int quadEBO = 0;
 unsigned int vsShaderProgram = 0;
 unsigned int floorShaderProgram = 0;
 
+// Cached uniform locations (using explicit layout locations from shaders)
+// Shader uses: layout (location = 2) uniform mat4 model;
+//              layout (location = 3) uniform mat4 view[2];
+//              layout (location = 5) uniform mat4 proj;
+#define UNIFORM_LOC_MODEL 2
+#define UNIFORM_LOC_VIEW  3
+#define UNIFORM_LOC_PROJ  5
+
+// Floor shader has camera uniform without explicit location, cache it
+static GLint floorUniformCamera = -1;
+
 unsigned int _VR_CreateAndCompileShader(GLenum shaderType, const GLchar** source)
 {
 	const unsigned int shader = qglCreateShader(shaderType);
@@ -279,11 +290,14 @@ void VR_VirtualScreen_Init(void)
 
 	// Floor
 	floorShaderProgram = _VR_CreateVaoAndProgram(
-		&quadVAO, &quadVBO, &quadEBO, 
+		&quadVAO, &quadVBO, &quadEBO,
 		quadVertices, quadVertexCount,
 		quadIndices, quadIndexCount,
 		floorVertexShaderSource, floorFragmentShaderSource
 	);
+
+	// Cache the camera uniform location (only one without explicit layout location)
+	floorUniformCamera = qglGetUniformLocation(floorShaderProgram, "camera");
 
 	// Unbind VAO to ensure nobody modifies it
 	qglBindVertexArray(0);
@@ -553,16 +567,12 @@ void VR_VirtualScreen_Draw(XrFovf fov, XrPosef* left, XrPosef* right, GLuint vir
 		qglUseProgram(floorShaderProgram);
 		qglBindVertexArray(quadVAO);
 
-		const int modelLoc = qglGetUniformLocation(vsShaderProgram, "model");
-		const int viewLoc = qglGetUniformLocation(vsShaderProgram, "view");
-		const int projLoc = qglGetUniformLocation(vsShaderProgram, "proj");
-		const int cameraLoc = qglGetUniformLocation(vsShaderProgram, "camera");
-
-		qglUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*)model.m);
-		qglUniformMatrix4fv(viewLoc + 0, 1, GL_FALSE, (float*)view[0].m);
-		qglUniformMatrix4fv(viewLoc + 1, 1, GL_FALSE, (float*)view[1].m);
-		qglUniformMatrix4fv(projLoc, 1, GL_FALSE, (float*)projection.m);
-		qglUniform3f(cameraLoc, left->position.x, left->position.y, left->position.z);
+		// Use explicit layout locations from shader (no runtime lookup needed)
+		qglUniformMatrix4fv(UNIFORM_LOC_MODEL, 1, GL_FALSE, (float*)model.m);
+		qglUniformMatrix4fv(UNIFORM_LOC_VIEW + 0, 1, GL_FALSE, (float*)view[0].m);
+		qglUniformMatrix4fv(UNIFORM_LOC_VIEW + 1, 1, GL_FALSE, (float*)view[1].m);
+		qglUniformMatrix4fv(UNIFORM_LOC_PROJ, 1, GL_FALSE, (float*)projection.m);
+		qglUniform3f(floorUniformCamera, left->position.x, left->position.y, left->position.z);
 
 		glDrawElements(GL_TRIANGLES, quadIndexCount, GL_UNSIGNED_INT, 0);
 	}
@@ -577,14 +587,11 @@ void VR_VirtualScreen_Draw(XrFovf fov, XrPosef* left, XrPosef* right, GLuint vir
 		qglUseProgram(vsShaderProgram);
 		qglBindVertexArray(VAO);
 
-		const int modelLoc = qglGetUniformLocation(vsShaderProgram, "model");
-		const int viewLoc = qglGetUniformLocation(vsShaderProgram, "view");
-		const int projLoc = qglGetUniformLocation(vsShaderProgram, "proj");
-
-		qglUniformMatrix4fv(modelLoc, 1, GL_FALSE, (float*)model.m);
-		qglUniformMatrix4fv(viewLoc + 0, 1, GL_FALSE, (float*)view[0].m);
-		qglUniformMatrix4fv(viewLoc + 1, 1, GL_FALSE, (float*)view[1].m);
-		qglUniformMatrix4fv(projLoc, 1, GL_FALSE, (float*)projection.m);
+		// Use explicit layout locations from shader (no runtime lookup needed)
+		qglUniformMatrix4fv(UNIFORM_LOC_MODEL, 1, GL_FALSE, (float*)model.m);
+		qglUniformMatrix4fv(UNIFORM_LOC_VIEW + 0, 1, GL_FALSE, (float*)view[0].m);
+		qglUniformMatrix4fv(UNIFORM_LOC_VIEW + 1, 1, GL_FALSE, (float*)view[1].m);
+		qglUniformMatrix4fv(UNIFORM_LOC_PROJ, 1, GL_FALSE, (float*)projection.m);
 
 		glBindTexture(GL_TEXTURE_2D, virtualScreenImage);
 		glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
