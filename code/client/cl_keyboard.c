@@ -617,6 +617,10 @@ qboolean VKeyboard_HandleKey( int key ) {
 		}
 		// Clicked outside keyboard area entirely - dismiss it
 		VKeyboard_Hide();
+		// If console is active, also toggle it closed
+		if (Key_GetCatcher() & KEYCATCH_CONSOLE) {
+			Con_ToggleConsole_f();
+		}
 		return qtrue;
 	}
 
