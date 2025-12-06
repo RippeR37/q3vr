@@ -586,6 +586,9 @@ static void CG_TouchItem( centity_t *cent ) {
 	// time2 contains item quantity - vanilla servers don't set this
 	if ( !cg.enhancedPrediction && cent->currentState.time2 > 0 ) {
 		cg.enhancedPrediction = qtrue;
+		// Rebase timer to next clean second boundary relative to server time
+		// This prevents timer misalignment from causing false regen predictions
+		cg.timeResidual = cg.predictedPlayerState.commandTime - (cg.predictedPlayerState.commandTime % 1000) + 1000;
 		CG_Printf( "Enhanced prediction ^2ENABLED^7 (baseq3a server detected)\n" );
 	}
 
