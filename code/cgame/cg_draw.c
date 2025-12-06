@@ -2732,39 +2732,102 @@ void CG_DrawTimedMenus( void ) {
 
 /*
 ==============
+CG_GetProjectionCenter
+
+Calculates the optical center of the VR projection in virtual 640x480 coordinates.
+
+VR headsets have asymmetric FOV (more down-look than up-look), which causes the
+OpenXR projection matrix to shift the optical center away from the geometric
+framebuffer center. This function computes that offset based on the current FOV
+angles and weapon zoom level.
+
+The OpenGL projection matrix elements m[8] and m[9] determine the horizontal and
+vertical offsets:
+  m[8] = (tanRight + tanLeft) / (tanRight - tanLeft)
+  m[9] = (tanUp + tanDown) / (tanUp - tanDown)
+
+A point along the view axis (straight ahead) projects to NDC position (-m[8], -m[9]).
+Converting to screen coordinates (with 0,0 at top-left):
+  screenX = 320 * (1 + m[8])
+  screenY = 240 * (1 + m[9])
+==============
+*/
+static void CG_GetProjectionCenter( float *outX, float *outY )
+{
+	// Default to geometric center
+	float x = 320.0f;
+	float y = 240.0f;
+
+	// Get the effective FOV angles, accounting for weapon zoom
+	// The projection matrix in vr_renderer.c divides angles by weapon_zoomLevel
+	float zoomLevel = vr->weapon_zoomLevel;
+	if (zoomLevel < 1.0f) zoomLevel = 1.0f;
+
+	float angleUp = vr->fov_angle_up / zoomLevel;
+	float angleDown = vr->fov_angle_down / zoomLevel;
+	float angleLeft = vr->fov_angle_left / zoomLevel;
+	float angleRight = vr->fov_angle_right / zoomLevel;
+
+	float tanUp = tanf(angleUp);
+	float tanDown = tanf(angleDown);
+	float tanLeft = tanf(angleLeft);
+	float tanRight = tanf(angleRight);
+
+	// Vertical: m[9] = (tanUp + tanDown) / (tanUp - tanDown)
+	float tanHeightV = tanUp - tanDown;
+	if (fabsf(tanHeightV) > 0.001f) {
+		float m9 = (tanUp + tanDown) / tanHeightV;
+		y = 240.0f * (1.0f + m9);
+	}
+
+	// Horizontal: m[8] = (tanRight + tanLeft) / (tanRight - tanLeft)
+	float tanWidthH = tanRight - tanLeft;
+	if (fabsf(tanWidthH) > 0.001f) {
+		float m8 = (tanRight + tanLeft) / tanWidthH;
+		x = 320.0f * (1.0f + m8);
+	}
+
+	if (outX) *outX = x;
+	if (outY) *outY = y;
+}
+
+/*
+==============
 CG_DrawWeapReticle
 
 Draws the railgun scope reticle overlay.
-
-Note: There is an empirically-determined 25-pixel Y offset correction applied in virtual
-640x480 coordinate space. This offset is necessary to align the reticle with the actual
-weapon firing position in VR. The root cause of this offset in the rendering pipeline
-is currently unknown, but the correction has been verified to produce accurate alignment.
 ==============
 */
 static void CG_DrawWeapReticle( void )
 {
-	vec4_t light_color = {0.7, 0.7, 0.7, 1};
-	vec4_t black = {0.0, 0.0, 0.0, 1};
+	vec4_t light_color = {0.7f, 0.7f, 0.7f, 0.5f};
+	vec4_t black = {0.0f, 0.0f, 0.0f, 1.0f};
+	vec4_t red = {0.8f, 0.0f, 0.0f, 0.5f};
 
-	float indent = 0.16;
-	float X_WIDTH=640;
-	float Y_HEIGHT=480;
+	float indentX = 0.16f;
+	float indentY = 0.21f;  // larger Y indent to make scope circular (compensates for 4:3 aspect)
+	float X_WIDTH = 640;
+	float Y_HEIGHT = 480;
 
-	// Y offset correction for VR alignment (in virtual 640x480 space)
-	// Discovered with INCREDIBLY SCIENTIFIC METHOD of "guessing until it looked right"
-	#define RETICLE_Y_OFFSET 25
+	// Get the Y offset: projection center is above geometric center (lower Y value),
+	// so we need a negative offset to shift elements UP toward the projection center
+	float projCenterY;
+	CG_GetProjectionCenter(NULL, &projCenterY);
+	float reticleYOffset = projCenterY - 240.0f;  // negative when proj center is above geometric center
 
-	float x = (X_WIDTH * indent), y = (Y_HEIGHT * indent) - RETICLE_Y_OFFSET, w = (X_WIDTH * (1-(2*indent))) / 2.0f, h = (Y_HEIGHT * (1-(2*indent))) / 2;
+	float x = (X_WIDTH * indentX);
+	float y = (Y_HEIGHT * indentY) + reticleYOffset;
+	float w = (X_WIDTH * (1-(2*indentX))) / 2.0f;
+	float h = (Y_HEIGHT * (1-(2*indentY))) / 2;
 
 	CG_AdjustFrom640( &x, &y, &w, &h );
 
 	// sides
-	CG_FillRect( 0, 0, (X_WIDTH * indent), Y_HEIGHT, black );
-	CG_FillRect( X_WIDTH * (1 - indent), 0, (X_WIDTH * indent), Y_HEIGHT, black );
+	CG_FillRect( 0, 0, (X_WIDTH * indentX), Y_HEIGHT, black );
+	CG_FillRect( X_WIDTH * (1 - indentX), 0, (X_WIDTH * indentX), Y_HEIGHT, black );
 	// top/bottom
-	CG_FillRect( X_WIDTH * indent, 0, X_WIDTH * (1-indent), (Y_HEIGHT * indent) - RETICLE_Y_OFFSET, black );
-	CG_FillRect( X_WIDTH * indent, Y_HEIGHT * (1-indent) - RETICLE_Y_OFFSET, X_WIDTH * (1-indent), (Y_HEIGHT * indent), black );
+	CG_FillRect( X_WIDTH * indentX, 0, X_WIDTH * (1-2*indentX), (Y_HEIGHT * indentY) + reticleYOffset, black );
+	CG_FillRect( X_WIDTH * indentX, Y_HEIGHT * (1-indentY) + reticleYOffset, X_WIDTH * (1-2*indentX), (Y_HEIGHT * indentY), black );
 
 	{
 		// center
@@ -2775,14 +2838,25 @@ static void CG_DrawWeapReticle( void )
 			trap_R_DrawStretchPic( x + w, y + h, w, h, 1, 1, 0, 0, cgs.media.reticleShader );  // br
 		}
 
-		// hairs (using same Y offset correction as the reticle frame)
-		CG_FillRect( 84, 239 - RETICLE_Y_OFFSET, 177, 2, light_color );   // left
-		CG_FillRect( 320, 242 - RETICLE_Y_OFFSET, 1, 58, light_color );   // center top
-		CG_FillRect( 319, 300 - RETICLE_Y_OFFSET, 2, 178, light_color );  // center bot
-		CG_FillRect( 380, 239 - RETICLE_Y_OFFSET, 177, 2, light_color );  // right
-	}
+		// crosshairs - coming from scope edges toward center
+		float centerX = 320.0f;
+		float centerY = 240.0f + reticleYOffset;
+		float hairThick = 1.0f;
+		float hairLength = 160.0f;
 
-	#undef RETICLE_Y_OFFSET
+		// Scope edges
+		float leftEdge = X_WIDTH * indentX;
+		float rightEdge = X_WIDTH * (1.0f - indentX);
+		float topEdge = Y_HEIGHT * indentY + reticleYOffset;
+		float bottomEdge = Y_HEIGHT * (1.0f - indentY) + reticleYOffset;
+
+		CG_FillRect( leftEdge, centerY - hairThick/2.66f, hairLength, hairThick * 0.75f, light_color );                 // left
+		CG_FillRect( rightEdge - hairLength, centerY - hairThick/2.66f, hairLength, hairThick * 0.75f, light_color );   // right
+		CG_FillRect( centerX - hairThick/2, topEdge, hairThick, hairLength * 0.65f, light_color );                  // top
+		CG_FillRect( centerX - hairThick/2, bottomEdge - (hairLength * 0.65f), hairThick, hairLength * 0.75f, light_color );  // bottom
+		CG_FillRect( centerX - hairThick/2, centerY - 6, hairThick, 12, red ); // Vertical center
+		CG_FillRect( centerX - 8, centerY - hairThick/2.66f, 16, hairThick * 0.75f, red ); // Horizontal center
+	}
 }
 
 /*

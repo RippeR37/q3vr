@@ -1716,6 +1716,11 @@ void IN_VRUpdateHMD( XrView* views, uint32_t viewCount, XrFovf* fov )
 	}
 	vr.fov_x = (fabs(fov->angleLeft) + fabs(fov->angleRight)) * 180.0f / M_PI;
 	vr.fov_y = (fabs(fov->angleUp) + fabs(fov->angleDown)) * 180.0f / M_PI;
+	// Store raw FOV angles in radians for projection center calculations
+	vr.fov_angle_up = fov->angleUp;
+	vr.fov_angle_down = fov->angleDown;
+	vr.fov_angle_left = fov->angleLeft;
+	vr.fov_angle_right = fov->angleRight;
 
 	// Get center HMD pose (view center) and center rotation (middle rotation)
 	XrVector3f hmdPosition = views[0].pose.position;
