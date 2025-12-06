@@ -1359,6 +1359,13 @@ void CL_KeyDownEvent( int key, unsigned time )
 
 	// escape is always handled special
 	if ( key == K_ESCAPE ) {
+		// escape closes console (and keyboard if active)
+		if ( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) {
+			VKeyboard_Hide();
+			Con_ToggleConsole_f();
+			return;
+		}
+
 		if ( Key_GetCatcher( ) & KEYCATCH_MESSAGE ) {
 			// clear message mode
 			Message_Key( key );
