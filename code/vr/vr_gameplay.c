@@ -50,3 +50,23 @@ qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void )
 		VR_IsFollowingInFirstPerson()
 	);
 }
+
+qboolean VR_ShouldDisableStereo( void )
+{
+	extern vr_clientinfo_t vr;
+
+	// Disable stereo when rendering to virtual screen
+	if (VR_Gameplay_ShouldRenderInVirtualScreen())
+	{
+		return qtrue;
+	}
+
+	// Disable stereo when weapon is zoomed (scope view)
+	// This renders from center viewpoint so mono quad layer blit is correct
+	if (vr.weapon_zoomed)
+	{
+		return qtrue;
+	}
+
+	return qfalse;
+}

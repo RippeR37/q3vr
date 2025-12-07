@@ -1722,6 +1722,13 @@ void IN_VRUpdateHMD( XrView* views, uint32_t viewCount, XrFovf* fov )
 	vr.fov_angle_left = fov->angleLeft;
 	vr.fov_angle_right = fov->angleRight;
 
+	// Store per-eye FOV angles for asymmetric stereo rendering
+	for (uint32_t eye = 0; eye < viewCount && eye < 2; eye++)
+	{
+		vr.eye_fov_angle_left[eye] = views[eye].fov.angleLeft;
+		vr.eye_fov_angle_right[eye] = views[eye].fov.angleRight;
+	}
+
 	// Get center HMD pose (view center) and center rotation (middle rotation)
 	XrVector3f hmdPosition = views[0].pose.position;
 	XrQuaternionf hmdRotation = views[0].pose.orientation;
@@ -1744,6 +1751,30 @@ void IN_VRUpdateHMD( XrView* views, uint32_t viewCount, XrFovf* fov )
 
 	// Position
 	VectorSet(vr.hmdposition, hmdPosition.x, hmdPosition.y + vr_heightAdjust->value, hmdPosition.z);
+
+	// Per-eye positions (in VR/HMD space, includes height adjust)
+	for (uint32_t eye = 0; eye < viewCount && eye < 2; eye++)
+	{
+		VectorSet(vr.hmdposition_eye[eye],
+			views[eye].pose.position.x,
+			views[eye].pose.position.y + vr_heightAdjust->value,
+			views[eye].pose.position.z);
+	}
+
+	// Store raw OpenXR poses for direct renderer access (view matrix construction)
+	// Include height adjustment in the pose position
+	for (uint32_t eye = 0; eye < viewCount && eye < 2; eye++)
+	{
+		vr.eyePose[eye].orientation.x = views[eye].pose.orientation.x;
+		vr.eyePose[eye].orientation.y = views[eye].pose.orientation.y;
+		vr.eyePose[eye].orientation.z = views[eye].pose.orientation.z;
+		vr.eyePose[eye].orientation.w = views[eye].pose.orientation.w;
+		vr.eyePose[eye].position.x = views[eye].pose.position.x;
+		vr.eyePose[eye].position.y = views[eye].pose.position.y + vr_heightAdjust->value;
+		vr.eyePose[eye].position.z = views[eye].pose.position.z;
+	}
+
+	// Debug logging removed - consolidated in vr_renderer.c
 
 	//Position delta
 	VectorSubtract(hmdposition_last, vr.hmdposition, vr.hmdposition_delta);

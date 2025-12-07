@@ -1718,6 +1718,9 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.HUDBufferStart = RE_HUDBufferStart;
 	re.HUDBufferEnd = RE_HUDBufferEnd;
 	re.SetVRHeadsetParms = RE_SetVRHeadsetParms;
+	re.SetScreenOverlayBuffer = RE_SetScreenOverlayBuffer;
+	re.ScreenOverlayBufferStart = RE_ScreenOverlayBufferStart;
+	re.ScreenOverlayBufferEnd = RE_ScreenOverlayBufferEnd;
 
 	re.SetColor = RE_SetColor;
 	re.DrawStretchPic = RE_StretchPic;

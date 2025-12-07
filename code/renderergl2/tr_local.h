@@ -869,10 +869,21 @@ typedef struct {
 typedef struct {
 	qboolean	valid;
 	float		projection[16];
+	float		projectionEye[2][16]; // Per-eye projection matrices from OpenXR
 	float		mirrorProjection[16];
+	float		mirrorProjectionEye[2][16]; // Per-eye mirror projection matrices
 	float		monoVRProjection[16];
+	float		menuProjection[16]; // Symmetric projection built from refdef FOV for menu 3D models
 	int			renderBuffer;
 	int			renderBufferOriginal;
+	int			screenOverlayBuffer;  // Framebuffer for screen overlay quad layer
+	int			screenOverlayWidth;
+	int			screenOverlayHeight;
+	int			mainSceneReadBuffer;  // Framebuffer to read main scene from (layer 0) for mono blit
+	int			mainSceneWidth;
+	int			mainSceneHeight;
+	float		combinedFovX;         // Combined stereo horizontal FOV for culling (encompasses both eyes)
+	float		halfIpdMeters;        // Half IPD in meters for frustum plane offset
 } vrParms_t;
 
 /*
@@ -1415,6 +1426,7 @@ typedef struct {
 	mat4_t        modelMatrix;
 	mat4_t        projection;
 	qboolean 		isDrawingHUD;
+	qboolean 		isDrawingScreenOverlay;  // True when rendering to overlay quad layer buffer
 } glstate_t;
 
 typedef enum {
@@ -2289,6 +2301,8 @@ GLSL
 
 void GLSL_InitGPUShaders(void);
 void GLSL_PrepareUniformBuffers(void);
+void GLSL_UpdateMirrorProjection(void);
+void GLSL_UpdateMenuProjection(void);
 void GLSL_ShutdownGPUShaders(void);
 void GLSL_VertexAttribPointers(uint32_t attribBits);
 void GLSL_BindProgram(shaderProgram_t * program);
@@ -2512,6 +2526,12 @@ typedef struct {
 	qboolean clear; // Clear the buffer?
 } hudBufferCommand_t;
 
+typedef struct {
+	int commandId;
+	qboolean start;
+	qboolean clear; // Clear the buffer?
+} screenOverlayBufferCommand_t;
+
 typedef enum {
 	RC_END_OF_LIST,
 	RC_SET_COLOR,
@@ -2527,7 +2547,8 @@ typedef enum {
 	RC_POSTPROCESS,
 	RC_EXPORT_CUBEMAPS,
 	RC_SWITCH_EYE,
-	RC_HUD_BUFFER
+	RC_HUD_BUFFER,
+	RC_SCREEN_OVERLAY_BUFFER
 } renderCommand_t;
 
 
@@ -2571,9 +2592,17 @@ void RE_BeginFrame( stereoFrame_t stereoFrame );
 void RE_EndFrame( int *frontEndMsec, int *backEndMsec );
 void RE_SetVRHeadsetParms( const float projectionMatrix[16],
 					  const float nonVRProjectionMatrix[16],
-					  int renderBuffer );
+					  int renderBuffer,
+					  const float projectionEye0[16],
+					  const float projectionEye1[16],
+					  float combinedFovX,
+					  float halfIpdMeters );
 void RE_HUDBufferStart( qboolean clear );
 void RE_HUDBufferEnd( void );
+void RE_ScreenOverlayBufferStart( qboolean clear );
+void RE_ScreenOverlayBufferEnd( void );
+void RE_SetScreenOverlayBuffer( int overlayBuffer, int width, int height,
+								int mainSceneReadBuffer, int mainSceneWidth, int mainSceneHeight );
 
 void RE_SaveJPG(char * filename, int quality, int image_width, int image_height,
                 unsigned char *image_buffer, int padding);

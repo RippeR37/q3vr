@@ -40,11 +40,11 @@ const char* vsVertexShaderSource =
 	"\n"
 	"layout (location = 2) uniform mat4 model;\n"
 	"layout (location = 3) uniform mat4 view[2];\n"
-	"layout (location = 5) uniform mat4 proj;\n"
+	"layout (location = 5) uniform mat4 proj[2];\n"
 	"\n"
 	"void main()\n"
 	"{\n"
-	"    gl_Position = (proj * (view[gl_ViewID_OVR] * (model * vec4(aPos.x, aPos.y, aPos.z, 1.0))));\n"
+	"    gl_Position = (proj[gl_ViewID_OVR] * (view[gl_ViewID_OVR] * (model * vec4(aPos.x, aPos.y, aPos.z, 1.0))));\n"
 	"    TexCoord = aTexCoord;\n"
 	"}\n";
 const char* vsFragmentShaderSource =
@@ -74,11 +74,11 @@ const char* floorVertexShaderSource =
 	"\n"
 	"layout (location = 2) uniform mat4 model;\n"
 	"layout (location = 3) uniform mat4 view[2];\n"
-	"layout (location = 5) uniform mat4 proj;\n"
+	"layout (location = 5) uniform mat4 proj[2];\n"
 	"\n"
 	"void main()\n"
 	"{\n"
-	"    gl_Position = (proj * (view[gl_ViewID_OVR] * (model * vec4(aPos.xzy, 1.0))));\n"
+	"    gl_Position = (proj[gl_ViewID_OVR] * (view[gl_ViewID_OVR] * (model * vec4(aPos.xzy, 1.0))));\n"
 	"    Pos = aTexCoord - vec2(0.5);"
 	"}\n";
 const char* floorFragmentShaderSource =
@@ -207,8 +207,11 @@ void generateCylinderSectionSimple(
 	{
 		float theta = startAngle + i * dTheta;
 
+		// Generate cylinder curving toward -Z (away from origin in local space)
+		// After model transform (placed in front of user, rotated 180° to face them),
+		// this creates a screen that wraps around the user (center further, edges closer)
 		float x = radius * sinf(theta);
-		float z = -radius * cosf(theta);
+		float z = -radius * cosf(theta);  // Negative Z - center is furthest from origin
 		float u = (float)i / (float)segments;
 
 		*vptr++ = x; *vptr++ =  height * 0.5f; *vptr++ = z;
@@ -527,7 +530,7 @@ void VR_VirtualScreen_ResetPosition(void)
 	updateTarget = 1;
 }
 
-void VR_VirtualScreen_Draw(XrFovf fov, XrPosef* left, XrPosef* right, GLuint virtualScreenImage)
+void VR_VirtualScreen_Draw(XrView* views, uint32_t viewCount, GLuint virtualScreenImage)
 {
 	GLuint previousVAO, previousProgram, previousTexture;
 	glGetIntegerv(GL_VERTEX_ARRAY_BINDING, (GLint*)&previousVAO);
@@ -548,17 +551,37 @@ void VR_VirtualScreen_Draw(XrFovf fov, XrPosef* left, XrPosef* right, GLuint vir
 		qglDepthMask(GL_FALSE);
 	}
 
-	// Compute Model, View(s) and Projection matrices
-	XrMatrix4x4f model, view[2], projection;
+	// Get per-eye poses
+	XrPosef* left = &views[0].pose;
+	XrPosef* right = &views[viewCount > 1 ? viewCount - 1 : 0].pose;
+
+	// Compute centered head pose (midpoint between eyes) for model matrix positioning
+	// This ensures the virtual screen appears centered, not offset to one eye
+	XrPosef centeredHead;
+	centeredHead.position.x = (left->position.x + right->position.x) * 0.5f;
+	centeredHead.position.y = (left->position.y + right->position.y) * 0.5f;
+	centeredHead.position.z = (left->position.z + right->position.z) * 0.5f;
+	centeredHead.orientation = left->orientation; // Use left eye orientation (both should be nearly identical)
+
+	// Compute Model, View(s) and per-eye Projection matrices
+	XrMatrix4x4f model, view[2], projection[2];
 
 	XrMatrix4x4f_CreateIdentity(&model);
 	XrMatrix4x4f_CreateIdentity(&view[0]);
 	XrMatrix4x4f_CreateIdentity(&view[1]);
-	XrMatrix4x4f_CreateIdentity(&projection);
+	XrMatrix4x4f_CreateIdentity(&projection[0]);
+	XrMatrix4x4f_CreateIdentity(&projection[1]);
 
 	_VR_GetVirtualScreenViewMatrix(&view[0], &left->position, &left->orientation);
 	_VR_GetVirtualScreenViewMatrix(&view[1], &right->position, &right->orientation);
-	XrMatrix4x4f_CreateProjectionFov(&projection, GRAPHICS_OPENGL, fov, 0.01f, 100.0f);
+
+	// Create per-eye projection matrices for proper stereo
+	XrMatrix4x4f_CreateProjectionFov(&projection[0], GRAPHICS_OPENGL, views[0].fov, 0.01f, 100.0f);
+	if (viewCount > 1) {
+		XrMatrix4x4f_CreateProjectionFov(&projection[1], GRAPHICS_OPENGL, views[viewCount - 1].fov, 0.01f, 100.0f);
+	} else {
+		projection[1] = projection[0];
+	}
 
 	// Floor
 	{
@@ -571,7 +594,8 @@ void VR_VirtualScreen_Draw(XrFovf fov, XrPosef* left, XrPosef* right, GLuint vir
 		qglUniformMatrix4fv(UNIFORM_LOC_MODEL, 1, GL_FALSE, (float*)model.m);
 		qglUniformMatrix4fv(UNIFORM_LOC_VIEW + 0, 1, GL_FALSE, (float*)view[0].m);
 		qglUniformMatrix4fv(UNIFORM_LOC_VIEW + 1, 1, GL_FALSE, (float*)view[1].m);
-		qglUniformMatrix4fv(UNIFORM_LOC_PROJ, 1, GL_FALSE, (float*)projection.m);
+		qglUniformMatrix4fv(UNIFORM_LOC_PROJ + 0, 1, GL_FALSE, (float*)projection[0].m);
+		qglUniformMatrix4fv(UNIFORM_LOC_PROJ + 1, 1, GL_FALSE, (float*)projection[1].m);
 		qglUniform3f(floorUniformCamera, left->position.x, left->position.y, left->position.z);
 
 		glDrawElements(GL_TRIANGLES, quadIndexCount, GL_UNSIGNED_INT, 0);
@@ -582,7 +606,7 @@ void VR_VirtualScreen_Draw(XrFovf fov, XrPosef* left, XrPosef* right, GLuint vir
 		unsigned int VAO = (vr_virtualScreenShape->integer == CURVED) ? cylinderVAO : quadVAO;
 		unsigned int indexCount = (vr_virtualScreenShape->integer == CURVED) ? cylinderIndexCount : quadIndexCount;
 
-		_VR_GetVirtualScreenModelMatrix(&model, left);
+		_VR_GetVirtualScreenModelMatrix(&model, &centeredHead);
 
 		qglUseProgram(vsShaderProgram);
 		qglBindVertexArray(VAO);
@@ -591,7 +615,8 @@ void VR_VirtualScreen_Draw(XrFovf fov, XrPosef* left, XrPosef* right, GLuint vir
 		qglUniformMatrix4fv(UNIFORM_LOC_MODEL, 1, GL_FALSE, (float*)model.m);
 		qglUniformMatrix4fv(UNIFORM_LOC_VIEW + 0, 1, GL_FALSE, (float*)view[0].m);
 		qglUniformMatrix4fv(UNIFORM_LOC_VIEW + 1, 1, GL_FALSE, (float*)view[1].m);
-		qglUniformMatrix4fv(UNIFORM_LOC_PROJ, 1, GL_FALSE, (float*)projection.m);
+		qglUniformMatrix4fv(UNIFORM_LOC_PROJ + 0, 1, GL_FALSE, (float*)projection[0].m);
+		qglUniformMatrix4fv(UNIFORM_LOC_PROJ + 1, 1, GL_FALSE, (float*)projection[1].m);
 
 		glBindTexture(GL_TEXTURE_2D, virtualScreenImage);
 		glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);

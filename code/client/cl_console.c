@@ -633,7 +633,14 @@ void Con_DrawNotify (void)
 	currentColor = 7;
 	re.SetColor( g_color_table[currentColor] );
 
-	re.HUDBufferStart(qfalse);
+	// For HUD mode 2 outside virtual screen, use overlay buffer (quad layer)
+	// to avoid stereo offset/doubling. Otherwise use HUD buffer.
+	qboolean useOverlayBuffer = (vr_currentHudDrawStatus->integer == 2 && !vr.virtual_screen);
+	if (useOverlayBuffer) {
+		re.ScreenOverlayBufferStart(qfalse);
+	} else {
+		re.HUDBufferStart(qfalse);
+	}
 
 	// Use console scale setting for notify messages
 	float charScale = con_scale ? con_scale->value : 2.0f;
@@ -773,7 +780,11 @@ void Con_DrawNotify (void)
 
 	re.SetColor( NULL );
 
-	re.HUDBufferEnd();
+	if (useOverlayBuffer) {
+		re.ScreenOverlayBufferEnd();
+	} else {
+		re.HUDBufferEnd();
+	}
 
 	if (Key_GetCatcher( ) & (KEYCATCH_UI | KEYCATCH_CGAME) ) {
 		return;

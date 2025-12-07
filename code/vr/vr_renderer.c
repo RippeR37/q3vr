@@ -39,6 +39,7 @@ XrView views[2];
 uint32_t viewCount = 2;
 uint32_t swapchainColorIndex = 0;
 uint32_t swapchainDepthIndex = 0;
+qboolean overlayAcquiredThisFrame = qfalse;
 
 void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter);
 void VR_Renderer_EndFrame(VR_Engine* engine);
@@ -103,6 +104,18 @@ void VR_InitRenderer( VR_Engine* engine )
 		VR_Recenter(engine, nullTime);
 	}
 
+	// Create VIEW reference space for head-locked quad layers
+	{
+		XrReferenceSpaceCreateInfo viewSpaceCI = {};
+		viewSpaceCI.type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO;
+		viewSpaceCI.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+		viewSpaceCI.poseInReferenceSpace.orientation.w = 1.0f;  // Identity
+		XR_CHECK(
+			xrCreateReferenceSpace(engine->appState.Session, &viewSpaceCI, &engine->appState.ViewSpace),
+			"Failed to create VIEW reference space for quad layer");
+		printf("Created VIEW reference space for head-locked quad layers\n");
+	}
+
 	engine->appState.Renderer.Swapchains = VR_CreateSwapchains(
 		engine->appState.Instance,
 		engine->appState.SystemId,
@@ -116,6 +129,13 @@ void VR_DestroyRenderer( VR_Engine* engine )
 {
 	VR_VirtualScreen_Destroy();
 	VR_DestroySwapchains(&engine->appState.Renderer.Swapchains);
+
+	// Destroy VIEW reference space
+	if (engine->appState.ViewSpace != XR_NULL_HANDLE)
+	{
+		xrDestroySpace(engine->appState.ViewSpace);
+		engine->appState.ViewSpace = XR_NULL_HANDLE;
+	}
 }
 
 void VR_ProcessFrame( VR_Engine* engine )
@@ -195,7 +215,33 @@ void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter)
 	VR_Swapchains_BindFramebuffers(swapchains, swapchainColorIndex, swapchainDepthIndex);
 	VR_ClearFrameBuffer(swapchains->color.width, swapchains->color.height);
 
+	// Acquire overlay swapchain for 2D screen overlays (vignette, damage, reticle, HUD mode 2)
+	// Skip during loading states to avoid submitting uninitialized overlay content
+	overlayAcquiredThisFrame = qfalse;
+	if (swapchains->screenOverlay.swapchain != XR_NULL_HANDLE && clc.state == CA_ACTIVE)
+	{
+		uint32_t overlayIndex;
+		VR_Swapchains_AcquireOverlay(&swapchains->screenOverlay, &overlayIndex);
+		VR_Swapchains_BindOverlayFramebuffer(swapchains, overlayIndex);
+		overlayAcquiredThisFrame = qtrue;
+
+		// Tell renderer about the overlay buffer so it can bind it when drawing screen overlays
+		// Also provide the main scene read buffer for mono blit when weapon is zoomed
+		re.SetScreenOverlayBuffer(
+			swapchains->screenOverlayFramebuffer,
+			swapchains->screenOverlay.width,
+			swapchains->screenOverlay.height,
+			swapchains->eyeFramebuffers[0][swapchainColorIndex],
+			swapchains->color.width,
+			swapchains->color.height);
+	}
+
 	// Set renderer params
+	// Near plane must be in Quake units to match our view matrices
+	// Default r_znear is 4 Quake units. With worldscale=32, that's 4/32 = 0.125 meters
+	// Using too small a near plane (like 1.0) makes things appear too close
+	float nearPlane = 4.0f;  // Match r_znear default in Quake units
+
 	XrMatrix4x4f vrMatrixMono, vrMatrixProjection;
 	const XrFovf monoFov = { -hudScale, hudScale, hudScale, -hudScale };
 	const XrFovf projectionFov =
@@ -205,9 +251,43 @@ void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter)
 		fov.angleUp / vr.weapon_zoomLevel,
 		fov.angleDown / vr.weapon_zoomLevel,
 	};
-	XrMatrix4x4f_CreateProjectionFov(&vrMatrixMono, GRAPHICS_OPENGL, monoFov, 1.0f, 0.0f);
-	XrMatrix4x4f_CreateProjectionFov(&vrMatrixProjection, GRAPHICS_OPENGL, projectionFov, 1.0f, 0.0f);
-	re.SetVRHeadsetParms(vrMatrixProjection.m, vrMatrixMono.m, swapchains->framebuffers[swapchainColorIndex]);
+	XrMatrix4x4f_CreateProjectionFov(&vrMatrixMono, GRAPHICS_OPENGL, monoFov, nearPlane, 0.0f);
+	XrMatrix4x4f_CreateProjectionFov(&vrMatrixProjection, GRAPHICS_OPENGL, projectionFov, nearPlane, 0.0f);
+
+	// Create per-eye projection matrices from actual OpenXR FOVs
+	// These asymmetric projections must be paired with matching per-eye view positions
+	XrMatrix4x4f vrMatrixEye[2];
+	for (int eye = 0; eye < 2 && eye < (int)viewCount; eye++)
+	{
+		XrFovf eyeFov = {
+			views[eye].fov.angleLeft / vr.weapon_zoomLevel,
+			views[eye].fov.angleRight / vr.weapon_zoomLevel,
+			views[eye].fov.angleUp / vr.weapon_zoomLevel,
+			views[eye].fov.angleDown / vr.weapon_zoomLevel,
+		};
+		XrMatrix4x4f_CreateProjectionFov(&vrMatrixEye[eye], GRAPHICS_OPENGL, eyeFov, nearPlane, 0.0f);
+	}
+
+	// Compute combined stereo horizontal FOV for culling (encompasses both eyes)
+	// Use leftmost angle from left eye, rightmost from right eye
+	// Vertical FOV doesn't need combining since eyes are horizontally separated
+	float combinedAngleLeft = views[0].fov.angleLeft / vr.weapon_zoomLevel;
+	float combinedAngleRight = views[1].fov.angleRight / vr.weapon_zoomLevel;
+
+	// Convert to degrees for Q3's FOV system
+	float combinedFovX = (fabsf(combinedAngleLeft) + fabsf(combinedAngleRight)) * 180.0f / M_PI;
+
+	// Calculate half-IPD in meters for frustum plane offset
+	float halfIpdMeters = 0.0f;
+	if (viewCount >= 2) {
+		float dx = views[1].pose.position.x - views[0].pose.position.x;
+		float dy = views[1].pose.position.y - views[0].pose.position.y;
+		float dz = views[1].pose.position.z - views[0].pose.position.z;
+		halfIpdMeters = sqrtf(dx*dx + dy*dy + dz*dz) * 0.5f;
+	}
+
+	re.SetVRHeadsetParms(vrMatrixProjection.m, vrMatrixMono.m, swapchains->framebuffers[swapchainColorIndex],
+						 vrMatrixEye[0].m, vrMatrixEye[1].m, combinedFovX, halfIpdMeters);
 }
 
 void VR_Renderer_EndFrame(VR_Engine* engine)
@@ -228,6 +308,13 @@ void VR_Renderer_EndFrame(VR_Engine* engine)
 	}
 
 	VR_Swapchains_Release(swapchains);
+
+	// Release overlay swapchain only if it was acquired this frame
+	if (overlayAcquiredThisFrame)
+	{
+		VR_Swapchains_ReleaseOverlay(&swapchains->screenOverlay);
+	}
+
 	VR_Swapchains_BindFramebuffers(NULL, 0, 0);
 
 	// Blit to main FBO (desktop window) - use virtual screen if active, otherwise eye view
@@ -240,7 +327,9 @@ void VR_Renderer_EndFrame(VR_Engine* engine)
 		viewCount,
 		fov,
 		engine->appState.CurrentSpace,
-		lastPredictedDisplayTime);
+		engine->appState.ViewSpace,
+		lastPredictedDisplayTime,
+		overlayAcquiredThisFrame);
 
 	// Flip desktop window's buffer
 	GLimp_EndFrame();
@@ -362,8 +451,8 @@ void VR_DrawVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImage
 	glClearColor(0.0, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Render VS
-	VR_VirtualScreen_Draw(fov, &views[0].pose, &views[viewCount - 1].pose, swapchains->color.virtualScreenImage);
+	// Render VS with per-eye projections for proper stereo
+	VR_VirtualScreen_Draw(views, viewCount, swapchains->color.virtualScreenImage);
 }
 
 XrDesktopViewConfiguration VR_GetDesktopViewConfiguration( void )

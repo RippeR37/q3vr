@@ -221,6 +221,73 @@ GLuint VR_CreateImage2D(GLint format, GLsizei width, GLsizei height)
 	return texture;
 }
 
+// Create a single-layer swapchain for screen overlays (quad layer)
+void VR_CreateScreenOverlaySwapchain(XrSession session, int64_t format, const XrViewConfigurationView* view, VR_SwapchainInfo* swapchain_info)
+{
+	XrSwapchainCreateInfo swapchainCI;
+	swapchainCI.type = XR_TYPE_SWAPCHAIN_CREATE_INFO;
+	swapchainCI.next = NULL;
+	swapchainCI.createFlags = 0;
+	swapchainCI.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+	swapchainCI.format = format;
+	swapchainCI.sampleCount = 1;
+	swapchainCI.width = view->recommendedImageRectWidth;
+	swapchainCI.height = view->recommendedImageRectHeight;
+	swapchainCI.faceCount = 1;
+	swapchainCI.arraySize = 1;  // Single layer, NOT multiview
+	swapchainCI.mipCount = 1;
+
+	XR_CHECK(
+		xrCreateSwapchain(session, &swapchainCI, &swapchain_info->swapchain),
+		"Failed to create screen overlay Swapchain");
+	swapchain_info->swapchainFormat = swapchainCI.format;
+	swapchain_info->width = swapchainCI.width;
+	swapchain_info->height = swapchainCI.height;
+
+	// Enumerate images
+	uint32_t imageCount = 0;
+	XR_CHECK(
+		xrEnumerateSwapchainImages(swapchain_info->swapchain, 0, &imageCount, NULL),
+		"Failed to count screen overlay Swapchain Images");
+
+	XrSwapchainImageOpenGLKHR* swapchainImagesGL = calloc(imageCount, sizeof(XrSwapchainImageOpenGLKHR));
+	for (uint32_t idx = 0; idx < imageCount; ++idx)
+	{
+		swapchainImagesGL[idx].type = XR_TYPE_SWAPCHAIN_IMAGE_OPENGL_KHR;
+	}
+	XrSwapchainImageBaseHeader* swapchainImages = (XrSwapchainImageBaseHeader*)swapchainImagesGL;
+	XR_CHECK(
+		xrEnumerateSwapchainImages(swapchain_info->swapchain, imageCount, &imageCount, swapchainImages),
+		"Failed to enumerate screen overlay Swapchain Images");
+
+	swapchain_info->imageCount = imageCount;
+	swapchain_info->images = calloc(imageCount, sizeof(uint32_t));
+	for (uint32_t idx = 0; idx < imageCount; ++idx)
+	{
+		swapchain_info->images[idx] = swapchainImagesGL[idx].image;
+	}
+	swapchain_info->virtualScreenImage = 0; // Not used for overlay
+
+	free(swapchainImagesGL);
+}
+
+// Create a simple 2D framebuffer for the screen overlay
+GLuint VR_CreateScreenOverlayFramebuffer(GLuint colorImage)
+{
+	GLuint framebuffer;
+	qglGenFramebuffers(1, &framebuffer);
+	CHECK(framebuffer != 0, "Failed to create GL screen overlay framebuffer");
+
+	qglBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	qglFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorImage, 0);
+
+	GLenum result = qglCheckFramebufferStatus(GL_FRAMEBUFFER);
+	CHECK(result == GL_FRAMEBUFFER_COMPLETE, "Failed to create complete screen overlay Framebuffer");
+
+	qglBindFramebuffer(GL_FRAMEBUFFER, 0);
+	return framebuffer;
+}
+
 void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, const XrViewConfigurationView* view, uint32_t viewCount, VR_SwapchainInfo* swapchain_info)
 {
 	XrSwapchainCreateInfo swapchainCI;
@@ -344,6 +411,11 @@ VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, 
 	VR_CreateSwapchain(session, XR_TRUE,  colorFormat, &views[0], viewCount, &swapchains.color);
 	VR_CreateSwapchain(session, XR_FALSE, depthFormat, &views[0], viewCount, &swapchains.depth);
 
+	// Create screen overlay swapchain (single-layer for quad layer)
+	VR_CreateScreenOverlaySwapchain(session, colorFormat, &views[0], &swapchains.screenOverlay);
+	fprintf(stderr, "[OpenXR] Created screen overlay swapchain: %dx%d, %u images\n",
+		swapchains.screenOverlay.width, swapchains.screenOverlay.height, swapchains.screenOverlay.imageCount);
+
 	//
 	// Framebuffers
 	//
@@ -364,6 +436,9 @@ VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, 
 		}
 	}
 	swapchains.virtualScreenFramebuffer = VR_CreateVirtualScreenImageView(swapchains.color.virtualScreenImage);
+
+	// Create screen overlay framebuffer (use first swapchain image)
+	swapchains.screenOverlayFramebuffer = VR_CreateScreenOverlayFramebuffer(swapchains.screenOverlay.images[0]);
 
 	free(views);
 	return swapchains;
@@ -403,8 +478,16 @@ void VR_DestroySwapchains(VR_SwapchainInfos* swapchains)
 	swapchains->framebuffers = NULL;
 	swapchains->eyeFramebuffers = NULL;
 
+	// Destroy screen overlay framebuffer
+	if (swapchains->screenOverlayFramebuffer)
+	{
+		qglDeleteFramebuffers(1, &swapchains->screenOverlayFramebuffer);
+		swapchains->screenOverlayFramebuffer = 0;
+	}
+
 	VR_DestroySwapchain(&swapchains->color);
 	VR_DestroySwapchain(&swapchains->depth);
+	VR_DestroySwapchain(&swapchains->screenOverlay);
 }
 
 void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swapchainColorIndex, uint32_t swapchainDepthIndex)
@@ -590,7 +673,7 @@ void VR_Swapchains_Acquire(VR_SwapchainInfos* swapchainInfos, uint32_t* colorInd
 void VR_Swapchains_Release(VR_SwapchainInfos* swapchainInfos)
 {
 	XrSwapchain swapchains[2] = {swapchainInfos->color.swapchain, swapchainInfos->depth.swapchain};
-	
+
 	for (uint32_t idx = 0; idx < 2; ++idx)
 	{
 		XrSwapchainImageReleaseInfo releaseInfo = {XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO, NULL};
@@ -598,4 +681,52 @@ void VR_Swapchains_Release(VR_SwapchainInfos* swapchainInfos)
 			xrReleaseSwapchainImage(swapchains[idx], &releaseInfo),
 			"Failed to release swapchain image");
 	}
+}
+
+//
+// Screen overlay (quad layer) swapchain functions
+//
+
+void VR_Swapchains_AcquireOverlay(VR_SwapchainInfo* overlay, uint32_t* index)
+{
+	XrSwapchainImageAcquireInfo acquireInfo = {XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO, NULL};
+
+	XR_CHECK(
+		xrAcquireSwapchainImage(overlay->swapchain, &acquireInfo, index),
+		"Failed to acquire overlay swapchain image");
+
+	XrSwapchainImageWaitInfo waitInfo;
+	waitInfo.type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO;
+	waitInfo.next = NULL;
+	waitInfo.timeout = XR_INFINITE_DURATION;
+	CHECK(
+		!XR_FAILED(xrWaitSwapchainImage(overlay->swapchain, &waitInfo)),
+		"Failed to wait for overlay swapchain image");
+}
+
+void VR_Swapchains_ReleaseOverlay(VR_SwapchainInfo* overlay)
+{
+	XrSwapchainImageReleaseInfo releaseInfo = {XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO, NULL};
+	XR_CHECK(
+		xrReleaseSwapchainImage(overlay->swapchain, &releaseInfo),
+		"Failed to release overlay swapchain image");
+}
+
+void VR_Swapchains_BindOverlayFramebuffer(VR_SwapchainInfos* swapchains, uint32_t index)
+{
+	if (!swapchains)
+	{
+		qglBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		return;
+	}
+
+	// Bind the overlay framebuffer and re-attach the correct swapchain image
+	qglBindFramebuffer(GL_DRAW_FRAMEBUFFER, swapchains->screenOverlayFramebuffer);
+	qglFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+		swapchains->screenOverlay.images[index], 0);
+}
+
+GLuint VR_Swapchains_GetOverlayFramebuffer(VR_SwapchainInfos* swapchains)
+{
+	return swapchains ? swapchains->screenOverlayFramebuffer : 0;
 }

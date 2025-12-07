@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "tr_dsa.h"
 #include "../vr/vr_base.h"
 #include "../vr/vr_clientinfo.h"
+#include "../vr/vr_gameplay.h"
 
 
 extern const char *fallbackShader_bokeh_vp;
@@ -70,6 +71,7 @@ typedef enum {
 	VR_PROJECTION,
 	MIRROR_VR_PROJECTION, // For mirrors etc
 	MONO_VR_PROJECTION,
+	MENU_PROJECTION, // Symmetric projection built from refdef FOV for menu 3D models
 
 	PROJECTION_COUNT
 } projection_t;
@@ -244,6 +246,7 @@ static void GLSL_ViewMatricesUniformBuffer(const float eyeView[2][16], const flo
         }
         break;
       case MONO_VR_PROJECTION:
+      case MENU_PROJECTION:
         {
           Mat4Copy(modelView, viewMatrices);
           Mat4Copy(modelView, viewMatrices+16);
@@ -261,26 +264,53 @@ static void GLSL_ViewMatricesUniformBuffer(const float eyeView[2][16], const flo
 GLSL_ProjectionMatricesUniformBuffer
 ====================
 */
-static void GLSL_ProjectionMatricesUniformBuffer(GLint projectionMatricesBuffer, const float value[16]) {
+static void GLSL_ProjectionMatricesUniformBuffer(GLint projectionMatricesBuffer, const float eye0[16], const float eye1[16]) {
 
-	// Update the scene matrices.
+	// Update the per-eye projection matrices.
 	qglBindBuffer(GL_UNIFORM_BUFFER, projectionMatricesBuffer);
-	float* projectionMatrix = (float*)qglMapBufferRange(
+	float* projectionMatrices = (float*)qglMapBufferRange(
 			GL_UNIFORM_BUFFER,
 			0,
-			16 * sizeof(float),
+			2 * 16 * sizeof(float),
 			GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 
-	if (projectionMatrix == NULL)
+	if (projectionMatrices == NULL)
 	{
 		ri.Error(ERR_DROP, "Projection Matrices Uniform Buffer is NULL");
 		return;
 	}
 
-	memcpy((char*)projectionMatrix, value, 16 * sizeof(float));
+	memcpy(projectionMatrices, eye0, 16 * sizeof(float));
+	memcpy(projectionMatrices + 16, eye1, 16 * sizeof(float));
 
 	qglUnmapBuffer(GL_UNIFORM_BUFFER);
 	qglBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+/*
+====================
+GLSL_UpdateMirrorProjection
+
+Updates just the mirror projection buffer after oblique near-plane clipping is calculated.
+Called from R_SetupProjectionZ when a portal is encountered.
+====================
+*/
+void GLSL_UpdateMirrorProjection(void) {
+	GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MIRROR_VR_PROJECTION],
+		tr.vrParms.mirrorProjectionEye[0], tr.vrParms.mirrorProjectionEye[1]);
+}
+
+/*
+====================
+GLSL_UpdateMenuProjection
+
+Updates the menu projection buffer when a new menu 3D model scene is rendered.
+Called from RE_RenderScene when RDF_NOWORLDMODEL is set and FOV is updated.
+====================
+*/
+void GLSL_UpdateMenuProjection(void) {
+	GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MENU_PROJECTION],
+		tr.vrParms.menuProjection, tr.vrParms.menuProjection);
 }
 
 static void GLSL_PrintLog(GLuint programOrShader, glslPrintLog_t type, qboolean developerOnly)
@@ -810,8 +840,8 @@ void GLSL_InitUniforms(shaderProgram_t *program)
 			viewMatricesUniformLocation,
 			program->viewMatricesBinding);
 
-	//Shader Matrices for the Projection Matrix
-	GLuint projectionMatrixUniformLocation = qglGetUniformBlockIndex(program->program, "ProjectionMatrix");
+	//Shader Matrices for the Projection Matrices (per-eye)
+	GLuint projectionMatrixUniformLocation = qglGetUniformBlockIndex(program->program, "ProjectionMatrices");
 	program->projectionMatrixBinding = numBufferBindings++;
 	qglUniformBlockBinding(
 			program->program,
@@ -1122,7 +1152,7 @@ void GLSL_InitGPUShaders(void)
 		qglBindBuffer(GL_UNIFORM_BUFFER, projectionMatricesBuffer[i]);
 		qglBufferData(
 				GL_UNIFORM_BUFFER,
-				16 * sizeof(float),
+				2 * 16 * sizeof(float),  // Per-eye projection matrices
 				NULL,
 				GL_STATIC_DRAW);
 		qglBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -1772,28 +1802,41 @@ void GLSL_PrepareUniformBuffers(void)
 
   Mat4Ortho(0, width, height, 0, 0, 1, orthoProjectionMatrix);
 
-  //ortho projection matrices
+  //ortho projection matrices (same for both eyes - 2D content)
   GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[FULLSCREEN_ORTHO_PROJECTION],
-          orthoProjectionMatrix);
+          orthoProjectionMatrix, orthoProjectionMatrix);
   GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[STEREO_ORTHO_PROJECTION],
-          orthoProjectionMatrix);
+          orthoProjectionMatrix, orthoProjectionMatrix);
 
   float hudOrthoProjectionMatrix[16];
   Mat4Ortho(0, 1280, 960, 0, 0, 1, hudOrthoProjectionMatrix);
   GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[HUDBUFFER_ORTHO_PROJECTION],
-          hudOrthoProjectionMatrix);
+          hudOrthoProjectionMatrix, hudOrthoProjectionMatrix);
 
-  //VR projection matrix
-  GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[VR_PROJECTION],
-          tr.vrParms.projection);
+  //VR projection matrix - use per-eye projections from OpenXR
+  //When weapon is zoomed, use symmetric projection for true mono rendering
+  if (vr.weapon_zoomed)
+  {
+    GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[VR_PROJECTION],
+            tr.vrParms.projection, tr.vrParms.projection);
+  }
+  else
+  {
+    GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[VR_PROJECTION],
+            tr.vrParms.projectionEye[0], tr.vrParms.projectionEye[1]);
+  }
 
-  //Mirror VR projection matrix
-	GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MIRROR_VR_PROJECTION],
-                                         tr.vrParms.mirrorProjection);
+  //Mirror VR projection matrix - use per-eye projections for proper stereo in portals/mirrors
+  GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MIRROR_VR_PROJECTION],
+          tr.vrParms.mirrorProjectionEye[0], tr.vrParms.mirrorProjectionEye[1]);
 
-  //Used for drawing models
+  //Used for drawing models (same for both eyes - mono rendering)
   GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MONO_VR_PROJECTION],
-                                        tr.vrParms.monoVRProjection);
+          tr.vrParms.monoVRProjection, tr.vrParms.monoVRProjection);
+
+  //Menu projection - built from refdef FOV for menu 3D models (same for both eyes)
+  GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[MENU_PROJECTION],
+          tr.vrParms.menuProjection, tr.vrParms.menuProjection);
 
   //Set all view matrices
 	GLSL_ViewMatricesUniformBuffer(tr.viewParms.world.eyeViewMatrix, tr.viewParms.world.modelView);
@@ -1817,12 +1860,23 @@ void GLSL_BindProgram(shaderProgram_t * program)
 static GLuint GLSL_CalculateProjection() {
   GLuint result =  glState.isDrawingHUD ? MONO_VR_PROJECTION : VR_PROJECTION;
 
+  // Menu 3D models (RDF_NOWORLDMODEL) on virtual screen need projection built from their FOV
+  // This ensures menu models render at the correct size regardless of HMD FOV
+  if (!glState.isDrawingHUD &&
+      VR_Gameplay_ShouldRenderInVirtualScreen() &&
+      (backEnd.refdef.rdflags & RDF_NOWORLDMODEL))
+  {
+    result = MENU_PROJECTION;
+  }
+
   if (backEnd.viewParms.isPortal)
 	{
     result = MIRROR_VR_PROJECTION;
 	}
 
-  if (Mat4Compare(orthoProjectionMatrix, glState.projection))
+  // Check for 2D/ortho rendering using both projection2D flag and matrix comparison
+  // The projection2D flag is set by RB_SetGL2D and is more reliable than matrix comparison
+  if (backEnd.projection2D || Mat4Compare(orthoProjectionMatrix, glState.projection))
   {
     if (glState.isDrawingHUD)
     {
@@ -1839,6 +1893,7 @@ static GLuint GLSL_CalculateProjection() {
     }
     else
     {
+      // Non-HUD 2D content should use identity view matrices (no stereo offset)
       result = FULLSCREEN_ORTHO_PROJECTION;
     }
   }

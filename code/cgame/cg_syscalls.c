@@ -296,6 +296,14 @@ void	trap_R_HUDBufferEnd( void ) {
 	syscall( CG_R_HUDBUFFER_END );
 }
 
+void	trap_R_ScreenOverlayBufferStart( qboolean clear ) {
+	syscall( CG_R_SCREEN_OVERLAY_BUFFER_START, clear );
+}
+
+void	trap_R_ScreenOverlayBufferEnd( void ) {
+	syscall( CG_R_SCREEN_OVERLAY_BUFFER_END );
+}
+
 void	trap_R_SetColor( const float *rgba ) {
 	syscall( CG_R_SETCOLOR, rgba );
 }

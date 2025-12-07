@@ -84,7 +84,13 @@ typedef struct {
 	// if the pointers are not NULL, timing info will be returned
 	void	(*EndFrame)( int *frontEndMsec, int *backEndMsec );
 
-	void	(*SetVRHeadsetParms)( const float projectionMatrix[16], const float nonVRProjectionMatrix[16], int renderBuffer );
+	void	(*SetVRHeadsetParms)( const float projectionMatrix[16], const float nonVRProjectionMatrix[16], int renderBuffer,
+								  const float projectionEye0[16], const float projectionEye1[16],
+								  float combinedFovX, float halfIpdMeters );
+	void	(*SetScreenOverlayBuffer)( int overlayBuffer, int width, int height,
+									   int mainSceneReadBuffer, int mainSceneWidth, int mainSceneHeight );
+	void	(*ScreenOverlayBufferStart)( qboolean clear );
+	void	(*ScreenOverlayBufferEnd)( void );
 
 	int		(*MarkFragments)( int numPoints, const vec3_t *points, const vec3_t projection,
 				   int maxPoints, vec3_t pointBuffer, int maxFragments, markFragment_t *fragmentBuffer );

@@ -1756,6 +1756,9 @@ qboolean	trap_R_inPVS( const vec3_t p1, const vec3_t p2 );
 void		trap_R_HUDBufferStart( qboolean clear );
 void		trap_R_HUDBufferEnd( void );
 
+void		trap_R_ScreenOverlayBufferStart( qboolean clear );
+void		trap_R_ScreenOverlayBufferEnd( void );
+
 // The glconfig_t will not change during the life of a cgame.
 // If it needs to change, the entire cgame will be restarted, because
 // all the qhandle_t are then invalid.

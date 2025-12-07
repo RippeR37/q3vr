@@ -3465,33 +3465,45 @@ void CG_DrawActive( void ) {
 	VectorCopy( baseOrg, cg.refdef.vieworg );
 
 	{
-		//Now draw the screen 2D stuff
+		// Draw screen 2D overlays (vignette, damage effects, reticle) to overlay buffer
+		// for quad layer submission to avoid stereo offset
+		trap_R_ScreenOverlayBufferStart(qtrue);
 		CG_DrawScreen2D();
 
 		if (!vr->weapon_zoomed && (!vr->virtual_screen || vr->first_person_following))
 		{
-			if (trap_Cvar_VariableValue( "vr_currentHudDrawStatus" ) != 0)
+			float hudStatus = trap_Cvar_VariableValue( "vr_currentHudDrawStatus" );
+			if (hudStatus != 0)
 			{
 				cg.drawingHUD = qtrue;
 
-				//Tell renderer we want to draw to the HUD buffer
-				trap_R_HUDBufferStart(qtrue);
-
-				CG_WarmupEvents();
-				// draw status bar and other floating elements
-				CG_DrawHUD2D();
-
-				trap_R_HUDBufferEnd();
+				if (hudStatus == 2 && !vr->virtual_screen)
+				{
+					// HUD mode 2 outside virtual screen: render to overlay buffer (quad layer)
+					// Don't clear, append to existing screen overlays
+					CG_WarmupEvents();
+					CG_DrawHUD2D();
+				}
+				else
+				{
+					// HUD mode 1 or virtual screen: use existing HUD buffer (floating in-world)
+					trap_R_HUDBufferStart(qtrue);
+					CG_WarmupEvents();
+					CG_DrawHUD2D();
+					trap_R_HUDBufferEnd();
+				}
 
 				cg.drawingHUD = qfalse;
 			}
 			else
 			{
-				// HUD disabled - just clear the buffer to remove any stale content
+				// HUD disabled - just clear the HUD buffer to remove any stale content
 				trap_R_HUDBufferStart(qtrue);
 				trap_R_HUDBufferEnd();
 			}
 		}
+
+		trap_R_ScreenOverlayBufferEnd();
 	}
 
 	CG_EmptySceneHackHackHack();

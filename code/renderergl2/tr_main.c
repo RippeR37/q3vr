@@ -562,12 +562,85 @@ void R_RotateForEntity( const trRefEntity_t *ent, const viewParms_t *viewParms,
 
 /*
 =================
+R_BuildViewMatrixFromQuaternion
+
+Builds a rotation-only view matrix from an OpenXR quaternion orientation.
+The position component is left at identity (0,0,0) - caller should set translation.
+
+OpenXR quaternion is in OpenGL-compatible coordinates (-Z forward, +Y up, +X right).
+The view matrix rotation is the inverse (transpose) of the orientation.
+=================
+*/
+static void R_BuildRotationMatrixFromQuaternion(float rotMatrix[16], const vrQuaternionf_t* quat) {
+	// Extract quaternion components
+	float qx = quat->x;
+	float qy = quat->y;
+	float qz = quat->z;
+	float qw = quat->w;
+
+	// Precompute terms for quaternion to rotation matrix
+	float x2 = qx + qx, y2 = qy + qy, z2 = qz + qz;
+	float xx2 = qx * x2, yy2 = qy * y2, zz2 = qz * z2;
+	float xy2 = qx * y2, xz2 = qx * z2, yz2 = qy * z2;
+	float wx2 = qw * x2, wy2 = qw * y2, wz2 = qw * z2;
+
+	// Standard quaternion to rotation matrix (local to world)
+	float r00 = 1.0f - yy2 - zz2;
+	float r01 = xy2 - wz2;
+	float r02 = xz2 + wy2;
+
+	float r10 = xy2 + wz2;
+	float r11 = 1.0f - xx2 - zz2;
+	float r12 = yz2 - wx2;
+
+	float r20 = xz2 - wy2;
+	float r21 = yz2 + wx2;
+	float r22 = 1.0f - xx2 - yy2;
+
+	// View matrix needs R^T (transposed) to transform world to view space
+	// Column-major order for OpenGL: M[col*4 + row]
+	rotMatrix[0] = r00;  rotMatrix[4] = r10;  rotMatrix[8]  = r20;
+	rotMatrix[1] = r01;  rotMatrix[5] = r11;  rotMatrix[9]  = r21;
+	rotMatrix[2] = r02;  rotMatrix[6] = r12;  rotMatrix[10] = r22;
+	rotMatrix[3] = 0.0f; rotMatrix[7] = 0.0f; rotMatrix[11] = 0.0f;
+	rotMatrix[12] = 0.0f; rotMatrix[13] = 0.0f; rotMatrix[14] = 0.0f;
+	rotMatrix[15] = 1.0f;
+}
+
+/*
+=================
+R_BuildViewMatrixFromPose
+
+Builds an OpenGL-compatible view matrix directly from an OpenXR-style pose.
+OpenXR and OpenGL share the same coordinate system (-Z forward, +Y up, +X right),
+so no coordinate conversion is needed for the view matrix itself.
+
+The view matrix transforms world coordinates to view/eye coordinates.
+We build R^T (transposed rotation) and apply -R^T * position for the translation.
+=================
+*/
+static void R_BuildViewMatrixFromPose(float viewMatrix[16], const vrPosef_t* pose) {
+	// Build rotation part
+	R_BuildRotationMatrixFromQuaternion(viewMatrix, &pose->orientation);
+
+	// Translation: -R^T * position (transform position into view space, then negate)
+	float px = pose->position.x;
+	float py = pose->position.y;
+	float pz = pose->position.z;
+
+	viewMatrix[12] = -(viewMatrix[0]*px + viewMatrix[4]*py + viewMatrix[8]*pz);
+	viewMatrix[13] = -(viewMatrix[1]*px + viewMatrix[5]*py + viewMatrix[9]*pz);
+	viewMatrix[14] = -(viewMatrix[2]*px + viewMatrix[6]*py + viewMatrix[10]*pz);
+}
+
+/*
+=================
 R_RotateForViewer
 
 Sets up the modelview matrix for a given viewParm
 =================
 */
-void R_RotateForViewer (void) 
+void R_RotateForViewer (void)
 {
 	float	viewerMatrix[16];
 
@@ -577,33 +650,84 @@ void R_RotateForViewer (void)
 	tr.or.axis[2][2] = 1;
 	VectorCopy (tr.viewParms.or.origin, tr.or.viewOrigin);
 
+	// Build per-eye view matrices for VR stereo rendering
+	// Each eye gets its own view matrix built from the full OpenXR pose
+	// This properly handles both position offset (IPD) and any orientation differences
+	// Loop includes eye==2 for world model matrix
 	for (int eye = 0; eye <= 2; ++eye)
 	{
 		// transform by the camera placement
 		vec3_t	origin;
-		VectorCopy(tr.viewParms.or.origin, origin);
+		vec3_t	axis[3];
 
-		if ((eye < 2) && !VR_Gameplay_ShouldRenderInVirtualScreen())
+		VectorCopy(tr.viewParms.or.origin, origin);
+		VectorCopy(tr.viewParms.or.axis[0], axis[0]);
+		VectorCopy(tr.viewParms.or.axis[1], axis[1]);
+		VectorCopy(tr.viewParms.or.axis[2], axis[2]);
+
+		if ((eye < 2) && !VR_ShouldDisableStereo())
 		{
-			float scale = ((r_stereoSeparation->value / 1000.0f) / 2.0f) * vr_worldscale->value * vr_worldscaleScaler->value;
-			VectorMA(origin, (eye == 0 ? 1.0f : -1.0f) * scale, tr.viewParms.or.axis[1], origin);
+			// Apply stereo eye offset for IPD
+			// The eye offset must be in HEAD-LOCAL space, not world space.
+			// OpenXR eyePose positions are in world/stage space, so when the head rotates,
+			// the world-space difference between eye and HMD center rotates too.
+			// We need to un-rotate this to get head-local offset, then apply along view axes.
+
+			// World-space difference (in meters)
+			float worldDiffX = vr.eyePose[eye].position.x - vr.hmdposition[0];
+			float worldDiffY = vr.eyePose[eye].position.y - vr.hmdposition[1];
+			float worldDiffZ = vr.eyePose[eye].position.z - vr.hmdposition[2];
+
+			// Un-rotate by HMD orientation to get head-local offset
+			// Using quaternion inverse rotation: q* v q^-1
+			// For unit quaternion, q^-1 = conjugate = (-x, -y, -z, w)
+			float qx = -vr.eyePose[eye].orientation.x;
+			float qy = -vr.eyePose[eye].orientation.y;
+			float qz = -vr.eyePose[eye].orientation.z;
+			float qw = vr.eyePose[eye].orientation.w;
+
+			// Rotate world diff by inverse quaternion to get head-local offset
+			// v' = q * v * q^-1, using the formula for quaternion-vector rotation
+			float tx = 2.0f * (qy * worldDiffZ - qz * worldDiffY);
+			float ty = 2.0f * (qz * worldDiffX - qx * worldDiffZ);
+			float tz = 2.0f * (qx * worldDiffY - qy * worldDiffX);
+
+			float localX = worldDiffX + qw * tx + (qy * tz - qz * ty);
+			float localY = worldDiffY + qw * ty + (qz * tx - qx * tz);
+			float localZ = worldDiffZ + qw * tz + (qx * ty - qy * tx);
+
+			// Scale to Quake units
+			float worldscale = vr_worldscale->value * vr_worldscaleScaler->value;
+			localX *= worldscale;
+			localY *= worldscale;
+			localZ *= worldscale;
+
+			// Apply head-local offset along view axes
+			// OpenXR head-local: X=right, Y=up, Z=back
+			// Quake view axes: axis[0]=forward, axis[1]=left, axis[2]=up
+			VectorMA(origin, -localX, tr.viewParms.or.axis[1], origin);  // local right = -Quake left
+			VectorMA(origin, localY, tr.viewParms.or.axis[2], origin);   // local up = Quake up
+			VectorMA(origin, -localZ, tr.viewParms.or.axis[0], origin);  // local back = -Quake forward
+
+			// Note: Per-eye orientation differences from OpenXR are handled by the
+			// asymmetric projection matrices. The view directions remain parallel.
 		}
 
-		viewerMatrix[0] = tr.viewParms.or.axis[0][0];
-		viewerMatrix[4] = tr.viewParms.or.axis[0][1];
-		viewerMatrix[8] = tr.viewParms.or.axis[0][2];
+		viewerMatrix[0] = axis[0][0];
+		viewerMatrix[4] = axis[0][1];
+		viewerMatrix[8] = axis[0][2];
 		viewerMatrix[12] = -origin[0] * viewerMatrix[0] + -origin[1] * viewerMatrix[4] +
 						   -origin[2] * viewerMatrix[8];
 
-		viewerMatrix[1] = tr.viewParms.or.axis[1][0];
-		viewerMatrix[5] = tr.viewParms.or.axis[1][1];
-		viewerMatrix[9] = tr.viewParms.or.axis[1][2];
+		viewerMatrix[1] = axis[1][0];
+		viewerMatrix[5] = axis[1][1];
+		viewerMatrix[9] = axis[1][2];
 		viewerMatrix[13] = -origin[0] * viewerMatrix[1] + -origin[1] * viewerMatrix[5] +
 						   -origin[2] * viewerMatrix[9];
 
-		viewerMatrix[2] = tr.viewParms.or.axis[2][0];
-		viewerMatrix[6] = tr.viewParms.or.axis[2][1];
-		viewerMatrix[10] = tr.viewParms.or.axis[2][2];
+		viewerMatrix[2] = axis[2][0];
+		viewerMatrix[6] = axis[2][1];
+		viewerMatrix[10] = axis[2][2];
 		viewerMatrix[14] = -origin[0] * viewerMatrix[2] + -origin[1] * viewerMatrix[6] +
 						   -origin[2] * viewerMatrix[10];
 
@@ -612,21 +736,22 @@ void R_RotateForViewer (void)
 		viewerMatrix[11] = 0;
 		viewerMatrix[15] = 1;
 
-		// convert from our coordinate system (looking down X)
-		// to OpenGL's coordinate system (looking down -Z)
 		if (eye < 2)
 		{
+			// Per-eye view matrix = viewerMatrix * s_flipMatrix
 			myGlMultMatrix(viewerMatrix, s_flipMatrix, tr.or.eyeViewMatrix[eye]);
 		}
 		else
 		{
-			//World Model View
+			// World model matrix
 			Mat4Copy(viewerMatrix, tr.or.modelMatrix);
 			myGlMultMatrix(viewerMatrix, s_flipMatrix, tr.or.modelView);
 		}
 	}
 
 	tr.viewParms.world = tr.or;
+
+	// Debug logging removed - consolidated in vr_renderer.c
 
 }
 
@@ -705,8 +830,27 @@ void R_SetupFrustum( void ) {
 	int i;
 	float xs, xc;
 	float ang;
+	float fovX, fovY;
+	float halfIpdWorldUnits = 0.0f;
 
-	ang = tr.viewParms.fovX / 180 * M_PI * 0.5f;
+	// Use combined stereo horizontal FOV for culling in VR mode
+	// Vertical FOV doesn't need adjustment since eyes are horizontally separated
+	if (tr.vrParms.valid && tr.vrParms.combinedFovX > 0) {
+		fovX = tr.vrParms.combinedFovX;
+		fovY = tr.viewParms.fovY;  // Use default vertical FOV
+
+		// Convert half-IPD from meters to Quake world units
+		// Both worldscale and worldscaleScaler are needed because the eye offset
+		// applied to the view origin uses both (see loop below in this function).
+		float worldscale = vr_worldscale ? vr_worldscale->value : 32.0f;
+		float scaler = vr_worldscaleScaler ? vr_worldscaleScaler->value : 1.0f;
+		halfIpdWorldUnits = tr.vrParms.halfIpdMeters * worldscale * scaler;
+	} else {
+		fovX = tr.viewParms.fovX;
+		fovY = tr.viewParms.fovY;
+	}
+
+	ang = fovX / 180 * M_PI * 0.5f;
 	xs = sinf( ang );
 	xc = cosf( ang );
 
@@ -716,7 +860,7 @@ void R_SetupFrustum( void ) {
 	VectorScale( tr.viewParms.or.axis[0], xs, tr.viewParms.frustum[1].normal );
 	VectorMA( tr.viewParms.frustum[1].normal, -xc, tr.viewParms.or.axis[1], tr.viewParms.frustum[1].normal );
 
-	ang = tr.viewParms.fovY / 180 * M_PI * 0.5f;
+	ang = fovY / 180 * M_PI * 0.5f;
 	xs = sin( ang );
 	xc = cos( ang );
 
@@ -730,6 +874,14 @@ void R_SetupFrustum( void ) {
 		tr.viewParms.frustum[i].type = PLANE_NON_AXIAL;
 		tr.viewParms.frustum[i].dist = DotProduct( tr.viewParms.or.origin, tr.viewParms.frustum[i].normal );
 		SetPlaneSignbits( &tr.viewParms.frustum[i] );
+	}
+
+	// For VR stereo rendering, push the left and right frustum planes outward by half-IPD.
+	// This ensures geometry visible to either eye isn't culled when rendering from the other eye's position.
+	// Frustum[0] is the right plane (positive axis[1]), frustum[1] is the left plane (negative axis[1]).
+	if (halfIpdWorldUnits > 0.0f) {
+		tr.viewParms.frustum[0].dist -= halfIpdWorldUnits;  // Push right plane outward (more negative = further right)
+		tr.viewParms.frustum[1].dist -= halfIpdWorldUnits;  // Push left plane outward (more negative = further left)
 	}
 }
 
@@ -776,6 +928,7 @@ void R_SetupProjectionZ(viewParms_t *dest)
 		float	plane2[4];
 		vec4_t q, c;
 
+		// Keep mono mirror projection for backwards compatibility
 		Mat4Copy(tr.vrParms.projection, tr.vrParms.mirrorProjection);
 
 		// transform portal plane into camera space
@@ -802,6 +955,30 @@ void R_SetupProjectionZ(viewParms_t *dest)
 		tr.vrParms.mirrorProjection[6]  = c[1];
 		tr.vrParms.mirrorProjection[10] = c[2] + 1.0f;
 		tr.vrParms.mirrorProjection[14] = c[3];
+
+		// Create per-eye mirror projections with oblique near-plane clipping
+		// Use the same clip plane distance for both eyes - the small IPD offset (~3cm)
+		// doesn't significantly affect the clipping and avoids complex calculations
+		for (int eye = 0; eye < 2; eye++)
+		{
+			Mat4Copy(tr.vrParms.projectionEye[eye], tr.vrParms.mirrorProjectionEye[eye]);
+
+			// Compute per-eye oblique clipping using same plane but per-eye projection params
+			q[0] = (SGN(plane2[0]) + tr.vrParms.projectionEye[eye][8]) / tr.vrParms.projectionEye[eye][0];
+			q[1] = (SGN(plane2[1]) + tr.vrParms.projectionEye[eye][9]) / tr.vrParms.projectionEye[eye][5];
+			q[2] = -1.0f;
+			q[3] = (1.0f + tr.vrParms.projectionEye[eye][10]) / tr.vrParms.projectionEye[eye][14];
+
+			VectorScale4(plane2, 2.0f / DotProduct4(plane2, q), c);
+
+			tr.vrParms.mirrorProjectionEye[eye][2]  = c[0];
+			tr.vrParms.mirrorProjectionEye[eye][6]  = c[1];
+			tr.vrParms.mirrorProjectionEye[eye][10] = c[2] + 1.0f;
+			tr.vrParms.mirrorProjectionEye[eye][14] = c[3];
+		}
+
+		// Update the GPU buffer with the newly calculated mirror projection
+		GLSL_UpdateMirrorProjection();
 	}
 
 }
