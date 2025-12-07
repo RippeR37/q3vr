@@ -708,6 +708,12 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 	case CG_R_HUDBUFFER_END:
 		re.HUDBufferEnd();
 		return 0;
+	case CG_R_SCREEN_OVERLAY_BUFFER_START:
+		re.ScreenOverlayBufferStart(args[1]);
+		return 0;
+	case CG_R_SCREEN_OVERLAY_BUFFER_END:
+		re.ScreenOverlayBufferEnd();
+		return 0;
 
 	default:
 	        assert(0);

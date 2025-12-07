@@ -658,6 +658,11 @@ void	RB_SetGL2D (void) {
 		qglViewport(0, 0, tr.hudImage->width, tr.hudImage->height);
 		qglScissor(0, 0, tr.hudImage->width, tr.hudImage->height);
 	}
+	else if (glState.isDrawingScreenOverlay && tr.vrParms.screenOverlayBuffer != 0)
+	{
+		qglViewport(0, 0, tr.vrParms.screenOverlayWidth, tr.vrParms.screenOverlayHeight);
+		qglScissor(0, 0, tr.vrParms.screenOverlayWidth, tr.vrParms.screenOverlayHeight);
+	}
 	else
 	{
 		qglViewport(0, 0, width, height);
@@ -1819,6 +1824,75 @@ const void* RB_SwitchEye( const void* data ) {
 
 /*
 ====================
+RB_ScreenOverlayBuffer
+
+Switches rendering to/from the screen overlay framebuffer for quad layer content.
+====================
+*/
+const void* RB_ScreenOverlayBuffer( const void* data ) {
+	const screenOverlayBufferCommand_t *cmd = data;
+
+	// finish any 2D drawing if needed
+	if(tess.numIndexes) {
+		RB_EndSurface();
+		tess.shader = NULL;
+	}
+
+	if (cmd->start && !glState.isDrawingScreenOverlay)
+	{
+		glState.isDrawingScreenOverlay = qtrue;
+
+		// Bind screen overlay framebuffer if available
+		if (tr.vrParms.screenOverlayBuffer != 0)
+		{
+			// Save current framebuffer
+			tr.backupFrameBuffer = tr.renderFbo->frameBuffer;
+
+			// Bind overlay framebuffer
+			GL_BindFramebuffer(GL_FRAMEBUFFER, tr.vrParms.screenOverlayBuffer);
+
+			// Set viewport to match overlay size
+			qglViewport(0, 0, tr.vrParms.screenOverlayWidth, tr.vrParms.screenOverlayHeight);
+			qglScissor(0, 0, tr.vrParms.screenOverlayWidth, tr.vrParms.screenOverlayHeight);
+
+			// When weapon is zoomed, blit the main scene as the base layer for mono rendering
+			// This copies the game world to the overlay, then reticle/HUD draws on top
+			if (vr.weapon_zoomed && tr.vrParms.mainSceneReadBuffer != 0)
+			{
+				qglBlitNamedFramebuffer(
+					tr.vrParms.mainSceneReadBuffer,
+					tr.vrParms.screenOverlayBuffer,
+					0, 0, tr.vrParms.mainSceneWidth, tr.vrParms.mainSceneHeight,
+					0, 0, tr.vrParms.screenOverlayWidth, tr.vrParms.screenOverlayHeight,
+					GL_COLOR_BUFFER_BIT,
+					GL_LINEAR);
+			}
+			else if (cmd->clear)
+			{
+				qglClearColor(0.0f, 0.0f, 0.0f, 0.0f);  // Transparent black
+				qglClear(GL_COLOR_BUFFER_BIT);
+			}
+		}
+	}
+	else if (glState.isDrawingScreenOverlay)
+	{
+		glState.isDrawingScreenOverlay = qfalse;
+
+		// Restore original framebuffer
+		if (tr.vrParms.screenOverlayBuffer != 0)
+		{
+			tr.renderFbo->frameBuffer = tr.backupFrameBuffer;
+			GL_BindFramebuffer(GL_FRAMEBUFFER, tr.renderFbo->frameBuffer);
+		}
+	}
+
+	glState.currentFBO = tr.renderFbo;
+
+	return (const void*)(cmd + 1);
+}
+
+/*
+====================
 RB_HUDBuffer
 ====================
 */
@@ -1933,6 +2007,9 @@ void RB_ExecuteRenderCommands( const void *data ) {
 			break;
 		case RC_HUD_BUFFER:
 			data = RB_HUDBuffer(data);
+			break;
+		case RC_SCREEN_OVERLAY_BUFFER:
+			data = RB_ScreenOverlayBuffer(data);
 			break;
 		case RC_END_OF_LIST:
 		default:

@@ -766,16 +766,16 @@ void UI_DrawPlayer( float x, float y, float w, float h, playerInfo_t *pi, int ti
 	refdef.width = w;
 	refdef.height = h;
 
-	refdef.fov_x = (int)((float)refdef.width / uiInfo.uiDC.xscale / 640.0f * 90.0f) * 1.1f;
+	refdef.fov_x = (int)((float)refdef.width / uiInfo.uiDC.xscale / 640.0f * 90.0f);
 	xx = refdef.width / uiInfo.uiDC.xscale / tan( refdef.fov_x / 360 * M_PI );
 	refdef.fov_y = atan2( refdef.height / uiInfo.uiDC.yscale, xx );
-	refdef.fov_y *= ( 360 / (float)M_PI ) * 1.1f;
+	refdef.fov_y *= ( 360 / (float)M_PI );
 
 	// calculate distance so the player nearly fills the box
 	len = 0.7 * ( maxs[2] - mins[2] );
-	origin[0] = (len / tan( DEG2RAD(refdef.fov_x) * 0.5 )) / 2.75f;
+	origin[0] = (len / tan( DEG2RAD(refdef.fov_x) * 0.5 )) / 1.75f;
 	origin[1] = 0.5 * ( mins[1] + maxs[1] );
-	origin[2] = -0.5 * ( mins[2] + maxs[2] ) - 2.5f;
+	origin[2] = -0.5 * ( mins[2] + maxs[2] ) -10.0f;
 
 	refdef.time = dp_realtime;
 

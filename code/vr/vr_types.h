@@ -44,9 +44,11 @@ typedef struct
 	uint32_t viewCount;
 	VR_SwapchainInfo color;
 	VR_SwapchainInfo depth;
+	VR_SwapchainInfo screenOverlay;     // Single-layer texture for 2D screen overlays (quad layer)
 	GLuint* framebuffers;
 	GLuint** eyeFramebuffers; // separate FBOs with bound only single eye image
 	GLuint virtualScreenFramebuffer;
+	GLuint screenOverlayFramebuffer;    // FBO for screen overlay rendering
 } VR_SwapchainInfos;
 
 typedef struct
@@ -77,6 +79,7 @@ typedef struct
 	XrSpace StageSpace;
 	XrSpace FakeStageSpace;
 	XrSpace CurrentSpace;
+	XrSpace ViewSpace;          // VIEW reference space for head-locked quad layers
 
 	VR_Renderer Renderer;
 	VR_TrackedController TrackedController[2];

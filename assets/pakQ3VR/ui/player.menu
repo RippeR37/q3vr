@@ -251,7 +251,7 @@ itemDef {
 itemDef {
 	name modelselection
 	ownerdraw UI_PLAYERMODEL
-	rect 424 80 260 260
+	rect 424 70 260 260
 	style 1
 	decoration 
 	visible 1

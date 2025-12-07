@@ -6,6 +6,26 @@
 
 #define NUM_WEAPON_SAMPLES      10
 
+// OpenXR-compatible pose types for vr_clientinfo (avoiding OpenXR header dependency)
+// These match the memory layout of XrVector3f, XrQuaternionf, and XrPosef exactly
+typedef struct {
+	float x;
+	float y;
+	float z;
+} vrVector3f_t;
+
+typedef struct {
+	float x;
+	float y;
+	float z;
+	float w;
+} vrQuaternionf_t;
+
+typedef struct {
+	vrQuaternionf_t orientation;
+	vrVector3f_t position;
+} vrPosef_t;
+
 #define THUMB_LEFT  0
 #define THUMB_RIGHT 1
 
@@ -16,6 +36,10 @@ typedef struct {
 	float fov_angle_down;  // Raw OpenXR FOV angle in radians (negative = down)
 	float fov_angle_left;  // Raw OpenXR FOV angle in radians (negative = left)
 	float fov_angle_right; // Raw OpenXR FOV angle in radians (positive = right)
+
+	// Per-eye FOV angles in radians (for asymmetric stereo rendering)
+	float eye_fov_angle_left[2];   // [0]=left eye, [1]=right eye
+	float eye_fov_angle_right[2];  // [0]=left eye, [1]=right eye
 
 	qboolean weapon_stabilised;
 	qboolean weapon_zoomed;
@@ -43,6 +67,8 @@ typedef struct {
 	float clientview_yaw_delta;
 
 	vec3_t hmdposition;
+	vec3_t hmdposition_eye[2]; //per-eye positions from OpenXR (in HMD/VR space, not Quake space)
+	vrPosef_t eyePose[2]; // Raw OpenXR per-eye poses for direct view matrix construction
 	vec3_t hmdorigin; //used to recenter the mp fake 6DoF playspace
 	vec3_t hmdposition_delta;
 

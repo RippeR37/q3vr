@@ -21,6 +21,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "tr_local.h"
 
+extern cvar_t *vr_worldscale;
+extern cvar_t *vr_worldscaleScaler;
+
 
 
 /*
@@ -95,13 +98,24 @@ static qboolean	R_CullSurface( msurface_t *surf ) {
 
 		// don't cull exactly on the plane, because there are levels of rounding
 		// through the BSP, ICD, and hardware that may cause pixel gaps if an
-		// epsilon isn't allowed here 
+		// epsilon isn't allowed here.
+		// For VR: increase epsilon by half-IPD in world units to prevent surfaces
+		// visible to one eye from being culled when rendering from the other eye's position.
+		// Both worldscale and worldscaleScaler are needed because the eye offset
+		// applied to the view origin uses both (see R_SetupProjection in tr_main.c).
+		float epsilon = 8.0f;
+		if (tr.vrParms.valid && tr.vrParms.halfIpdMeters > 0) {
+			float worldscale = vr_worldscale ? vr_worldscale->value : 32.0f;
+			float scaler = vr_worldscaleScaler ? vr_worldscaleScaler->value : 1.0f;
+			epsilon += tr.vrParms.halfIpdMeters * worldscale * scaler;
+		}
+
 		if ( ct == CT_FRONT_SIDED ) {
-			if ( d < surf->cullinfo.plane.dist - 8 ) {
+			if ( d < surf->cullinfo.plane.dist - epsilon ) {
 				return qtrue;
 			}
 		} else {
-			if ( d > surf->cullinfo.plane.dist + 8 ) {
+			if ( d > surf->cullinfo.plane.dist + epsilon ) {
 				return qtrue;
 			}
 		}

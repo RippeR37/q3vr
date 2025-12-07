@@ -1950,7 +1950,9 @@ EVENT LOOP
 ========================================================================
 */
 
-#define MAX_QUEUED_EVENTS  256
+// VR runs at 90Hz+ and queues multiple events per frame (joystick axes, mouse, etc.)
+// 256 was too small, causing overflow messages. 1024 gives ~11 seconds buffer at 90Hz.
+#define MAX_QUEUED_EVENTS  1024
 #define MASK_QUEUED_EVENTS ( MAX_QUEUED_EVENTS - 1 )
 
 static sysEvent_t  eventQueue[ MAX_QUEUED_EVENTS ];

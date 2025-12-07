@@ -434,7 +434,7 @@ void RE_BeginFrame( stereoFrame_t stereoFrame ) {
 			}
 		}
 	}
-	
+
 	GLSL_PrepareUniformBuffers();
 }
 
@@ -509,6 +509,37 @@ void RE_HUDBufferEnd( void )
     cmd->commandId = RC_HUD_BUFFER;
 }
 
+void RE_ScreenOverlayBufferStart( qboolean clear )
+{
+    screenOverlayBufferCommand_t *cmd;
+
+    if ( !tr.registered ) {
+        return;
+    }
+    cmd = R_GetCommandBufferReserved( sizeof( *cmd ), 0 );
+    if ( !cmd ) {
+        return;
+    }
+    cmd->start = qtrue;
+    cmd->clear = clear;
+    cmd->commandId = RC_SCREEN_OVERLAY_BUFFER;
+}
+
+void RE_ScreenOverlayBufferEnd( void )
+{
+    screenOverlayBufferCommand_t *cmd;
+
+    if ( !tr.registered ) {
+        return;
+    }
+    cmd = R_GetCommandBufferReserved( sizeof( *cmd ), 0 );
+    if ( !cmd ) {
+        return;
+    }
+    cmd->start = qfalse;
+    cmd->commandId = RC_SCREEN_OVERLAY_BUFFER;
+}
+
 void R_Mat4Copy( const float in[16], float out[16] )
 {
 	int i;
@@ -518,11 +549,58 @@ void R_Mat4Copy( const float in[16], float out[16] )
 	}
 }
 
-void RE_SetVRHeadsetParms( const float projectionMatrix[16],  const float nonVRProjectionMatrix[16], int renderBuffer ) {
+void RE_SetVRHeadsetParms( const float projectionMatrix[16],  const float nonVRProjectionMatrix[16], int renderBuffer,
+						   const float projectionEye0[16], const float projectionEye1[16],
+						   float combinedFovX, float halfIpdMeters ) {
 	R_Mat4Copy(projectionMatrix, tr.vrParms.projection);
 	R_Mat4Copy(nonVRProjectionMatrix, tr.vrParms.monoVRProjection);
+
+	// Build fixed 90-degree FOV projection for menu 3D models
+	// This matches the original Q3A 640x480 screen expectations
+	// Vertical FOV is calculated using Q3A's formula: fov_y = atan2(height, width/tan(fov_x/2)) * 2
+	{
+		float fov_x = 90.0f;
+		// Calculate vertical FOV for 4:3 aspect ratio (640x480) using Q3A formula
+		float x = 640.0f / tan(fov_x * M_PI / 360.0f);
+		float fov_y = atan2(480.0f, x) * 360.0f / M_PI;
+		float zNear = 4.0f;    // r_znear default
+		float zFar = 2048.0f;  // RDF_NOWORLDMODEL far clip
+
+		float tanX = tan(fov_x * M_PI / 360.0f);
+		float tanY = tan(fov_y * M_PI / 360.0f);
+
+		Com_Memset(tr.vrParms.menuProjection, 0, sizeof(tr.vrParms.menuProjection));
+		tr.vrParms.menuProjection[0] = 1.0f / tanX;
+		tr.vrParms.menuProjection[5] = 1.0f / tanY;
+		tr.vrParms.menuProjection[10] = -(zFar + zNear) / (zFar - zNear);
+		tr.vrParms.menuProjection[11] = -1.0f;
+		tr.vrParms.menuProjection[14] = -2.0f * zFar * zNear / (zFar - zNear);
+	}
+
+	if (projectionEye0) {
+		R_Mat4Copy(projectionEye0, tr.vrParms.projectionEye[0]);
+		// Initialize mirror projection as copy of regular projection (will be modified if portal is active)
+		R_Mat4Copy(projectionEye0, tr.vrParms.mirrorProjectionEye[0]);
+	}
+	if (projectionEye1) {
+		R_Mat4Copy(projectionEye1, tr.vrParms.projectionEye[1]);
+		// Initialize mirror projection as copy of regular projection (will be modified if portal is active)
+		R_Mat4Copy(projectionEye1, tr.vrParms.mirrorProjectionEye[1]);
+	}
 	tr.vrParms.renderBuffer = renderBuffer;
+	tr.vrParms.combinedFovX = combinedFovX;
+	tr.vrParms.halfIpdMeters = halfIpdMeters;
 	tr.vrParms.valid = qtrue;
+}
+
+void RE_SetScreenOverlayBuffer( int overlayBuffer, int width, int height,
+								int mainSceneReadBuffer, int mainSceneWidth, int mainSceneHeight ) {
+	tr.vrParms.screenOverlayBuffer = overlayBuffer;
+	tr.vrParms.screenOverlayWidth = width;
+	tr.vrParms.screenOverlayHeight = height;
+	tr.vrParms.mainSceneReadBuffer = mainSceneReadBuffer;
+	tr.vrParms.mainSceneWidth = mainSceneWidth;
+	tr.vrParms.mainSceneHeight = mainSceneHeight;
 }
 
 /*

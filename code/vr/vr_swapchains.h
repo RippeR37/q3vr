@@ -23,4 +23,10 @@ void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t
 void VR_Swapchains_Acquire(VR_SwapchainInfos* swapchains, uint32_t* colorIndex, uint32_t* depthIndex);
 void VR_Swapchains_Release(VR_SwapchainInfos* swapchains);
 
+// Screen overlay (quad layer) swapchain functions
+void VR_Swapchains_AcquireOverlay(VR_SwapchainInfo* overlay, uint32_t* index);
+void VR_Swapchains_ReleaseOverlay(VR_SwapchainInfo* overlay);
+void VR_Swapchains_BindOverlayFramebuffer(VR_SwapchainInfos* swapchains, uint32_t index);
+GLuint VR_Swapchains_GetOverlayFramebuffer(VR_SwapchainInfos* swapchains);
+
 #endif
