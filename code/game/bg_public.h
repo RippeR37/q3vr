@@ -710,7 +710,7 @@ typedef enum {
 void	BG_EvaluateTrajectory( const trajectory_t *tr, int atTime, vec3_t result );
 void	BG_EvaluateTrajectoryDelta( const trajectory_t *tr, int atTime, vec3_t result );
 
-void	BG_AddPredictableEventToPlayerstate( int newEvent, int eventParm, playerState_t *ps, int entityNum );
+void	BG_AddPredictableEventToPlayerstate( int newEvent, int eventParm, playerState_t *ps );
 
 void	BG_TouchJumpPad( playerState_t *ps, entityState_t *jumppad );
 

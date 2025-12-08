@@ -500,8 +500,6 @@ static void CG_MapRestart( void ) {
 
 	trap_S_ClearLoopingSounds( qtrue );
 
-	cg.allowPickupPrediction = cg.time + PICKUP_PREDICTION_DELAY;
-
 	// we really should clear more parts of cg here and stop sounds
 
 	// play the "fight" sound if this is a restart without warmup

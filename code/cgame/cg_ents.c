@@ -239,7 +239,7 @@ static void CG_Item( centity_t *cent ) {
 	}
 
 	// if set to invisible, skip
-	if ( !es->modelindex || ( es->eFlags & EF_NODRAW ) || cent->delaySpawn > cg.time ) {
+	if (!es->modelindex || (es->eFlags & EF_NODRAW)) {
 		return;
 	}
 

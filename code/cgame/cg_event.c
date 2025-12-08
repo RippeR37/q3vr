@@ -553,14 +553,13 @@ also called by CG_CheckPlayerstateEvents
 ==============
 */
 #define	DEBUGNAME(x) if(cg_debugEvents.integer){CG_Printf(x"\n");}
-void CG_EntityEvent( centity_t *cent, vec3_t position, int entityNum ) {
+void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	entityState_t	*es;
 	int				event;
 	vec3_t			dir;
 	const char		*s;
 	int				clientNum;
 	clientInfo_t	*ci;
-	centity_t		*ce;
 
 	es = &cent->currentState;
 	event = es->event & ~EV_EVENT_BITS;
@@ -793,16 +792,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position, int entityNum ) {
 				break;
 			}
 
-			if ( entityNum >= 0 ) {
-				// our predicted entity
-				ce = cg_entities + entityNum;
-				if ( ce->delaySpawn > cg.time && ce->delaySpawnPlayed ) {
-					break; // delay item pickup
-				}
-			} else {
-				ce = NULL;
-			}
-
 			item = &bg_itemlist[ index ];
 
 			// powerups and team items will have a separate global sound, this one
@@ -843,10 +832,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position, int entityNum ) {
 			if ( es->number == cg.snap->ps.clientNum ) {
 				CG_ItemPickup( index );
 			}
-
-			if ( ce ) {
-				ce->delaySpawnPlayed = qtrue;
-			}
 		}
 		break;
 
@@ -862,17 +847,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position, int entityNum ) {
 				break;
 			}
 
-			if ( entityNum >= 0 ) {
-				// our predicted entity
-				ce = cg_entities + entityNum;
-				if ( ce->delaySpawn > cg.time && ce->delaySpawnPlayed ) {
-					break;
-				}
-			} else {
-				ce = NULL;
-			}
-
-
 			item = &bg_itemlist[ index ];
 			// powerup pickups are global
 			if( item->pickup_sound ) {
@@ -882,10 +856,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position, int entityNum ) {
 			// show icon and name on status bar
 			if ( es->number == cg.snap->ps.clientNum ) {
 				CG_ItemPickup( index );
-			}
-
-			if ( ce ) {
-				ce->delaySpawnPlayed = qtrue;
 			}
 		}
 		break;
@@ -1413,6 +1383,6 @@ void CG_CheckEvents( centity_t *cent ) {
 	BG_EvaluateTrajectory( &cent->currentState.pos, cg.snap->serverTime, cent->lerpOrigin );
 	CG_SetEntitySoundPosition( cent );
 
-	CG_EntityEvent( cent, cent->lerpOrigin, -1 );
+	CG_EntityEvent( cent, cent->lerpOrigin );
 }
 
