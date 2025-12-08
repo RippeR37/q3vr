@@ -203,68 +203,13 @@ void CG_Respawn( void ) {
 
 	// select the weapon the server says we are using
 	cg.weaponSelect = cg.snap->ps.weapon;
-
-	cg.timeResidual = cg.snap->ps.commandTime + 1000;
 }
 
 extern char *eventnames[];
 
 /*
 ==============
-CG_CheckPlayerstateEvents_Enhanced
-
-Enhanced prediction path (baseq3a-style).
-Uses entity tracking via eventParm2[] for sound dedup.
-==============
-*/
-extern int		eventStack;
-extern int		eventParm2[ MAX_PREDICTED_EVENTS ];
-
-static void CG_CheckPlayerstateEvents_Enhanced( playerState_t *ps, playerState_t *ops ) {
-	int			i;
-	int			event;
-	centity_t	*cent;
-
-	if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
-		cent = &cg_entities[ ps->clientNum ];
-		cent->currentState.event = ps->externalEvent;
-		cent->currentState.eventParm = ps->externalEventParm;
-		CG_EntityEvent( cent, cent->lerpOrigin, -1 );
-	}
-
-	cent = &cg.predictedPlayerEntity;
-
-	int n = eventStack - MAX_PS_EVENTS;
-	if ( n < 0 ) n = 0;
-
-	for ( i = ps->eventSequence - MAX_PS_EVENTS ; i < ps->eventSequence ; i++ ) {
-		// if we have a new predictable event
-		if ( i >= ops->eventSequence
-			// or the server told us to play another event instead of a predicted event we already issued
-			// or something the server told us changed our prediction causing a different event
-			|| (i > ops->eventSequence - MAX_PS_EVENTS && ps->events[i & (MAX_PS_EVENTS-1)] != ops->events[i & (MAX_PS_EVENTS-1)]) ) {
-
-			event = ps->events[ i & (MAX_PS_EVENTS-1) ];
-			if ( event == EV_NONE ) // ignore empty events
-				continue;
-			cent->currentState.event = event;
-			cent->currentState.eventParm = ps->eventParms[ i & (MAX_PS_EVENTS-1) ];
-
-			CG_EntityEvent( cent, cent->lerpOrigin, eventParm2[ n++ ] );
-
-			cg.predictableEvents[ i & (MAX_PREDICTED_EVENTS-1) ] = event;
-
-			cg.eventSequence++;
-		}
-	}
-}
-
-/*
-==============
 CG_CheckPlayerstateEvents
-
-Vanilla prediction path (ioq3-style).
-Redirects to CG_CheckPlayerstateEvents_Enhanced when connected to a baseq3a server.
 ==============
 */
 void CG_CheckPlayerstateEvents( playerState_t *ps, playerState_t *ops ) {
@@ -272,19 +217,11 @@ void CG_CheckPlayerstateEvents( playerState_t *ps, playerState_t *ops ) {
 	int			event;
 	centity_t	*cent;
 
-	// Redirect to enhanced prediction if server supports it
-	if ( cg.enhancedPrediction ) {
-		CG_CheckPlayerstateEvents_Enhanced( ps, ops );
-		return;
-	}
-
-	// === Vanilla ioq3 prediction below (matches ioq3 exactly) ===
-
 	if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
 		cent = &cg_entities[ ps->clientNum ];
 		cent->currentState.event = ps->externalEvent;
 		cent->currentState.eventParm = ps->externalEventParm;
-		CG_EntityEvent( cent, cent->lerpOrigin, -1 );
+		CG_EntityEvent( cent, cent->lerpOrigin );
 	}
 
 	cent = &cg.predictedPlayerEntity; // cg_entities[ ps->clientNum ];
@@ -299,11 +236,47 @@ void CG_CheckPlayerstateEvents( playerState_t *ps, playerState_t *ops ) {
 			event = ps->events[ i & (MAX_PS_EVENTS-1) ];
 			cent->currentState.event = event;
 			cent->currentState.eventParm = ps->eventParms[ i & (MAX_PS_EVENTS-1) ];
-			CG_EntityEvent( cent, cent->lerpOrigin, -1 );
+			CG_EntityEvent( cent, cent->lerpOrigin );
 
 			cg.predictableEvents[ i & (MAX_PREDICTED_EVENTS-1) ] = event;
 
 			cg.eventSequence++;
+		}
+	}
+}
+
+/*
+==================
+CG_CheckChangedPredictableEvents
+==================
+*/
+void CG_CheckChangedPredictableEvents( playerState_t *ps ) {
+	int i;
+	int event;
+	centity_t	*cent;
+
+	cent = &cg.predictedPlayerEntity;
+	for ( i = ps->eventSequence - MAX_PS_EVENTS ; i < ps->eventSequence ; i++ ) {
+		//
+		if (i >= cg.eventSequence) {
+			continue;
+		}
+		// if this event is not further back in than the maximum predictable events we remember
+		if (i > cg.eventSequence - MAX_PREDICTED_EVENTS) {
+			// if the new playerstate event is different from a previously predicted one
+			if ( ps->events[i & (MAX_PS_EVENTS-1)] != cg.predictableEvents[i & (MAX_PREDICTED_EVENTS-1) ] ) {
+
+				event = ps->events[ i & (MAX_PS_EVENTS-1) ];
+				cent->currentState.event = event;
+				cent->currentState.eventParm = ps->eventParms[ i & (MAX_PS_EVENTS-1) ];
+				CG_EntityEvent( cent, cent->lerpOrigin );
+
+				cg.predictableEvents[ i & (MAX_PREDICTED_EVENTS-1) ] = event;
+
+				if ( cg_showmiss.integer ) {
+					CG_Printf("WARNING: changed predicted event\n");
+				}
+			}
 		}
 	}
 }
@@ -541,75 +514,11 @@ void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
 
 /*
 ===============
-CG_TransitionPlayerState_Enhanced
-
-Enhanced prediction path (baseq3a-style).
-Includes dropped event handling and event stack management.
-===============
-*/
-static void CG_TransitionPlayerState_Enhanced( playerState_t *ps, playerState_t *ops ) {
-	qboolean respawn;
-
-	// check for changing follow mode
-	if ( ps->clientNum != ops->clientNum ) {
-		cg.thisFrameTeleport = qtrue;
-		// make sure we don't get any unwanted transition effects
-		*ops = *ps;
-	}
-
-	// damage events (player is getting wounded)
-	if ( ps->damageEvent != ops->damageEvent && ps->damageCount ) {
-		CG_DamageFeedback( ps->damageYaw, ps->damagePitch, ps->damageCount );
-	}
-
-	// respawning / map restart
-	respawn = ps->persistant[PERS_SPAWN_COUNT] != ops->persistant[PERS_SPAWN_COUNT];
-	if ( respawn || cg.mapRestart ) {
-		cg.mapRestart = qfalse;
-		CG_Respawn();
-	}
-
-	if ( cg.snap->ps.pm_type != PM_INTERMISSION
-		&& ps->persistant[PERS_TEAM] != TEAM_SPECTATOR ) {
-		CG_CheckLocalSounds( ps, ops );
-	}
-
-	// check for going low on ammo
-	CG_CheckAmmo();
-
-	 // try to play potentially dropped events
-	CG_PlayDroppedEvents( ps, ops );
-
-	// run events
-	CG_CheckPlayerstateEvents( ps, ops );
-
-	// reset event stack
-	eventStack = 0;
-
-	// smooth the ducking viewheight change
-	if ( ps->viewheight != ops->viewheight && !respawn ) {
-		cg.duckChange = ps->viewheight - ops->viewheight;
-		cg.duckTime = cg.time;
-	}
-}
-
-/*
-===============
 CG_TransitionPlayerState
 
-Vanilla prediction path (q3vr master-style).
-Redirects to CG_TransitionPlayerState_Enhanced when connected to a baseq3a server.
 ===============
 */
 void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops ) {
-	// Redirect to enhanced prediction if server supports it
-	if ( cg.enhancedPrediction ) {
-		CG_TransitionPlayerState_Enhanced( ps, ops );
-		return;
-	}
-
-	// === Vanilla q3vr master prediction below ===
-
 	// check for changing follow mode
 	if ( ps->clientNum != ops->clientNum ) {
 		cg.thisFrameTeleport = qtrue;
@@ -632,7 +541,7 @@ void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops ) {
 		cg.mapRestart = qfalse;
 	}
 
-	if ( cg.snap->ps.pm_type != PM_INTERMISSION
+	if ( cg.snap->ps.pm_type != PM_INTERMISSION 
 		&& ps->persistant[PERS_TEAM] != TEAM_SPECTATOR ) {
 		CG_CheckLocalSounds( ps, ops );
 	}
