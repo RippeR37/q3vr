@@ -694,7 +694,17 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 
 	// the menu draws next
 	if ( Key_GetCatcher( ) & KEYCATCH_UI && uivm ) {
+		// During SP intermission, render UI to overlay buffer to avoid stereo doubling
+		// The 3D scene (podium) renders normally, but UI needs to be head-locked
+		qboolean isSPIntermission = (cl.snap.ps.pm_type == PM_INTERMISSION) &&
+		                            (Cvar_VariableValue("g_gametype") == GT_SINGLE_PLAYER);
+		if (isSPIntermission) {
+			re.ScreenOverlayBufferStart(qfalse);  // Don't clear - append to existing
+		}
 		VM_Call( uivm, UI_REFRESH, cls.realtime );
+		if (isSPIntermission) {
+			re.ScreenOverlayBufferEnd();
+		}
 	}
 
 	// console draws next
