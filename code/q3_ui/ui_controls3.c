@@ -230,7 +230,7 @@ static void Controls3_MenuEvent( void* ptr, int notification ) {
 					trap_Cvar_Set("vr_button_map_A", "+moveup"); // Jump
 					trap_Cvar_Set("vr_button_map_B", "+movedown"); // Crouch
 					trap_Cvar_Set("vr_button_map_X", "+button2"); // Use Item
-					trap_Cvar_Set("vr_button_map_Y", "+button3"); // Taunt
+					trap_Cvar_Set("vr_button_map_Y", "togglemenu"); // Menu (SteamVR eats menu button)
 				}
 			}
 			trap_Cvar_SetValue( "vr_switchThumbsticks", s_controls3.switchthumbsticks.curvalue );

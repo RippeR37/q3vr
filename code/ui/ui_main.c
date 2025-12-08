@@ -3388,7 +3388,7 @@ static void UI_Update(const char *name) {
 			trap_Cvar_Set("vr_button_map_A", "+moveup"); // Jump
 			trap_Cvar_Set("vr_button_map_B", "+movedown"); // Crouch
 			trap_Cvar_Set("vr_button_map_X", "+button2"); // Use Item
-			trap_Cvar_Set("vr_button_map_Y", "+button3"); // Taunt
+			trap_Cvar_Set("vr_button_map_Y", "togglemenu"); // Menu (SteamVR eats menu button)
 		}
 	} else if (Q_stricmp(name, "vr_uturn") == 0) {
 		int controlSchema = (int)trap_Cvar_VariableValue( "vr_controlSchema" ) % 3;

@@ -119,7 +119,7 @@ These are the default mappings:
 | `RTHUMBRIGHT` | `"turnright"` | Snap/smooth turn right |
 | `RTHUMBFORWARD` | `""` |  |
 | `RTHUMBBACK` | `""` |  |
-| `Y` | `"+button3"` | Taunt |
+| `Y` | `"togglemenu"` | Menu (again... some runtimes \*cough\*SteamVR\*cough\* eat menu button, but you can rebind this to +button3 for Quake3Quest feel if your runtime supports the menu button properly) |
 | `X` | `"+button2"` | Use item |
 | `B` | `"+movedown"` | Crouch |
 | `A` | `"+moveup"` | Jump |

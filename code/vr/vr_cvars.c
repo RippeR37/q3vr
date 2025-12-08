@@ -179,7 +179,7 @@ void VR_InitCvars( void )
 		Cvar_Get ("vr_button_map_A", "+moveup", CVAR_ARCHIVE); // Jump
 		Cvar_Get ("vr_button_map_B", "+movedown", CVAR_ARCHIVE); // Crouch
 		Cvar_Get ("vr_button_map_X", "+button2", CVAR_ARCHIVE); // Use Item
-		Cvar_Get ("vr_button_map_Y", "+button3", CVAR_ARCHIVE); // Taunt
+		Cvar_Get ("vr_button_map_Y", "togglemenu", CVAR_ARCHIVE); // Menu (SteamVR eats menu button)
 	}
 
 	//Remaining button mapping (buttons not affected by schemas)
