@@ -645,7 +645,7 @@ void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t
 		srcX, srcY, srcX + srcWidth, srcY + srcHeight,
 		0, 0, swapchains->color.width, swapchains->color.height,
 		GL_COLOR_BUFFER_BIT,
-		GL_LINEAR);
+		GL_NEAREST);
 }
 
 void VR_Swapchains_Acquire(VR_SwapchainInfos* swapchainInfos, uint32_t* colorIndex, uint32_t* depthIndex)
