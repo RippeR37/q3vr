@@ -1,0 +1,64 @@
+// Game type info
+//
+// description, g_gametype enum
+//
+// 0 - GT_FFA,				// free for all
+// 1 - GT_TOURNAMENT,		// one on one tournament
+// 2 - GT_SINGLE_PLAYER,	// single player ffa
+// 3 - GT_TEAM,				// team deathmatch
+// 4 - GT_CTF,				// capture the flag
+// 5 - GT_1FCTF,			// one flag ctf
+// 6 - GT_OBELISK,			// obelisk
+// 7 - GT_HARVESTER,		// harvester
+// 8 - GT_TEAMTOURNAMENT	// team tournament
+
+gametypes {
+  { "FFA" 0 }
+  { "Tournament" 1 }
+  { "Team DM" 3 }
+  { "CTF" 4 }
+  { "One Flag CTF" 5 }
+  { "Overload" 6 }
+  { "Harvester" 7 }
+}
+
+
+// english name, map name, vs count, par times per gametype valid gametyes for ui
+//
+maps {
+  { "Base Siege" "mpteam1" "3"			  "Sarge"			2 "0" 4 "240" 5 "180" 6 "180" 7 "180" }
+  { "Fallout Bunker" "mpteam2" "3"		  "Sarge"			2 "0" 4 "180" 5 "120" 6 "120" 7 "270" }
+  { "Inner Sanctums" "mpteam3" "3"		  "Sarge"			2 "0" 4 "240" 5 "210" 6 "210" 7 "210" }
+  { "Scornforge" "mpteam4" "4"			  "Sarge"			2 "0" 4 "360" 5 "420" 6 "420" 7 "270" }
+  { "Teamwerkz" "mpteam5" "4"			  "Sarge"			2 "0" 4 "420" 5 "300" 6 "360" 7 "300" }
+  { "Vortex Portal" "mpteam6" "3"		  "Sarge"			2 "0" 4 "240" 5 "210" 6 "210" 7 "180" }
+  { "The Capture Chamber" "mpteam7" "4"	  "Sarge"			2 "0" 4 "240" 5 "240" 6 "240" 7 "270" }
+  { "Assassins' Roost" "mpteam8" "4"	  "Sarge"			2 "0" 4 "420" 5 "240" 6 "240" 7 "360" }
+  { "Overdose" "mpterra1" "4"			  "Sarge"			2 "0" 4 "330" 5 "240" 6 "270" 7 "420" }
+  { "The House of Decay" "mptourney1" "1" "Fritzkrieg"			2 "0" 1 "180" }
+  { "Death Factory" "mptourney2" "1"	  "Pi"	2 "0" 1 "240" }
+  { "Temple of Pain" "mptourney3" "1"	  "Janet" 		2 "0" 1 "180" }
+  { "Evil Playground" "mptourney4" "1"	  "James"		2 "0" 1 "240" }
+  { "Dueling Keeps 2" "mpq3ctf1" "3"	  "Sarge"			2 "0" 4 "180" 5 "120" 6 "180" 7 "180" }
+  { "More Trouble" "mpq3ctf2" "3"		  "Sarge"			2 "0" 4 "220" 5 "180" 6 "300" 7 "240" }
+  { "Stronghold Return" "mpq3ctf3" "3"	  "Sarge"			2 "0" 4 "270" 5 "180" 6 "180" 7 "220" }
+  { "Chaos in Space" "mpq3ctf4" "2"		  "Sarge"			2 "0" 4 "120" 5 "120" 6 "180" 7 "180" }
+}
+
+joingametypes {
+  { "All" -1 }
+  { "FFA" 0 }
+  { "Tournament" 1 }
+  { "Team DM" 3 }
+  { "CTF" 4 }
+  { "One Flag CTF" 5 }
+  { "Overload" 6 }
+  { "Harvester" 7 }
+}
+
+
+//  { "Overdose" "mpterra1" "3"				"180" 4 5 6 7 }
+//  { "Distant Screams" "mpterra2" "4" "180" 4 5 6 7 }
+//  { "Final Strike" "mpterra3" "3" "180" 4 5 6 7 }
+//  { "Beyond Reality" "mpq3tourney6" "3" "180" 4 5 6 7 }
+
