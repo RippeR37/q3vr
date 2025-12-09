@@ -3696,8 +3696,8 @@ void AdjustFrom640(float *x, float *y, float *w, float *h) {
 		// but only displaying the centered 4:3 portion, so adjust scale and offset
 		if (vr != NULL && vr->first_person_following) {
 			// Calculate the 4:3 safe area height
-			int safeHeight = (DC->glconfig.vidWidth * 3) / 4;
-			int yMargin = (DC->glconfig.vidHeight - safeHeight) / 2;
+			float safeHeight = (DC->glconfig.vidWidth * 3.0f) / 4.0f;
+			float yMargin = (DC->glconfig.vidHeight - safeHeight) / 2.0f;
 
 			// Recalculate Y scale based on the visible 4:3 area, not full height
 			yscale = safeHeight / 480.0f;

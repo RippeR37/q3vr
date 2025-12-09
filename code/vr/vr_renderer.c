@@ -217,8 +217,9 @@ void VR_Renderer_BeginFrame(VR_Engine* engine, XrBool32 needsRecenter)
 
 	// Acquire overlay swapchain for 2D screen overlays (vignette, damage, reticle, HUD mode 2)
 	// Skip during loading states to avoid submitting uninitialized overlay content
+	// Skip when in virtual screen mode - overlay would obscure the virtual screen
 	overlayAcquiredThisFrame = qfalse;
-	if (swapchains->screenOverlay.swapchain != XR_NULL_HANDLE && clc.state == CA_ACTIVE)
+	if (swapchains->screenOverlay.swapchain != XR_NULL_HANDLE && clc.state == CA_ACTIVE && !vr.virtual_screen)
 	{
 		uint32_t overlayIndex;
 		VR_Swapchains_AcquireOverlay(&swapchains->screenOverlay, &overlayIndex);

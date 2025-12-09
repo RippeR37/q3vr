@@ -55,6 +55,35 @@ void QDECL Com_Printf( const char *msg, ... ) {
 	trap_Print( text );
 }
 
+/*
+================
+UI_GetProjectionCenterYOffset
+
+Returns the Y offset (in virtual 480 coordinates) of the optical center
+from the geometric center (240). VR headsets have asymmetric FOV, shifting
+the optical center upward.
+================
+*/
+static float UI_GetProjectionCenterYOffset( void )
+{
+	if (vr == NULL) {
+		return 0.0f;
+	}
+
+	float tanUp = tanf(vr->fov_angle_up);
+	float tanDown = tanf(vr->fov_angle_down);
+	float tanHeight = tanUp - tanDown;
+
+	if (fabsf(tanHeight) > 0.001f) {
+		float m9 = (tanUp + tanDown) / tanHeight;
+		// Projection center Y in virtual 480 coords = 240 * (1 + m9)
+		// Offset from geometric center = 240 * m9
+		return 240.0f * m9;
+	}
+
+	return 0.0f;
+}
+
 float UI_GetXScale()
 {
 	if (vr == NULL || vr->virtual_screen) {
@@ -89,8 +118,11 @@ float UI_GetYOffset()
 {
 	if (vr == NULL || vr->virtual_screen) {
 		// In virtual screen mode, center the 4:3 content vertically
+		// Use optical center offset to account for asymmetric FOV
 		float viewableHeight = uis.glconfig.vidWidth * 0.75f;
-		return (uis.glconfig.vidHeight - viewableHeight) / 2.0f;
+		float screenYScale = viewableHeight / 480.0f;
+		float opticalOffsetVirtual = UI_GetProjectionCenterYOffset();
+		return (uis.glconfig.vidHeight - viewableHeight) / 2.0f + opticalOffsetVirtual * screenYScale;
 	} else {
 		return (uis.glconfig.vidHeight - (480 * UI_GetYScale())) / 2.0f;
 	}
@@ -1173,14 +1205,14 @@ void UI_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 	// but only displaying the centered 4:3 portion, so adjust scale and offset
 	if (vr != NULL && vr->first_person_following) {
 		// Calculate the 4:3 safe area height
-		int safeHeight = (uis.glconfig.vidWidth * 3) / 4;
-		int yMargin = (uis.glconfig.vidHeight - safeHeight) / 2;
+		float safeHeight = (uis.glconfig.vidWidth * 3.0f) / 4.0f;
 
 		// Recalculate Y scale based on the visible 4:3 area, not full height
 		yscale = safeHeight / 480.0f;
 
-		// Adjust Y offset to account for the cropped top margin
-		yoffset = yMargin;
+		// Use optical center offset to account for asymmetric FOV
+		float opticalOffsetVirtual = UI_GetProjectionCenterYOffset();
+		yoffset = (uis.glconfig.vidHeight - safeHeight) / 2.0f + opticalOffsetVirtual * yscale;
 	}
 
 	*x = *x * xscale + uis.bias + xoffset;

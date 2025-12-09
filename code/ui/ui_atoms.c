@@ -56,6 +56,35 @@ void QDECL Com_Printf( const char *msg, ... ) {
 qboolean newUI = qfalse;
 
 
+/*
+================
+UI_GetProjectionCenterYOffset
+
+Returns the Y offset (in virtual 480 coordinates) of the optical center
+from the geometric center (240). VR headsets have asymmetric FOV, shifting
+the optical center upward.
+================
+*/
+static float UI_GetProjectionCenterYOffset( void )
+{
+	if (vr == NULL) {
+		return 0.0f;
+	}
+
+	float tanUp = tanf(vr->fov_angle_up);
+	float tanDown = tanf(vr->fov_angle_down);
+	float tanHeight = tanUp - tanDown;
+
+	if (fabsf(tanHeight) > 0.001f) {
+		float m9 = (tanUp + tanDown) / tanHeight;
+		// Projection center Y in virtual 480 coords = 240 * (1 + m9)
+		// Offset from geometric center = 240 * m9
+		return 240.0f * m9;
+	}
+
+	return 0.0f;
+}
+
 float UI_GetXScale()
 {
 	if (vr == NULL || vr->virtual_screen) {
@@ -90,8 +119,11 @@ float UI_GetYOffset()
 {
 	if (vr == NULL || vr->virtual_screen) {
 		// In virtual screen mode, center the 4:3 content vertically
+		// Use optical center offset to account for asymmetric FOV
 		float viewableHeight = uiInfo.uiDC.glconfig.vidWidth * 0.75f;
-		return (uiInfo.uiDC.glconfig.vidHeight - viewableHeight) / 2.0f;
+		float screenYScale = viewableHeight / 480.0f;
+		float opticalOffsetVirtual = UI_GetProjectionCenterYOffset();
+		return (uiInfo.uiDC.glconfig.vidHeight - viewableHeight) / 2.0f + opticalOffsetVirtual * screenYScale;
 	} else {
 		return (uiInfo.uiDC.glconfig.vidHeight - (480 * UI_GetYScale())) / 2.0f;
 	}
@@ -462,11 +494,29 @@ Adjusted for resolution and screen aspect ratio
 ================
 */
 void UI_AdjustFrom640( float *x, float *y, float *w, float *h ) {
-	// expect valid pointers
-	*x = *x * UI_GetXScale() + uiInfo.uiDC.bias + UI_GetXOffset();
-	*y = *y * UI_GetYScale() + UI_GetYOffset();
-	*w *= UI_GetXScale();
-	*h *= UI_GetYScale();
+	float xscale = UI_GetXScale();
+	float yscale = UI_GetYScale();
+	float xoffset = UI_GetXOffset();
+	float yoffset = UI_GetYOffset();
+
+	// For VRFM_FIRSTPERSON, we're rendering to full framebuffer
+	// but only displaying the centered 4:3 portion, so adjust scale and offset
+	if (vr != NULL && vr->first_person_following) {
+		// Calculate the 4:3 safe area height
+		float safeHeight = (uiInfo.uiDC.glconfig.vidWidth * 3.0f) / 4.0f;
+
+		// Recalculate Y scale based on the visible 4:3 area, not full height
+		yscale = safeHeight / 480.0f;
+
+		// Use optical center offset to account for asymmetric FOV
+		float opticalOffsetVirtual = UI_GetProjectionCenterYOffset();
+		yoffset = (uiInfo.uiDC.glconfig.vidHeight - safeHeight) / 2.0f + opticalOffsetVirtual * yscale;
+	}
+
+	*x = *x * xscale + uiInfo.uiDC.bias + xoffset;
+	*y = *y * yscale + yoffset;
+	*w *= xscale;
+	*h *= yscale;
 }
 
 void UI_DrawNamedPic( float x, float y, float width, float height, const char *picname ) {
