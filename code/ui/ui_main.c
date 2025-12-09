@@ -5266,6 +5266,18 @@ static void UI_DrawCinematic(int handle, float x, float y, float w, float h) {
 	if (vr && vr->virtual_screen) {
 		float viewableHeight = uiInfo.uiDC.glconfig.vidWidth * 0.75f;
 		float yoffset = (uiInfo.uiDC.glconfig.vidHeight - viewableHeight) / 2.0f;
+
+		// Account for asymmetric FOV optical center offset
+		float tanUp = tanf(vr->fov_angle_up);
+		float tanDown = tanf(vr->fov_angle_down);
+		float tanHeight = tanUp - tanDown;
+		if (fabsf(tanHeight) > 0.001f) {
+			float m9 = (tanUp + tanDown) / tanHeight;
+			float opticalOffsetVirtual = 240.0f * m9;
+			float yscale = viewableHeight / 480.0f;
+			yoffset += opticalOffsetVirtual * yscale;
+		}
+
 		y = (y - yoffset) * (SCREEN_HEIGHT / viewableHeight);
 		h *= SCREEN_HEIGHT / viewableHeight;
 	} else {
