@@ -5,6 +5,7 @@
 
 #include "vr_macros.h"
 #include "vr_clientinfo.h"
+#include "vr_gameplay.h"
 #include "common/xr_linear.h"
 
 XrFrameState VR_WaitFrame(XrSession session)
@@ -99,6 +100,25 @@ void VR_EndFrame(XrSession session, VR_SwapchainInfos* swapchains, XrView* views
 	XrCompositionLayerQuad quad_layer = {};
 	qboolean useQuadForScene = vr.weapon_zoomed;  // When zoomed, quad layer IS the scene
 
+	// SP intermission overlay anchoring - track state for world-fixed UI
+	static XrPosef sp_intermission_anchor_pose;
+	static qboolean sp_intermission_pose_captured = qfalse;
+	qboolean isSPIntermission = VR_IsSPIntermission();
+
+	// Detect SP intermission start/end
+	if (isSPIntermission && !vr.sp_intermission_active)
+	{
+		// First frame of SP intermission - capture anchor position
+		vr.sp_intermission_active = qtrue;
+		sp_intermission_pose_captured = qfalse;
+	}
+	else if (!isSPIntermission && vr.sp_intermission_active)
+	{
+		// Exiting SP intermission - reset state
+		vr.sp_intermission_active = qfalse;
+		sp_intermission_pose_captured = qfalse;
+	}
+
 	if (hasScreenOverlay && swapchains->screenOverlay.swapchain != XR_NULL_HANDLE && viewCount >= 2)
 	{
 		float distance = 0.5f;
@@ -128,18 +148,87 @@ void VR_EndFrame(XrSession session, VR_SwapchainInfos* swapchains, XrView* views
 		{
 			quad_layer.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
 		}
-		quad_layer.space = viewSpace;
 		quad_layer.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
 
-		quad_layer.pose.orientation.x = 0.0f;
-		quad_layer.pose.orientation.y = 0.0f;
-		quad_layer.pose.orientation.z = 0.0f;
-		quad_layer.pose.orientation.w = 1.0f;
+		// During SP intermission, anchor the overlay in world space
+		// so UI elements stay fixed relative to the podium
+		if (isSPIntermission)
+		{
+			quad_layer.space = worldSpace;
 
-		// Position the quad at the FOV center (accounts for asymmetric FOV)
-		quad_layer.pose.position.x = fovCenterX;
-		quad_layer.pose.position.y = fovCenterY;
-		quad_layer.pose.position.z = -distance;
+			// Get current head position in worldSpace using xrLocateSpace
+			XrSpaceLocation viewInWorld = {XR_TYPE_SPACE_LOCATION};
+			xrLocateSpace(viewSpace, worldSpace, predictedDisplayTime, &viewInWorld);
+			XrVector3f currentHeadPos = viewInWorld.pose.position;
+
+			// Capture initial state on first frame
+			static XrVector3f initialHeadPos;
+			static float capturedYaw = 0.0f;
+			static float targetQuadY = 0.0f;
+			if (!sp_intermission_pose_captured)
+			{
+				initialHeadPos = currentHeadPos;
+
+				// Extract yaw from HMD orientation
+				XrQuaternionf q = views[0].pose.orientation;
+				float siny_cosp = 2.0f * (q.w * q.y + q.z * q.x);
+				float cosy_cosp = 1.0f - 2.0f * (q.x * q.x + q.y * q.y);
+				capturedYaw = atan2f(siny_cosp, cosy_cosp);
+
+				// Store yaw for cursor calculation
+				vr.sp_intermission_yaw = capturedYaw * 180.0f / M_PI;
+
+				// Calculate target Y position (below initial head height)
+				targetQuadY = initialHeadPos.y - 1.1f;
+
+				sp_intermission_pose_captured = qtrue;
+			}
+
+			// Distance for the quad
+			float worldDistance = 4.0f;
+
+			// Calculate position in front of where player was initially looking
+			// X and Z use initial position (worldSpace X/Z appear stable)
+			sp_intermission_anchor_pose.position.x = initialHeadPos.x - sinf(capturedYaw) * worldDistance;
+			sp_intermission_anchor_pose.position.z = initialHeadPos.z - cosf(capturedYaw) * worldDistance;
+
+			// Y: Compensate for LOCAL space vertical tracking
+			// The worldSpace Y origin moves with head, so we counteract by
+			// adjusting based on how much the head has moved from initial position
+			float headYDelta = currentHeadPos.y - initialHeadPos.y;
+			sp_intermission_anchor_pose.position.y = targetQuadY - headYDelta;
+
+			// Rotation: face back toward the initial position
+			float halfYaw = capturedYaw * 0.5f;
+			sp_intermission_anchor_pose.orientation.x = 0.0f;
+			sp_intermission_anchor_pose.orientation.y = sinf(halfYaw);
+			sp_intermission_anchor_pose.orientation.z = 0.0f;
+			sp_intermission_anchor_pose.orientation.w = cosf(halfYaw);
+
+			quad_layer.pose = sp_intermission_anchor_pose;
+
+			// Scale size for distance
+			quad_layer.size.width = totalWidth * 14.0f;
+			quad_layer.size.height = totalHeight * 14.0f;
+		}
+		else
+		{
+			// Normal head-locked overlay
+			quad_layer.space = viewSpace;
+
+			quad_layer.pose.orientation.x = 0.0f;
+			quad_layer.pose.orientation.y = 0.0f;
+			quad_layer.pose.orientation.z = 0.0f;
+			quad_layer.pose.orientation.w = 1.0f;
+
+			// Position the quad at the FOV center (accounts for asymmetric FOV)
+			quad_layer.pose.position.x = fovCenterX;
+			quad_layer.pose.position.y = fovCenterY;
+			quad_layer.pose.position.z = -distance;
+
+			quad_layer.size.width = totalWidth;
+			quad_layer.size.height = totalHeight;
+		}
 
 		quad_layer.subImage.swapchain = swapchains->screenOverlay.swapchain;
 		quad_layer.subImage.imageRect.offset.x = 0;
@@ -147,9 +236,6 @@ void VR_EndFrame(XrSession session, VR_SwapchainInfos* swapchains, XrView* views
 		quad_layer.subImage.imageRect.extent.width = swapchains->screenOverlay.width;
 		quad_layer.subImage.imageRect.extent.height = swapchains->screenOverlay.height;
 		quad_layer.subImage.imageArrayIndex = 0;
-
-		quad_layer.size.width = totalWidth;
-		quad_layer.size.height = totalHeight;
 	}
 
 	// Submit layers

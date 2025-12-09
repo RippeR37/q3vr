@@ -998,6 +998,15 @@ static int CG_CalcViewValues( void ) {
 		cg.refdefViewAngles[YAW] += (ps->viewangles[YAW] - hmdYaw);
 		AnglesToAxis( cg.refdefViewAngles, cg.refdef.viewaxis );
 
+		// Apply HMD positional tracking so the view moves with head movement
+		// This prevents the world from appearing frozen while HMD moves
+		// Note: Don't apply worldscale - intermission uses 1:1 scale, not spectator god-view
+		vec3_t hmdPos;
+		VectorCopy(vr->hmdposition, hmdPos);
+		CG_ConvertFromVR(hmdPos, NULL, hmdPos);
+		hmdPos[2] -= PLAYER_HEIGHT;
+		VectorAdd(cg.refdef.vieworg, hmdPos, cg.refdef.vieworg);
+
 		return CG_CalcFov();
 	}
 

@@ -101,6 +101,10 @@ typedef struct {
 
 	float recenterYaw;
 	float superSampling;
+
+	// SP intermission overlay anchoring (world-fixed UI during podium view)
+	qboolean sp_intermission_active;
+	float sp_intermission_yaw;  // The yaw angle the overlay is anchored to
 } vr_clientinfo_t;
 
 #endif
