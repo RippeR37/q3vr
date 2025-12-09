@@ -116,6 +116,12 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 			// HUD mode 2: scaled down for in-world display
 			screenXScale = cgs.screenXScale / 2.25f;
 			screenYScale = (cgs.screenXScale / 2.25f);
+
+			// Apply optical centering for HUD mode 2 (asymmetric FOV compensation)
+			float projCenterY;
+			CG_GetProjectionCenter(NULL, &projCenterY);
+			float opticalOffset = projCenterY - 240.0f;
+			yOffset = opticalOffset * screenYScale;
 		}
 
 		*x *= screenXScale;
