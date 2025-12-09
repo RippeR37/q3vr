@@ -843,20 +843,22 @@ void Con_DrawSolidConsole( float frac ) {
 	con.xadjust = 0;
 	SCR_AdjustFrom640( &con.xadjust, NULL, NULL, NULL );
 
-	// draw the background
-	y = frac * SCREEN_HEIGHT;
+	// draw the background - use actual screen pixels to match text drawing
+	y = lines;
 	if ( y < 1 ) {
 		y = 0;
 	}
 	else {
-		SCR_DrawPic( 0, 0, SCREEN_WIDTH, y, cls.consoleShader );
+		re.DrawStretchPic( 0, 0, cls.glconfig.vidWidth, y, 0, 0, 1, 1, cls.consoleShader );
 	}
 
 	color[0] = 1;
 	color[1] = 0;
 	color[2] = 0;
 	color[3] = 1;
-	SCR_FillRect( 0, y, SCREEN_WIDTH, 2, color );
+	re.SetColor( color );
+	re.DrawStretchPic( 0, y, cls.glconfig.vidWidth, 2, 0, 0, 0, 0, cls.whiteShader );
+	re.SetColor( NULL );
 
 
 	// draw the version number
