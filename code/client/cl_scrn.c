@@ -83,7 +83,17 @@ void SCR_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 		// In virtual screen mode, scale to 4:3 viewable area and center vertically
 		float viewableHeight = cls.glconfig.vidWidth * 0.75f;
 		float viewableYScale = viewableHeight / 480.0f;
-		float yoffset = (cls.glconfig.vidHeight - viewableHeight) / 2.0f;
+
+		// Use optical center offset to account for asymmetric FOV
+		float opticalOffsetVirtual = 0.0f;
+		float tanUp = tanf(vr.fov_angle_up);
+		float tanDown = tanf(vr.fov_angle_down);
+		float tanHeight = tanUp - tanDown;
+		if (fabsf(tanHeight) > 0.001f) {
+			float m9 = (tanUp + tanDown) / tanHeight;
+			opticalOffsetVirtual = 240.0f * m9;
+		}
+		float yoffset = (cls.glconfig.vidHeight - viewableHeight) / 2.0f + opticalOffsetVirtual * viewableYScale;
 
 		if (x) {
 			*x *= xscale;

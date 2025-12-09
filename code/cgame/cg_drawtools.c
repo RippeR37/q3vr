@@ -68,7 +68,13 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 		if (vr && vr->virtual_screen) {
 			float viewableHeight = cgs.glconfig.vidWidth * 0.75f;
 			screenYScale = viewableHeight / 480.0f;
-			yOffset = (cgs.glconfig.vidHeight - viewableHeight) / 2.0f;
+
+			// Use optical center offset instead of geometric center to account for
+			// asymmetric FOV (VR headsets have more down-look than up-look)
+			float projCenterY;
+			CG_GetProjectionCenter(NULL, &projCenterY);
+			float opticalOffsetVirtual = projCenterY - 240.0f;
+			yOffset = (cgs.glconfig.vidHeight - viewableHeight) / 2.0f + opticalOffsetVirtual * screenYScale;
 		}
 
 		*x *= cgs.screenXScale;
@@ -91,8 +97,7 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 			// but only displaying the centered 4:3 portion, so adjust scale and offset
 			if (vr->first_person_following) {
 				// Calculate the 4:3 safe area height
-				int safeHeight = (cgs.glconfig.vidWidth * 3) / 4;
-				int yMargin = (cgs.glconfig.vidHeight - safeHeight) / 2;
+				float safeHeight = (cgs.glconfig.vidWidth * 3.0f) / 4.0f;
 
 				// Recalculate Y scale based on the visible 4:3 area, not full height
 				screenYScale = safeHeight / 480.0f;
@@ -100,8 +105,12 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 				// Use safe height for centering calculation
 				effectiveHeight = safeHeight;
 
-				// Adjust Y coordinate to account for the cropped top margin
-				yOffset = yMargin;
+				// Use optical center offset instead of geometric center to account for
+				// asymmetric FOV (VR headsets have more down-look than up-look)
+				float projCenterY;
+				CG_GetProjectionCenter(NULL, &projCenterY);
+				float opticalOffsetVirtual = projCenterY - 240.0f;
+				yOffset = (cgs.glconfig.vidHeight - safeHeight) / 2.0f + opticalOffsetVirtual * screenYScale;
 			}
 		} else {
 			// HUD mode 2: scaled down for in-world display

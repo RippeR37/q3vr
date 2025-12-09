@@ -2752,7 +2752,7 @@ Converting to screen coordinates (with 0,0 at top-left):
   screenY = 240 * (1 + m[9])
 ==============
 */
-static void CG_GetProjectionCenter( float *outX, float *outY )
+void CG_GetProjectionCenter( float *outX, float *outY )
 {
 	// Default to geometric center
 	float x = 320.0f;
