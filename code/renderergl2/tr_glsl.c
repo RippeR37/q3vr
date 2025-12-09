@@ -1814,8 +1814,9 @@ void GLSL_PrepareUniformBuffers(void)
           hudOrthoProjectionMatrix, hudOrthoProjectionMatrix);
 
   //VR projection matrix - use per-eye projections from OpenXR
-  //When weapon is zoomed, use symmetric projection for true mono rendering
-  if (vr.weapon_zoomed)
+  //When weapon is zoomed or virtual screen is active, use symmetric projection for true mono rendering
+  //Virtual screen captures from left eye only, so asymmetric projection would cause offset
+  if (vr.weapon_zoomed || vr.virtual_screen)
   {
     GLSL_ProjectionMatricesUniformBuffer(projectionMatricesBuffer[VR_PROJECTION],
             tr.vrParms.projection, tr.vrParms.projection);
