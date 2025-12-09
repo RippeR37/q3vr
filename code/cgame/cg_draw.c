@@ -3467,7 +3467,9 @@ void CG_DrawActive( void ) {
 	{
 		// Draw screen 2D overlays (vignette, damage effects, reticle) to overlay buffer
 		// for quad layer submission to avoid stereo offset
-		trap_R_ScreenOverlayBufferStart(qtrue);
+		if (!vr->virtual_screen) {
+			trap_R_ScreenOverlayBufferStart(qtrue);
+		}
 		CG_DrawScreen2D();
 
 		if (!vr->weapon_zoomed && (!vr->virtual_screen || vr->first_person_following))
@@ -3503,7 +3505,9 @@ void CG_DrawActive( void ) {
 			}
 		}
 
-		trap_R_ScreenOverlayBufferEnd();
+		if (!vr->virtual_screen) {
+			trap_R_ScreenOverlayBufferEnd();
+		}
 	}
 
 	CG_EmptySceneHackHackHack();
