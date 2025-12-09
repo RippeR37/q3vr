@@ -84,7 +84,7 @@ static const serverFilter_t serverFilters[] = {
 	{"Team Arena", BASETA },
 	{"Rocket Arena", "arena" },
 	{"Alliance", "alliance20" },
-	{"Weapons Factory Arena", "wfa" },
+	{"WFA", "wfa" },
 	{"OSP", "osp" },
 };
 
