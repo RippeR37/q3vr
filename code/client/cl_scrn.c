@@ -114,13 +114,23 @@ void SCR_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 		float screenXScale = xscale / 2.25f;
 		float screenYScale = xscale / 2.25f;
 
+		// Calculate optical centering offset (asymmetric FOV compensation)
+		float opticalOffset = 0.0f;
+		float tanUp = tanf(vr.fov_angle_up);
+		float tanDown = tanf(vr.fov_angle_down);
+		float tanHeight = tanUp - tanDown;
+		if (fabsf(tanHeight) > 0.001f) {
+			float m9 = (tanUp + tanDown) / tanHeight;
+			opticalOffset = 240.0f * m9 * screenYScale;
+		}
+
 		if (x) {
 			*x *= screenXScale;
 			*x += (cls.glconfig.vidWidth - (640 * screenXScale)) / 2.0f;
 		}
 		if (y) {
 			*y *= screenYScale;
-			*y += (cls.glconfig.vidHeight - (480 * screenYScale)) / 2.0f;
+			*y += (cls.glconfig.vidHeight - (480 * screenYScale)) / 2.0f + opticalOffset;
 		}
 		if (w) {
 			*w *= screenXScale;

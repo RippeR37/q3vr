@@ -3037,7 +3037,7 @@ static void CG_DrawHUD2D(void)
 	}
 
 #ifndef MISSIONPACK
-	// Draw scoreboard cursor if scoreboard is active (Team Arena not supported)
+	// Draw scoreboard cursor if scoreboard is active (Team Arena has its own cursor handling)
 	if ( cgs.score_catched ) {
 		float x, y, w, h;
 		trap_R_SetColor( NULL );
