@@ -936,7 +936,10 @@ static void IN_VRController( qboolean isRightController, XrPosef pose )
 				yaw = (vr_righthanded->integer != 0) ? vr.weaponangles[YAW] : vr.offhandangles[YAW];
 				pitch = (vr_righthanded->integer != 0) ? vr.weaponangles[PITCH] : vr.offhandangles[PITCH];
 			}
-			int x = 320 - tan((yaw - vr.menuYaw) * (M_PI*2 / 360)) * 800;
+			// During SP intermission, use the anchored yaw for cursor calculation
+			// since the overlay is world-fixed rather than head-locked
+			float referenceYaw = vr.sp_intermission_active ? vr.sp_intermission_yaw : vr.menuYaw;
+			int x = 320 - tan((yaw - referenceYaw) * (M_PI*2 / 360)) * 800;
 			int y = 240 + tan((pitch + vr_weaponPitch->value) * (M_PI*2 / 360)) * 800;
 
 			static int lastMenuCursorX = 320;

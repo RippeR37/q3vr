@@ -7,6 +7,7 @@ void VR_Gameplay_OpenMenuAndPauseIfPossible( void );
 qboolean VR_IsFollowingInFirstPerson( void );
 qboolean VR_IsInMenu( void );
 qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void );
+qboolean VR_IsSPIntermission( void );
 qboolean VR_ShouldDisableStereo( void );
 
 #endif

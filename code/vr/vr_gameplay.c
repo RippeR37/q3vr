@@ -27,13 +27,17 @@ qboolean VR_IsInMenu( void )
 	return (keyCatcher & (KEYCATCH_UI | KEYCATCH_CONSOLE)) != 0;
 }
 
+qboolean VR_IsSPIntermission( void )
+{
+	return (cl.snap.ps.pm_type == PM_INTERMISSION) &&
+	       (Cvar_VariableValue("g_gametype") == GT_SINGLE_PLAYER);
+}
+
 qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void )
 {
 	// Use screen layer for UI/console, EXCEPT during single-player intermission
 	// where we want the in-world podium view even with the postgame menu active
-	qboolean isSPIntermission = (cl.snap.ps.pm_type == PM_INTERMISSION) &&
-	                            (Cvar_VariableValue("g_gametype") == GT_SINGLE_PLAYER);
-	if ( VR_IsInMenu() && !isSPIntermission )
+	if ( VR_IsInMenu() && !VR_IsSPIntermission() )
 	{
 		return qtrue;
 	}
