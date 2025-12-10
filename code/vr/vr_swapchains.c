@@ -634,10 +634,26 @@ void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t
 	// (see _VR_GetVirtualScreenModelMatrix which scales Y by 3/4)
 	// Without this, the full VR framebuffer would be squished to fit the 4:3 surface
 
-	// Take full width, calculate 4:3 height
-	int srcWidth = swapchains->color.width;
-	int srcHeight = (srcWidth * 3) / 4;
-	int srcX = 0;
+	// Calculate the maximum 4:3 area that fits within the framebuffer
+	// For ultra-wide headsets (e.g., Pimax 8KX with ~2:1 ratio), we may be height-limited
+	int fbWidth = swapchains->color.width;
+	int fbHeight = swapchains->color.height;
+
+	int srcWidth, srcHeight, srcX, srcY;
+	int heightFromWidth = (fbWidth * 3) / 4;  // 4:3 height if we use full width
+	int widthFromHeight = (fbHeight * 4) / 3; // 4:3 width if we use full height
+
+	if (heightFromWidth <= fbHeight) {
+		// Normal case: width-limited, full width fits with 4:3 height
+		srcWidth = fbWidth;
+		srcHeight = heightFromWidth;
+		srcX = 0;
+	} else {
+		// Ultra-wide case: height-limited, constrain width to fit 4:3
+		srcHeight = fbHeight;
+		srcWidth = widthFromHeight;
+		srcX = (fbWidth - srcWidth) / 2; // Center horizontally
+	}
 
 	// Calculate vertical offset to center the crop on the optical center rather than
 	// the geometric center. VR headsets have asymmetric FOV (more down-look than up-look).
@@ -645,7 +661,7 @@ void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t
 	// The projection center offset in virtual 480-height coords is: 240 * m9
 	// where m9 = (tanUp + tanDown) / (tanUp - tanDown)
 	// Scale this to framebuffer pixels using the same ratio as HUD code uses.
-	float geometricCenterY = swapchains->color.height / 2.0f;
+	float geometricCenterY = fbHeight / 2.0f;
 	float opticalOffset = 0.0f;
 
 	float tanUp = tanf(vr.fov_angle_up);
@@ -661,12 +677,12 @@ void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t
 	}
 
 	// Center the crop around the optical center, not the geometric center
-	int srcY = (int)(geometricCenterY - srcHeight / 2.0f + opticalOffset);
+	srcY = (int)(geometricCenterY - srcHeight / 2.0f + opticalOffset);
 
-	// Clamp to valid framebuffer bounds
+	// Clamp to valid framebuffer bounds (should only be needed for optical offset adjustment)
 	if (srcY < 0) srcY = 0;
-	if (srcY + srcHeight > (int)swapchains->color.height) {
-		srcY = swapchains->color.height - srcHeight;
+	if (srcY + srcHeight > fbHeight) {
+		srcY = fbHeight - srcHeight;
 	}
 
 	// Blit the source region to fill the entire virtual screen texture
