@@ -760,12 +760,20 @@ void RE_StretchRaw (int x, int y, int w, int h, int cols, int rows, const byte *
 	VectorSet2(texCoords[3], 0.5f / cols,          (rows - 0.5f) / rows);
 
 	GLSL_BindProgram(&tr.textureColorShader);
-	
+
 	GLSL_SetUniformMat4(&tr.textureColorShader, UNIFORM_MODELMATRIX, glState.modelMatrix);
 	GLSL_BindBuffers(&tr.textureColorShader);
 	GLSL_SetUniformVec4(&tr.textureColorShader, UNIFORM_COLOR, colorWhite);
 
 	RB_InstantQuad2(quadVerts, texCoords);
+
+	// Reset rendering state after cinematic draw.
+	// Without this, subsequent 2D draws get incorrect overbright calculations
+	// because backEnd.currentEntity != &backEnd.entity2D, causing
+	// ComputeShaderColors() in tr_shade.c to use wrong overbright values.
+	R_BindNullVao();
+	backEnd.currentEntity = &backEnd.entity2D;
+	tess.shader = NULL;
 }
 
 void RE_UploadCinematic (int w, int h, int cols, int rows, const byte *data, int client, qboolean dirty) {
