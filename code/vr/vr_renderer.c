@@ -448,11 +448,15 @@ void VR_DrawVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImage
 	// Copy current image to Virtual Screen's texture
 	VR_Swapchains_BlitXRToVirtualScreen(swapchains, swapchainImageIndex);
 
+	// Reset viewport/scissor to full framebuffer - game rendering may have changed these
+	glViewport(0, 0, swapchains->color.width, swapchains->color.height);
+	glScissor(0, 0, swapchains->color.width, swapchains->color.height);
+	glDisable(GL_SCISSOR_TEST);
+
 	// Clear everything
 	glClearColor(0.0, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Render VS with per-eye projections for proper stereo
 	VR_VirtualScreen_Draw(views, viewCount, swapchains->color.virtualScreenImage);
 }
 
