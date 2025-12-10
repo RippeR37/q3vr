@@ -1194,19 +1194,39 @@ static void UI_DrawBannerString2( int x, int y, const char* str, vec4_t color )
 	float	fcol;
 	float	fwidth;
 	float	fheight;
+	float	xScale = cgs.screenXScale;
+	float	yScale = cgs.screenYScale;
+	float	xBias = cgs.screenXBias;
+	float	yBias = cgs.screenYBias;
+
+	// In virtual screen mode, use 4:3 constrained scaling with proper offsets
+	if (vr && vr->virtual_screen) {
+		float viewableWidth, viewableHeight;
+		CG_GetViewable4x3Dimensions(&viewableWidth, &viewableHeight);
+		xScale = viewableWidth / 640.0f;
+		yScale = viewableHeight / 480.0f;
+
+		// Calculate optical center offset for asymmetric FOV
+		float projCenterY;
+		CG_GetProjectionCenter(NULL, &projCenterY);
+		float opticalOffsetVirtual = projCenterY - 240.0f;
+
+		xBias = (cgs.glconfig.vidWidth - viewableWidth) / 2.0f;
+		yBias = (cgs.glconfig.vidHeight - viewableHeight) / 2.0f + opticalOffsetVirtual * yScale;
+	}
 
 	// draw the colored text
 	trap_R_SetColor( color );
-	
-	ax = x * cgs.screenXScale + cgs.screenXBias;
-	ay = y * cgs.screenYScale;
+
+	ax = x * xScale + xBias;
+	ay = y * yScale + yBias;
 
 	s = str;
 	while ( *s )
 	{
 		ch = *s & 127;
 		if ( ch == ' ' ) {
-			ax += ((float)PROPB_SPACE_WIDTH + (float)PROPB_GAP_WIDTH)* cgs.screenXScale;
+			ax += ((float)PROPB_SPACE_WIDTH + (float)PROPB_GAP_WIDTH) * xScale;
 		}
 		else if ( ch >= 'A' && ch <= 'Z' ) {
 			ch -= 'A';
@@ -1214,10 +1234,10 @@ static void UI_DrawBannerString2( int x, int y, const char* str, vec4_t color )
 			frow = (float)propMapB[ch][1] / 256.0f;
 			fwidth = (float)propMapB[ch][2] / 256.0f;
 			fheight = (float)PROPB_HEIGHT / 256.0f;
-			aw = (float)propMapB[ch][2] * cgs.screenXScale;
-			ah = (float)PROPB_HEIGHT * cgs.screenYScale;
+			aw = (float)propMapB[ch][2] * xScale;
+			ah = (float)PROPB_HEIGHT * yScale;
 			trap_R_DrawStretchPic( ax, ay, aw, ah, fcol, frow, fcol+fwidth, frow+fheight, cgs.media.charsetPropB );
-			ax += (aw + (float)PROPB_GAP_WIDTH * cgs.screenXScale);
+			ax += (aw + (float)PROPB_GAP_WIDTH * xScale);
 		}
 		s++;
 	}
@@ -1304,32 +1324,52 @@ static void UI_DrawProportionalString2( int x, int y, const char* str, vec4_t co
 	float	fcol;
 	float	fwidth;
 	float	fheight;
+	float	xScale = cgs.screenXScale;
+	float	yScale = cgs.screenYScale;
+	float	xBias = cgs.screenXBias;
+	float	yBias = cgs.screenYBias;
+
+	// In virtual screen mode, use 4:3 constrained scaling with proper offsets
+	if (vr && vr->virtual_screen) {
+		float viewableWidth, viewableHeight;
+		CG_GetViewable4x3Dimensions(&viewableWidth, &viewableHeight);
+		xScale = viewableWidth / 640.0f;
+		yScale = viewableHeight / 480.0f;
+
+		// Calculate optical center offset for asymmetric FOV
+		float projCenterY;
+		CG_GetProjectionCenter(NULL, &projCenterY);
+		float opticalOffsetVirtual = projCenterY - 240.0f;
+
+		xBias = (cgs.glconfig.vidWidth - viewableWidth) / 2.0f;
+		yBias = (cgs.glconfig.vidHeight - viewableHeight) / 2.0f + opticalOffsetVirtual * yScale;
+	}
 
 	// draw the colored text
 	trap_R_SetColor( color );
-	
-	ax = x * cgs.screenXScale + cgs.screenXBias;
-	ay = y * cgs.screenYScale;
+
+	ax = x * xScale + xBias;
+	ay = y * yScale + yBias;
 
 	s = str;
 	while ( *s )
 	{
 		ch = *s & 127;
 		if ( ch == ' ' ) {
-			aw = (float)PROP_SPACE_WIDTH * cgs.screenXScale * sizeScale;
+			aw = (float)PROP_SPACE_WIDTH * xScale * sizeScale;
 		} else if ( propMap[ch][2] != -1 ) {
 			fcol = (float)propMap[ch][0] / 256.0f;
 			frow = (float)propMap[ch][1] / 256.0f;
 			fwidth = (float)propMap[ch][2] / 256.0f;
 			fheight = (float)PROP_HEIGHT / 256.0f;
-			aw = (float)propMap[ch][2] * cgs.screenXScale * sizeScale;
-			ah = (float)PROP_HEIGHT * cgs.screenYScale * sizeScale;
+			aw = (float)propMap[ch][2] * xScale * sizeScale;
+			ah = (float)PROP_HEIGHT * yScale * sizeScale;
 			trap_R_DrawStretchPic( ax, ay, aw, ah, fcol, frow, fcol+fwidth, frow+fheight, charset );
 		} else {
 			aw = 0;
 		}
 
-		ax += (aw + (float)PROP_GAP_WIDTH * cgs.screenXScale * sizeScale);
+		ax += (aw + (float)PROP_GAP_WIDTH * xScale * sizeScale);
 		s++;
 	}
 
