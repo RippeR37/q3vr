@@ -39,6 +39,34 @@ void CG_RemoveHUDFlags(int flags)
 
 /*
 ================
+CG_GetViewable4x3Dimensions
+
+Calculate the maximum 4:3 area that fits within the framebuffer.
+For ultra-wide headsets (e.g., Pimax 8KX with ~2:1 ratio), we may be height-limited
+rather than width-limited.
+================
+*/
+static void CG_GetViewable4x3Dimensions(float *outWidth, float *outHeight)
+{
+	float fbWidth = cgs.glconfig.vidWidth;
+	float fbHeight = cgs.glconfig.vidHeight;
+
+	float heightFromWidth = fbWidth * 0.75f;  // 4:3 height if we use full width
+	float widthFromHeight = fbHeight * (4.0f / 3.0f); // 4:3 width if we use full height
+
+	if (heightFromWidth <= fbHeight) {
+		// Normal case: width-limited, full width fits with 4:3 height
+		*outWidth = fbWidth;
+		*outHeight = heightFromWidth;
+	} else {
+		// Ultra-wide case: height-limited, constrain width to fit 4:3
+		*outHeight = fbHeight;
+		*outWidth = widthFromHeight;
+	}
+}
+
+/*
+================
 CG_AdjustFrom640
 
 Adjusted for resolution and screen aspect ratio
@@ -60,13 +88,18 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 
 	if (!cg.drawingHUD)
 	{
+		float screenXScale = cgs.screenXScale;
 		float screenYScale = cgs.screenYScale;
+		float xOffset = 0.0f;
 		float yOffset = 0.0f;
 
-		// In virtual screen mode, scale Y to fit 4:3 aspect within the framebuffer
+		// In virtual screen mode, scale to fit 4:3 aspect within the framebuffer
+		// For ultra-wide headsets, we may be height-limited rather than width-limited
 		// This ensures 2D elements are positioned correctly for the 4:3 crop
 		if (vr && vr->virtual_screen) {
-			float viewableHeight = cgs.glconfig.vidWidth * 0.75f;
+			float viewableWidth, viewableHeight;
+			CG_GetViewable4x3Dimensions(&viewableWidth, &viewableHeight);
+			screenXScale = viewableWidth / 640.0f;
 			screenYScale = viewableHeight / 480.0f;
 
 			// Use optical center offset instead of geometric center to account for
@@ -74,20 +107,24 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 			float projCenterY;
 			CG_GetProjectionCenter(NULL, &projCenterY);
 			float opticalOffsetVirtual = projCenterY - 240.0f;
+			xOffset = (cgs.glconfig.vidWidth - viewableWidth) / 2.0f;
 			yOffset = (cgs.glconfig.vidHeight - viewableHeight) / 2.0f + opticalOffsetVirtual * screenYScale;
 		}
 
-		*x *= cgs.screenXScale;
+		*x *= screenXScale;
+		*x += xOffset;
 		*y *= screenYScale;
 		*y += yOffset;
-		*w *= cgs.screenXScale;
+		*w *= screenXScale;
 		*h *= screenYScale;
 	}
 	else  // scale to clearly visible portion of VR screen
 	{
 		float screenXScale, screenYScale;
+		float xOffset = 0.0f;
 		float yOffset = 0.0f;
-		int effectiveHeight = cg.refdef.height;
+		float effectiveWidth = cg.refdef.width;
+		float effectiveHeight = cg.refdef.height;
 
 		if (vr->virtual_screen) {
 			screenXScale = cgs.screenXScale;
@@ -96,13 +133,16 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 			// For VRFM_FIRSTPERSON gameplay, we're rendering to full framebuffer
 			// but only displaying the centered 4:3 portion, so adjust scale and offset
 			if (vr->first_person_following) {
-				// Calculate the 4:3 safe area height
-				float safeHeight = (cgs.glconfig.vidWidth * 3.0f) / 4.0f;
+				// Calculate the 4:3 safe area
+				float safeWidth, safeHeight;
+				CG_GetViewable4x3Dimensions(&safeWidth, &safeHeight);
 
-				// Recalculate Y scale based on the visible 4:3 area, not full height
+				// Recalculate scale based on the visible 4:3 area, not full dimensions
+				screenXScale = safeWidth / 640.0f;
 				screenYScale = safeHeight / 480.0f;
 
-				// Use safe height for centering calculation
+				// Use safe dimensions for centering calculation
+				effectiveWidth = safeWidth;
 				effectiveHeight = safeHeight;
 
 				// Use optical center offset instead of geometric center to account for
@@ -110,6 +150,7 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 				float projCenterY;
 				CG_GetProjectionCenter(NULL, &projCenterY);
 				float opticalOffsetVirtual = projCenterY - 240.0f;
+				xOffset = (cgs.glconfig.vidWidth - safeWidth) / 2.0f;
 				yOffset = (cgs.glconfig.vidHeight - safeHeight) / 2.0f + opticalOffsetVirtual * screenYScale;
 			}
 		} else {
@@ -129,7 +170,7 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 		*w *= screenXScale;
 		*h *= screenYScale;
 
-		*x += (cg.refdef.width - (640 * screenXScale)) / 2.0f;
+		*x += (effectiveWidth - (640 * screenXScale)) / 2.0f + xOffset;
 		*y += (effectiveHeight - (480 * screenYScale)) / 2.0f - trap_Cvar_VariableValue("vr_hudYOffset") + yOffset;
 	}
 }

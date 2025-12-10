@@ -85,10 +85,41 @@ static float UI_GetProjectionCenterYOffset( void )
 	return 0.0f;
 }
 
+/*
+================
+UI_GetViewable4x3Dimensions
+
+Calculate the maximum 4:3 area that fits within the framebuffer.
+For ultra-wide headsets (e.g., Pimax 8KX with ~2:1 ratio), we may be height-limited
+rather than width-limited.
+================
+*/
+static void UI_GetViewable4x3Dimensions(float *outWidth, float *outHeight)
+{
+	float fbWidth = uiInfo.uiDC.glconfig.vidWidth;
+	float fbHeight = uiInfo.uiDC.glconfig.vidHeight;
+
+	float heightFromWidth = fbWidth * 0.75f;  // 4:3 height if we use full width
+	float widthFromHeight = fbHeight * (4.0f / 3.0f); // 4:3 width if we use full height
+
+	if (heightFromWidth <= fbHeight) {
+		// Normal case: width-limited, full width fits with 4:3 height
+		*outWidth = fbWidth;
+		*outHeight = heightFromWidth;
+	} else {
+		// Ultra-wide case: height-limited, constrain width to fit 4:3
+		*outHeight = fbHeight;
+		*outWidth = widthFromHeight;
+	}
+}
+
 float UI_GetXScale()
 {
 	if (vr == NULL || vr->virtual_screen) {
-		return uiInfo.uiDC.xscale;
+		// In virtual screen mode, scale to 4:3 viewable area
+		float viewableWidth, viewableHeight;
+		UI_GetViewable4x3Dimensions(&viewableWidth, &viewableHeight);
+		return viewableWidth / 640.0f;
 	} else {
 		return uiInfo.uiDC.xscale / 2.75f;
 	}
@@ -97,9 +128,9 @@ float UI_GetXScale()
 float UI_GetYScale()
 {
 	if (vr == NULL || vr->virtual_screen) {
-		// In virtual screen mode, scale to 4:3 viewable area (width * 0.75)
-		// not the full framebuffer height, to avoid squishing
-		float viewableHeight = uiInfo.uiDC.glconfig.vidWidth * 0.75f;
+		// In virtual screen mode, scale to 4:3 viewable area
+		float viewableWidth, viewableHeight;
+		UI_GetViewable4x3Dimensions(&viewableWidth, &viewableHeight);
 		return viewableHeight / 480.0f;
 	} else {
 		return uiInfo.uiDC.yscale / 3.25f;
@@ -109,7 +140,11 @@ float UI_GetYScale()
 float UI_GetXOffset()
 {
 	if (vr == NULL || vr->virtual_screen) {
-		return 0;
+		// In virtual screen mode, center the 4:3 content horizontally
+		// (only matters for ultra-wide headsets)
+		float viewableWidth, viewableHeight;
+		UI_GetViewable4x3Dimensions(&viewableWidth, &viewableHeight);
+		return (uiInfo.uiDC.glconfig.vidWidth - viewableWidth) / 2.0f;
 	} else {
 		return (uiInfo.uiDC.glconfig.vidWidth - (640 * UI_GetXScale())) / 2.0f;
 	}
@@ -120,7 +155,8 @@ float UI_GetYOffset()
 	if (vr == NULL || vr->virtual_screen) {
 		// In virtual screen mode, center the 4:3 content vertically
 		// Use optical center offset to account for asymmetric FOV
-		float viewableHeight = uiInfo.uiDC.glconfig.vidWidth * 0.75f;
+		float viewableWidth, viewableHeight;
+		UI_GetViewable4x3Dimensions(&viewableWidth, &viewableHeight);
 		float screenYScale = viewableHeight / 480.0f;
 		float opticalOffsetVirtual = UI_GetProjectionCenterYOffset();
 		return (uiInfo.uiDC.glconfig.vidHeight - viewableHeight) / 2.0f + opticalOffsetVirtual * screenYScale;
