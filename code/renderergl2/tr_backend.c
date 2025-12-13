@@ -1865,7 +1865,8 @@ const void* RB_ScreenOverlayBuffer( const void* data ) {
 
 			// When weapon is zoomed, blit the main scene as the base layer for mono rendering
 			// This copies the game world to the overlay, then reticle/HUD draws on top
-			if (vr.weapon_zoomed && tr.vrParms.mainSceneReadBuffer != 0)
+			// Only blit on the initial clear call, not on subsequent appends
+			if (cmd->clear && vr.weapon_zoomed && tr.vrParms.mainSceneReadBuffer != 0)
 			{
 				qglBlitNamedFramebuffer(
 					tr.vrParms.mainSceneReadBuffer,

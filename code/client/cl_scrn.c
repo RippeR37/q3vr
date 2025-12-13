@@ -140,6 +140,41 @@ void SCR_AdjustFrom640( float *x, float *y, float *w, float *h ) {
 		if (h) {
 			*h *= viewableYScale;
 		}
+	} else if (vr.weapon_zoomed) {
+		// Weapon zoomed: scaled down with 1:1 square layout (640x640)
+		// Use xscale for both to match cg_drawtools.c HUD rendering
+		float screenXScale = xscale / 2.25f;
+		float screenYScale = xscale / 2.25f;
+
+		// Remap Y from 480 range to 640 range (stretch vertically to fill square)
+		if (y) {
+			*y = (*y / 480.0f) * 640.0f;
+		}
+
+		// Calculate optical centering offset (asymmetric FOV compensation)
+		float opticalOffset = 0.0f;
+		float tanUp = tanf(vr.fov_angle_up);
+		float tanDown = tanf(vr.fov_angle_down);
+		float tanHeight = tanUp - tanDown;
+		if (fabsf(tanHeight) > 0.001f) {
+			float m9 = (tanUp + tanDown) / tanHeight;
+			opticalOffset = 320.0f * m9 * screenYScale;  // 320 = center of 640
+		}
+
+		if (x) {
+			*x *= screenXScale;
+			*x += (cls.glconfig.vidWidth - (640 * screenXScale)) / 2.0f;
+		}
+		if (y) {
+			*y *= screenYScale;
+			*y += (cls.glconfig.vidHeight - (640 * screenYScale)) / 2.0f + opticalOffset;
+		}
+		if (w) {
+			*w *= screenXScale;
+		}
+		if (h) {
+			*h *= screenYScale;
+		}
 	} else if (vr_currentHudDrawStatus->integer == 2) {
 		// HUD mode 2: scaled down for in-world display
 		// Use xscale for both to match cg_drawtools.c HUD rendering

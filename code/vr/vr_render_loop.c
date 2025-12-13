@@ -133,9 +133,23 @@ void VR_EndFrame(XrSession session, VR_SwapchainInfos* swapchains, XrView* views
 		float fovCenterX = (leftEdge + rightEdge) / 2.0f;
 		float fovCenterY = (bottomEdge + topEdge) / 2.0f;
 
-		// Quad size covers the full FOV extent, plus 10% margin for edge coverage
-		float totalWidth = (rightEdge - leftEdge) * 1.1f;
-		float totalHeight = (topEdge - bottomEdge) * 1.1f;
+		// Quad size - use texture aspect ratio to avoid stretching
+		// The texture dimensions already account for the FOV via the projection matrix
+		float fovWidth = (rightEdge - leftEdge) * 1.1f;
+		float fovHeight = (topEdge - bottomEdge) * 1.1f;
+		float textureAspect = (float)swapchains->screenOverlay.width / (float)swapchains->screenOverlay.height;
+		float fovAspect = fovWidth / fovHeight;
+
+		float totalWidth, totalHeight;
+		if (textureAspect > fovAspect) {
+			// Texture is wider - fit to FOV width
+			totalWidth = fovWidth;
+			totalHeight = fovWidth / textureAspect;
+		} else {
+			// Texture is taller - fit to FOV height
+			totalHeight = fovHeight;
+			totalWidth = fovHeight * textureAspect;
+		}
 
 		quad_layer.type = XR_TYPE_COMPOSITION_LAYER_QUAD;
 		// When zoomed, quad contains the full scene - no alpha blending needed
