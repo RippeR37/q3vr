@@ -633,9 +633,9 @@ void Con_DrawNotify (void)
 	currentColor = 7;
 	re.SetColor( g_color_table[currentColor] );
 
-	// For HUD mode 2 outside virtual screen, use overlay buffer (quad layer)
+	// For HUD mode 2 outside virtual screen, or when weapon zoomed, use overlay buffer (quad layer)
 	// to avoid stereo offset/doubling. Otherwise use HUD buffer.
-	qboolean useOverlayBuffer = (vr_currentHudDrawStatus->integer == 2 && !vr.virtual_screen);
+	qboolean useOverlayBuffer = ((vr_currentHudDrawStatus->integer == 2 || vr.weapon_zoomed) && !vr.virtual_screen);
 	if (useOverlayBuffer) {
 		re.ScreenOverlayBufferStart(qfalse);
 	} else {
@@ -648,11 +648,11 @@ void Con_DrawNotify (void)
 	float yadjust = 10.0f;
 
 	// For HUD mode 2, transform the base position to screen coordinates
-	// and scale down character size to try to match floating HUD scaling
-	if (vr_currentHudDrawStatus->integer == 2) {
+	// and scale character size to try to match floating HUD scaling
+	if (vr_currentHudDrawStatus->integer == 2 || vr.weapon_zoomed) {
 		if (vr.virtual_screen) {
 			charScale *= 1.5f;
-		} else {
+		} else if (!vr.weapon_zoomed) {
 			charScale /= 1.5f;
 		}
 		SCR_AdjustFrom640(&xadjust, &yadjust, NULL, NULL);
@@ -727,8 +727,9 @@ void Con_DrawNotify (void)
 
 	// cl_conXOffset is in virtual 640x480 coordinates
 	// Scale it to match HUD buffer coordinates for each mode
+	// Skip offset when weapon zoomed since we don't show the voice chat head
 	float effectiveConXOffset = 0.0f;
-	if (cl_conXOffset->integer > 0) {
+	if (cl_conXOffset->integer > 0 && !vr.weapon_zoomed) {
 		if (vr_currentHudDrawStatus->integer == 1) {
 			// HUD mode 1: fixed 1280x960 buffer = 2x virtual coordinates
 			effectiveConXOffset = cl_conXOffset->integer * 2.0f;

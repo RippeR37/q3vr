@@ -508,6 +508,7 @@ typedef struct {
 
 	qboolean	renderingThirdPerson;		// during deaths, chasecams, etc
 	qboolean	drawingHUD;
+	qboolean	drawingZoomedHUD;			// drawing minimal HUD while weapon zoomed
 
 	// prediction state
 	qboolean	hyperspace;				// true if prediction has hit a trigger_teleport

@@ -77,7 +77,7 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 	int hudDrawStatus = (int)trap_Cvar_VariableValue("vr_currentHudDrawStatus");
 	//If using floating HUD and we are drawing it, double coordinates since the HUD
 	//buffer is now 1280x960 instead of 640x480
-	if ( hudDrawStatus == 1 && cg.drawingHUD)
+	if ( hudDrawStatus == 1 && cg.drawingHUD && !cg.drawingZoomedHUD)
 	{
 		*x *= 2.0f;
 		*y *= 2.0f;
@@ -86,7 +86,38 @@ void CG_AdjustFrom640( float *x, float *y, float *w, float *h )
 		return;
 	}
 
-	if (!cg.drawingHUD)
+	if (cg.drawingZoomedHUD)
+	{
+		// Weapon zoomed HUD: scaled down and centered, similar to HUD mode 2
+		// Use 1:1 square layout (640x640) to push top/bottom elements away from center
+		float screenXScale = cgs.screenXScale / 2.25f;
+		float screenYScale = cgs.screenXScale / 2.25f;
+		float effectiveWidth = cg.refdef.width;
+		float effectiveHeight = cg.refdef.height;
+
+		// Remap Y from 480 range to 640 range (stretch vertically to fill square)
+		// This maps input y=0 to output y=0, and input y=480 to output y=640
+		*y = (*y / 480.0f) * 640.0f;
+
+		// Calculate optical centering offset (asymmetric FOV compensation)
+		float opticalOffset = 0.0f;
+		float tanUp = tanf(vr->fov_angle_up);
+		float tanDown = tanf(vr->fov_angle_down);
+		float tanHeight = tanUp - tanDown;
+		if (fabsf(tanHeight) > 0.001f) {
+			float m9 = (tanUp + tanDown) / tanHeight;
+			opticalOffset = 320.0f * m9 * screenYScale;  // 320 = center of 640
+		}
+
+		*x *= screenXScale;
+		*y *= screenYScale;
+		*w *= screenXScale;
+		*h *= screenYScale;
+
+		*x += (effectiveWidth - (640 * screenXScale)) / 2.0f;
+		*y += (effectiveHeight - (640 * screenYScale)) / 2.0f + opticalOffset;
+	}
+	else if (!cg.drawingHUD)
 	{
 		float screenXScale = cgs.screenXScale;
 		float screenYScale = cgs.screenYScale;
@@ -200,14 +231,22 @@ Coords are virtual 640x480
 */
 void CG_DrawSides(float x, float y, float w, float h, float size) {
 	CG_AdjustFrom640( &x, &y, &w, &h );
-	size *= cgs.screenXScale;
+	if (cg.drawingZoomedHUD) {
+		size *= cgs.screenXScale / 2.25f;
+	} else {
+		size *= cgs.screenXScale;
+	}
 	trap_R_DrawStretchPic( x, y, size, h, 0, 0, 0, 0, cgs.media.whiteShader );
 	trap_R_DrawStretchPic( x + w - size, y, size, h, 0, 0, 0, 0, cgs.media.whiteShader );
 }
 
 void CG_DrawTopBottom(float x, float y, float w, float h, float size) {
 	CG_AdjustFrom640( &x, &y, &w, &h );
-	size *= cgs.screenYScale;
+	if (cg.drawingZoomedHUD) {
+		size *= cgs.screenXScale / 2.25f;
+	} else {
+		size *= cgs.screenYScale;
+	}
 	trap_R_DrawStretchPic( x, y, w, size, 0, 0, 0, 0, cgs.media.whiteShader );
 	trap_R_DrawStretchPic( x, y + h - size, w, size, 0, 0, 0, 0, cgs.media.whiteShader );
 }
