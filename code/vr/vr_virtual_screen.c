@@ -1,9 +1,11 @@
 #include "vr_virtual_screen.h"
 
 #include "common/xr_linear.h"
+#include "vr_clientinfo.h"
 
 extern cvar_t *vr_virtualScreenMode;
 extern cvar_t *vr_virtualScreenShape;
+extern vr_clientinfo_t vr;
 
 typedef enum
 {
@@ -481,13 +483,16 @@ void _VR_GetVirtualScreenModelMatrix(XrMatrix4x4f* model, XrPosef* leftEyePose)
 	// Base 4:3 aspect ratio for the virtual screen content
 	float aspectRatioCoeff = 3.0f / 4.0f;
 
-	// Correct for FOV asymmetry: when fov_y > fov_x, vertical angles are compressed
-	// in the projection, making content appear shorter. We compensate by making the
-	// quad taller by the FOV aspect ratio.
+	// Compensate for non-square framebuffer aspect ratio.
+	// The virtual screen renders with symmetric FOV (fov_y = fov_x in cg_view.c),
+	// but into a framebuffer that may not be square (e.g., 3072x3264).
+	// With symmetric FOV, more pixels vertically means content appears squished.
+	// The framebuffer aspect ratio is proportional to fov_y/fov_x (the original asymmetric FOV).
+	// Multiply Y scale by this ratio to stretch content back to correct proportions.
 	if (vr.fov_x > 0.0f && vr.fov_y > 0.0f)
 	{
-		float fovAspect = vr.fov_y / vr.fov_x;
-		aspectRatioCoeff *= fovAspect;
+		float framebufferAspect = vr.fov_y / vr.fov_x;
+		aspectRatioCoeff *= framebufferAspect;
 	}
 
 	XrVector3f translation = GetCurrentVirtualScreenPosition(leftEyePose);

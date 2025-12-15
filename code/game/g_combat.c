@@ -125,10 +125,7 @@ void TossClientItems( gentity_t *self ) {
 		item = BG_FindItemForWeapon( weapon );
 
 		// spawn the item
-		drop = Drop_Item( self, item, 0 );
-
-		// for pickup prediction
-		drop->s.time2 = item->quantity;
+		Drop_Item( self, item, 0 );
 	}
 
 	// drop all the powerups if not in teamplay
@@ -146,8 +143,6 @@ void TossClientItems( gentity_t *self ) {
 				if ( drop->count < 1 ) {
 					drop->count = 1;
 				}
-				// for pickup prediction
-				drop->s.time2 = drop->count;
 				angle += 45;
 			}
 		}

@@ -722,13 +722,6 @@ void FinishSpawningItem( gentity_t *ent ) {
 	// using an item causes it to respawn
 	ent->use = Use_Item;
 
-	// for pickup prediction
-	if ( ent->count ) {
-		ent->s.time2 = ent->count;
-	} else if ( ent->item ) {
-		ent->s.time2 = ent->item->quantity;
-	}
-
 	if ( ent->spawnflags & 1 ) {
 		// suspended
 		G_SetOrigin( ent, ent->s.origin );

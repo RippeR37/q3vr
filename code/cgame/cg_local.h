@@ -153,7 +153,6 @@ typedef struct {
 	lerpFrame_t		legs, torso, flag;
 	int				painTime;
 	int				painDirection;	// flip from 0 to 1
-	qboolean		painIgnore;
 	int				lightningFiring;
 
 	int				railFireTime;
