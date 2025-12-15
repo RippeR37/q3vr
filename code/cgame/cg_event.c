@@ -509,12 +509,6 @@ void CG_PainEvent( centity_t *cent, int health ) {
 
 	// don't do more than two pain sounds a second
 	if ( cg.time - cent->pe.painTime < 500 ) {
-		cent->pe.painIgnore = qfalse;
-		return;
-	}
-
-	if ( cent->pe.painIgnore ) {
-		cent->pe.painIgnore = qfalse;
 		return;
 	}
 
@@ -641,8 +635,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		DEBUGNAME("EV_FALL_MEDIUM");
 		// use normal pain sound
 		trap_S_StartSound( NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, "*pain100_1.wav" ) );
-		cent->pe.painIgnore = qtrue;
-		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
 		if ( clientNum == cg.predictedPlayerState.clientNum ) {
 			// smooth landing z changes
 			cg.landChange = -16;
@@ -653,7 +645,6 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_FALL_FAR:
 		DEBUGNAME("EV_FALL_FAR");
 		trap_S_StartSound (NULL, es->number, CHAN_AUTO, CG_CustomSound( es->number, "*fall1.wav" ) );
-		cent->pe.painIgnore = qtrue;
 		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
 		if ( clientNum == cg.predictedPlayerState.clientNum ) {
 			// smooth landing z changes
@@ -725,12 +716,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_JUMP:
 		DEBUGNAME("EV_JUMP");
-		// pain event with fast sequential jump just creates sound distortion
-		if ( cg.time - cent->pe.painTime > 50 ) {
-			trap_S_StartSound (NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, "*jump1.wav" ) );
-			if ( clientNum == cg.predictedPlayerState.clientNum ) {
-				trap_HapticEvent("jump_start", 0, 0, 50, 0, 0);
-			}
+		trap_S_StartSound (NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, "*jump1.wav" ) );
+		if ( clientNum == cg.predictedPlayerState.clientNum ) {
+			trap_HapticEvent("jump_start", 0, 0, 50, 0, 0);
 		}
 		break;
 	case EV_TAUNT:

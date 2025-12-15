@@ -597,8 +597,6 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 				if ( drop->count < 1 ) {
 					drop->count = 1;
 				}
-				// for pickup prediction
-				drop->s.time2 = drop->count;
 
 				ent->client->ps.powerups[ j ] = 0;
 			}
