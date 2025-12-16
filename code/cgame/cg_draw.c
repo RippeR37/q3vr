@@ -2516,7 +2516,7 @@ static qboolean CG_DrawFollow( void ) {
 
 	x = 0.5 * ( 640 - BIGCHAR_WIDTH * CG_DrawStrlen( name ) );
 
-	CG_DrawStringExt( x, 72, name, color, qtrue, qtrue, BIGCHAR_WIDTH, BIGCHAR_HEIGHT, 0 );
+	CG_DrawStringExt( x, 72, name, color, qfalse, qtrue, BIGCHAR_WIDTH, BIGCHAR_HEIGHT, 0 );
 
 	return qtrue;
 }
