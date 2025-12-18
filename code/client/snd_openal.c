@@ -154,11 +154,6 @@ static sfxHandle_t numSfx = 0;
 
 static sfxHandle_t default_sfx;
 
-// Hint for buffer eviction - tracks likely oldest evictable buffer
-// This avoids O(n) scan in the common case
-static int evictionHintIndex = -1;
-static int evictionHintTime = 0;
-
 /*
 =================
 S_AL_BufferFindFree
@@ -286,9 +281,6 @@ static void S_AL_BufferUnload(sfxHandle_t sfx)
 /*
 =================
 S_AL_BufferEvict
-
-Evicts the least recently used sound buffer to free resources.
-Uses a hint system to avoid O(n) scan in the common case.
 =================
 */
 static qboolean S_AL_BufferEvict( void )
@@ -296,20 +288,6 @@ static qboolean S_AL_BufferEvict( void )
 	int	i, oldestBuffer = -1;
 	int	oldestTime = Sys_Milliseconds( );
 
-	// Try the hint first - if it's still valid and evictable, use it directly
-	if( evictionHintIndex >= 0 && evictionHintIndex < numSfx )
-	{
-		alSfx_t *hint = &knownSfx[ evictionHintIndex ];
-		if( hint->filename[ 0 ] && hint->inMemory )
-		{
-			// Hint is still valid and evictable - use it without full scan
-			S_AL_BufferUnload( evictionHintIndex );
-			evictionHintIndex = -1;  // Clear hint, will be updated on next scan if needed
-			return qtrue;
-		}
-	}
-
-	// Hint was invalid or not evictable, do full scan
 	for( i = 0; i < numSfx; i++ )
 	{
 		if( !knownSfx[ i ].filename[ 0 ] )
@@ -328,25 +306,6 @@ static qboolean S_AL_BufferEvict( void )
 	if( oldestBuffer >= 0 )
 	{
 		S_AL_BufferUnload( oldestBuffer );
-
-		// Update hint: find next oldest for future eviction
-		evictionHintIndex = -1;
-		evictionHintTime = Sys_Milliseconds();
-		for( i = 0; i < numSfx; i++ )
-		{
-			if( i == oldestBuffer )
-				continue;
-			if( !knownSfx[ i ].filename[ 0 ] )
-				continue;
-			if( !knownSfx[ i ].inMemory )
-				continue;
-			if( knownSfx[ i ].lastUsedTime < evictionHintTime )
-			{
-				evictionHintTime = knownSfx[ i ].lastUsedTime;
-				evictionHintIndex = i;
-			}
-		}
-
 		return qtrue;
 	}
 	else
@@ -1964,13 +1923,6 @@ static char s_backgroundLoop[MAX_QPATH];
 
 static byte decode_buffer[MUSIC_BUFFER_SIZE];
 
-// Pre-decode buffer for reducing main-thread stalls during music streaming
-static byte predecode_buffer[MUSIC_BUFFER_SIZE];
-static int predecode_length = 0;
-static ALuint predecode_format = 0;
-static int predecode_rate = 0;
-static qboolean predecode_ready = qfalse;
-
 /*
 =================
 S_AL_MusicSourceGet
@@ -2059,71 +2011,7 @@ void S_AL_StopBackgroundTrack( void )
 	// Unload the stream
 	S_AL_CloseMusicFiles();
 
-	// Clear pre-decode state
-	predecode_ready = qfalse;
-	predecode_length = 0;
-
 	musicPlaying = qfalse;
-}
-
-/*
-=================
-S_AL_MusicPredecode
-
-Pre-decodes the next chunk of music data into predecode_buffer.
-This should be called after buffering current data so the next
-chunk is ready without blocking.
-=================
-*/
-static
-void S_AL_MusicPredecode(void)
-{
-	snd_stream_t *curstream;
-
-	if(intro_stream)
-		curstream = intro_stream;
-	else
-		curstream = mus_stream;
-
-	if(!curstream)
-	{
-		predecode_ready = qfalse;
-		return;
-	}
-
-	predecode_length = S_CodecReadStream(curstream, MUSIC_BUFFER_SIZE, predecode_buffer);
-
-	// Handle end of stream - reopen loop or switch from intro
-	if(predecode_length == 0)
-	{
-		S_CodecCloseStream(curstream);
-
-		if(intro_stream)
-			intro_stream = NULL;
-		else
-			mus_stream = S_CodecOpenStream(s_backgroundLoop);
-
-		curstream = mus_stream;
-
-		if(!curstream)
-		{
-			predecode_ready = qfalse;
-			return;
-		}
-
-		predecode_length = S_CodecReadStream(curstream, MUSIC_BUFFER_SIZE, predecode_buffer);
-	}
-
-	if(predecode_length > 0)
-	{
-		predecode_format = S_AL_Format(curstream->info.width, curstream->info.channels);
-		predecode_rate = curstream->info.rate;
-		predecode_ready = qtrue;
-	}
-	else
-	{
-		predecode_ready = qfalse;
-	}
 }
 
 /*
@@ -2137,67 +2025,44 @@ void S_AL_MusicProcess(ALuint b)
 	ALenum error;
 	int l;
 	ALuint format;
-	int rate;
+	snd_stream_t *curstream;
 
 	S_AL_ClearError( qfalse );
 
-	// Use pre-decoded data if available (no blocking read needed)
-	if(predecode_ready)
-	{
-		l = predecode_length;
-		format = predecode_format;
-		rate = predecode_rate;
-		Com_Memcpy(decode_buffer, predecode_buffer, l);
-		predecode_ready = qfalse;
-	}
+	if(intro_stream)
+		curstream = intro_stream;
 	else
-	{
-		// No pre-decoded data, must do a blocking read
-		snd_stream_t *curstream;
+		curstream = mus_stream;
 
+	if(!curstream)
+		return;
+
+	l = S_CodecReadStream(curstream, MUSIC_BUFFER_SIZE, decode_buffer);
+
+	// Run out data to read, start at the beginning again
+	if(l == 0)
+	{
+		S_CodecCloseStream(curstream);
+
+		// the intro stream just finished playing so we don't need to reopen
+		// the music stream.
 		if(intro_stream)
-			curstream = intro_stream;
+			intro_stream = NULL;
 		else
-			curstream = mus_stream;
+			mus_stream = S_CodecOpenStream(s_backgroundLoop);
+		
+		curstream = mus_stream;
 
 		if(!curstream)
+		{
+			S_AL_StopBackgroundTrack();
 			return;
+		}
 
 		l = S_CodecReadStream(curstream, MUSIC_BUFFER_SIZE, decode_buffer);
-
-		// Run out data to read, start at the beginning again
-		if(l == 0)
-		{
-			S_CodecCloseStream(curstream);
-
-			// the intro stream just finished playing so we don't need to reopen
-			// the music stream.
-			if(intro_stream)
-				intro_stream = NULL;
-			else
-				mus_stream = S_CodecOpenStream(s_backgroundLoop);
-
-			curstream = mus_stream;
-
-			if(!curstream)
-			{
-				S_AL_StopBackgroundTrack();
-				return;
-			}
-
-			l = S_CodecReadStream(curstream, MUSIC_BUFFER_SIZE, decode_buffer);
-		}
-
-		if(curstream)
-		{
-			format = S_AL_Format(curstream->info.width, curstream->info.channels);
-			rate = curstream->info.rate;
-		}
-		else
-		{
-			return;
-		}
 	}
+
+	format = S_AL_Format(curstream->info.width, curstream->info.channels);
 
 	if( l == 0 )
 	{
@@ -2207,7 +2072,7 @@ void S_AL_MusicProcess(ALuint b)
 		qalBufferData( b, AL_FORMAT_MONO16, (void *)dummyData, 2, 22050 );
 	}
 	else
-		qalBufferData(b, format, decode_buffer, l, rate);
+		qalBufferData(b, format, decode_buffer, l, curstream->info.rate);
 
 	if( ( error = qalGetError( ) ) != AL_NO_ERROR )
 	{
@@ -2216,9 +2081,6 @@ void S_AL_MusicProcess(ALuint b)
 				S_AL_ErrorMsg( error ) );
 		return;
 	}
-
-	// Pre-decode the next chunk for the next call
-	S_AL_MusicPredecode();
 }
 
 /*
