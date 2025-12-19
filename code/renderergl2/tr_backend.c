@@ -142,12 +142,19 @@ void GL_State( unsigned long stateBits )
 			qglDisable( GL_BLEND );
 		}
 
-		if (newState != 0 && storedState != newState)
+		// Check if we're currently in HUD 3D rendering mode (HUD but not 2D entity)
+		qboolean isHUD3D = glState.isDrawingHUD && backEnd.currentEntity != &backEnd.entity2D;
+
+		// Need to re-set blend function if:
+		// 1. Blend state bits changed, OR
+		// 2. HUD 3D mode changed (we need different alpha blend for HUD 3D)
+		if (newState != 0 && (storedState != newState || glState.storedBlendIsHUD3D != isHUD3D))
 		{
 			GLenum srcFactor = GL_ONE, dstFactor = GL_ONE;
 
 			glState.storedGlState &= ~( GLS_SRCBLEND_BITS | GLS_DSTBLEND_BITS );
 			glState.storedGlState |= newState;
+			glState.storedBlendIsHUD3D = isHUD3D;
 
 			switch ( stateBits & GLS_SRCBLEND_BITS )
 			{
@@ -217,7 +224,7 @@ void GL_State( unsigned long stateBits )
 			// Use separate blend for HUD 3D rendering to preserve specular while ensuring opaque alpha
 			// RGB: normal blend so specular shows through texture alpha
 			// Alpha: GL_ONE, GL_ONE accumulates alpha to saturate toward 1.0
-			if (glState.isDrawingHUD && backEnd.currentEntity != &backEnd.entity2D)
+			if (isHUD3D)
 			{
 				qglBlendFuncSeparate(srcFactor, dstFactor, GL_ONE, GL_ONE);
 			}

@@ -1416,6 +1416,7 @@ typedef struct {
 	int         faceCullFront;
 	uint32_t    glStateBits;
 	uint32_t    storedGlState;
+	qboolean    storedBlendIsHUD3D;  // True if stored blend was set with HUD 3D alpha accumulation
 	float           vertexAttribsInterpolation;
 	qboolean        vertexAnimation;
 	int             boneAnimation; // number of bones
