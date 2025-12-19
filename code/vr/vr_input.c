@@ -75,6 +75,7 @@ static vrController_t leftController;
 static vrController_t rightController;
 static int in_vrEventTime = 0;
 static double lastframetime = 0;
+static qboolean wasInMenuMode = qfalse;
 
 static float triggerPressedThreshold = 0.75f;
 static float triggerReleasedThreshold = 0.5f;
@@ -1333,7 +1334,24 @@ static void IN_VRTriggers( qboolean isRightController, float triggerValue )
 {
 	vrController_t* controller = isRightController == qtrue ? &rightController : &leftController;
 
-	if ((vr.virtual_screen && (!vr.first_person_following || vr.in_menu)) || cl.snap.ps.pm_type == PM_INTERMISSION || (vr.scoreboardCursorX && vr.scoreboardCursorY))
+	// Detect if we're in menu mode (virtual screen, intermission, or scoreboard)
+	qboolean inMenuMode = (vr.virtual_screen && (!vr.first_person_following || vr.in_menu)) ||
+	                      cl.snap.ps.pm_type == PM_INTERMISSION ||
+	                      (vr.scoreboardCursorX && vr.scoreboardCursorY);
+
+	// On transition into menu mode, release any held +attack from gameplay.
+	// Only check primary trigger since that's what sends +attack.
+	qboolean isPrimaryTrigger = (isRightController == (vr_righthanded->integer != 0));
+	if (inMenuMode && !wasInMenuMode && isPrimaryTrigger && triggerValue > triggerPressedThreshold)
+	{
+		Cbuf_AddText("-attack\n");
+	}
+	if (isPrimaryTrigger)
+	{
+		wasInMenuMode = inMenuMode;
+	}
+
+	if (inMenuMode)
 	{
 		// Triggers are used for menu navigation in screen mode, intermission, or scoreboard
 		if (triggerValue > triggerPressedThreshold && !IN_InputActivated(&controller->axisButtons, VR_TOUCH_AXIS_TRIGGER_INDEX))
