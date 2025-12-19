@@ -308,7 +308,7 @@ qboolean CG_DrawOldScoreboard( void ) {
 		fadeColor = colorWhite;
 	} else {
 		fadeColor = CG_FadeColor( cg.scoreFadeTime, FADE_TIME );
-		
+
 		if ( !fadeColor ) {
 			// next time scoreboard comes up, don't print killer
 			cg.deferredPlayerLoading = 0;
@@ -317,7 +317,6 @@ qboolean CG_DrawOldScoreboard( void ) {
 		}
 		fade = *fadeColor;
 	}
-
 
 	// fragged by ... line
 	if ( cg.killerName[0] ) {
