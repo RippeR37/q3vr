@@ -119,17 +119,14 @@ foreach(LIBRARY IN LISTS CLIENT_DEPLOY_LIBRARIES)
 endforeach()
 
 # Build pakQ3VR.pk3 from source (always regenerate to catch new files)
-find_program(ZIP_EXECUTABLE NAMES 7z)
-if(ZIP_EXECUTABLE)
-    add_custom_target(pakQ3VR ALL
-        COMMAND ${CMAKE_COMMAND} -E remove -f "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
-        COMMAND ${ZIP_EXECUTABLE} a -tzip "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3" * -r
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/pakQ3VR"
-        COMMENT "Building pakQ3VR.pk3 from source"
-    )
-else()
-    message(WARNING "7z not found - pakQ3VR.pk3 will not be rebuilt automatically")
-endif()
+add_custom_target(pakQ3VR ALL
+		COMMAND ${CMAKE_COMMAND} -E remove -f "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
+		COMMAND ${CMAKE_COMMAND} -E tar cf 
+		    ${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3 --format=zip 
+				.
+		WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/pakQ3VR"
+		COMMENT "Building pakQ3VR.pk3 from source"
+)
 
 # Copy assets to output dir
 add_custom_command(TARGET ${CLIENT_BINARY} POST_BUILD
