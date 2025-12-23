@@ -11,7 +11,9 @@ typedef enum
 	BOTH_EYES = 3,
 } XrDesktopViewConfiguration;
 
-void VR_GetRecommendedResolution(XrInstance instance, XrSystemId systemId, int* width, int* height);
+float VR_GetSupersamplingFactor(void);
+void VR_GetRecommendedResolution(XrInstance instance, XrSystemId systemId, int* width, int* height, int* maxWidth, int* maxHeight);
+void VR_GetSupersampledResolution(XrInstance instance, XrSystemId systemId, int* width, int* height);
 
 VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, XrSession session);
 void VR_DestroySwapchains(VR_SwapchainInfos* swapchains);

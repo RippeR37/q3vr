@@ -222,7 +222,7 @@ GLuint VR_CreateImage2D(GLint format, GLsizei width, GLsizei height)
 }
 
 // Create a single-layer swapchain for screen overlays (quad layer)
-void VR_CreateScreenOverlaySwapchain(XrSession session, int64_t format, const XrViewConfigurationView* view, VR_SwapchainInfo* swapchain_info)
+void VR_CreateScreenOverlaySwapchain(XrSession session, int64_t format, const XrViewConfigurationView* view, VR_SwapchainInfo* swapchain_info, int supersampledWidth, int supersampledHeight)
 {
 	XrSwapchainCreateInfo swapchainCI;
 	swapchainCI.type = XR_TYPE_SWAPCHAIN_CREATE_INFO;
@@ -231,8 +231,8 @@ void VR_CreateScreenOverlaySwapchain(XrSession session, int64_t format, const Xr
 	swapchainCI.usageFlags = XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
 	swapchainCI.format = format;
 	swapchainCI.sampleCount = 1;
-	swapchainCI.width = view->recommendedImageRectWidth;
-	swapchainCI.height = view->recommendedImageRectHeight;
+	swapchainCI.width = supersampledWidth;
+	swapchainCI.height = supersampledHeight;
 	swapchainCI.faceCount = 1;
 	swapchainCI.arraySize = 1;  // Single layer, NOT multiview
 	swapchainCI.mipCount = 1;
@@ -288,7 +288,7 @@ GLuint VR_CreateScreenOverlayFramebuffer(GLuint colorImage)
 	return framebuffer;
 }
 
-void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, const XrViewConfigurationView* view, uint32_t viewCount, VR_SwapchainInfo* swapchain_info)
+void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, const XrViewConfigurationView* view, uint32_t viewCount, VR_SwapchainInfo* swapchain_info, int supersampledWidth, int supersampledHeight)
 {
 	XrSwapchainCreateInfo swapchainCI;
 	swapchainCI.type = XR_TYPE_SWAPCHAIN_CREATE_INFO;
@@ -304,8 +304,8 @@ void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, con
 	}
 	swapchainCI.format = format;
 	swapchainCI.sampleCount = 1;
-	swapchainCI.width = view->recommendedImageRectWidth;
-	swapchainCI.height = view->recommendedImageRectHeight;
+	swapchainCI.width = supersampledWidth;
+	swapchainCI.height = supersampledHeight;
 	swapchainCI.faceCount = 1;
 	swapchainCI.arraySize = viewCount;
 	swapchainCI.mipCount = 1;
@@ -347,7 +347,7 @@ void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, con
 	// Create a side texture that we will render menus etc. to and then we will use as source for actual frames in VR
 	if (isColor)
 	{
-		swapchain_info->virtualScreenImage = VR_CreateImage2D(format, view->recommendedImageRectWidth, view->recommendedImageRectHeight);
+		swapchain_info->virtualScreenImage = VR_CreateImage2D(format, supersampledWidth, supersampledHeight);
 	}
 
 	free(swapchainImagesGL);
@@ -358,7 +358,19 @@ void VR_CreateSwapchain(XrSession session, XrBool32 isColor, int64_t format, con
 // Usable
 //
 
-void VR_GetRecommendedResolution(XrInstance instance, XrSystemId systemId, int* width, int* height)
+float VR_GetSupersamplingFactor(void)
+{
+	// Some sane limits in case someone overridden cvars manually
+	float supersampling = Cvar_VariableValue("vr_superSampling");
+	if (supersampling < 0.5f) {
+		supersampling = 0.5f;
+	} else if (supersampling > 4.0f) {
+		supersampling = 4.0f;
+	}
+	return supersampling;
+}
+
+void VR_GetRecommendedResolution(XrInstance instance, XrSystemId systemId, int* width, int* height, int* maxWidth, int* maxHeight)
 {
 	const XrViewConfigurationType viewConfigurationType = VR_GetBestViewConfiguration(instance, systemId);
 	CHECK(
@@ -371,7 +383,36 @@ void VR_GetRecommendedResolution(XrInstance instance, XrSystemId systemId, int* 
 	*width = views[0].recommendedImageRectWidth;
 	*height = views[0].recommendedImageRectHeight;
 
+	if (maxWidth)
+	{
+		*maxWidth = views[0].maxImageRectWidth;
+	}
+	if (maxHeight)
+	{
+		*maxHeight = views[0].maxImageRectHeight;
+	}
+
 	free(views);
+}
+
+void VR_GetSupersampledResolution(XrInstance instance, XrSystemId systemId, int* width, int* height)
+{
+	int maxWidth = 0, maxHeight = 0;
+	VR_GetRecommendedResolution(instance, systemId, width, height, &maxWidth, &maxHeight);
+
+	const float supersamplingFactor = VR_GetSupersamplingFactor();
+	int supersampledWidth = *width * supersamplingFactor;
+	int supersampledHeight = *height * supersamplingFactor;
+
+	if (supersampledWidth > maxWidth || supersampledHeight > maxHeight)
+	{
+		const float adjustedSupersamplingFactor = MIN(maxWidth / (float)*width, maxHeight / (float)*height);
+		supersampledWidth = *width * adjustedSupersamplingFactor;
+		supersampledHeight = *height * adjustedSupersamplingFactor;
+	}
+
+	*width = supersampledWidth;
+	*height = supersampledHeight;
 }
 
 VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, XrSession session)
@@ -404,15 +445,20 @@ VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, 
 			"Failed sanity check for same image sizes in OpenGL Multiview rendering");
 	}
 
+	int supersampledWidth = views[0].recommendedImageRectWidth;
+	int supersampledHeight = views[0].recommendedImageRectHeight;
+	VR_GetSupersampledResolution(instance, systemId, &supersampledWidth, &supersampledHeight);
+
 	//
 	// Swapchains
 	//
 	VR_SwapchainInfos swapchains = {.viewCount = viewCount};
-	VR_CreateSwapchain(session, XR_TRUE,  colorFormat, &views[0], viewCount, &swapchains.color);
-	VR_CreateSwapchain(session, XR_FALSE, depthFormat, &views[0], viewCount, &swapchains.depth);
+	VR_CreateSwapchain(session, XR_TRUE,  colorFormat, &views[0], viewCount, &swapchains.color, supersampledWidth, supersampledHeight);
+	VR_CreateSwapchain(session, XR_FALSE, depthFormat, &views[0], viewCount, &swapchains.depth, supersampledWidth, supersampledHeight);
+	fprintf(stderr, "[OpenXR] Created color and depth swapchains: %dx%d, %u images\n", swapchains.color.width, swapchains.color.height, swapchains.color.imageCount);
 
 	// Create screen overlay swapchain (single-layer for quad layer)
-	VR_CreateScreenOverlaySwapchain(session, colorFormat, &views[0], &swapchains.screenOverlay);
+	VR_CreateScreenOverlaySwapchain(session, colorFormat, &views[0], &swapchains.screenOverlay, supersampledWidth, supersampledHeight);
 	fprintf(stderr, "[OpenXR] Created screen overlay swapchain: %dx%d, %u images\n",
 		swapchains.screenOverlay.width, swapchains.screenOverlay.height, swapchains.screenOverlay.imageCount);
 

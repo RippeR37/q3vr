@@ -255,7 +255,7 @@ GRAPHICS OPTIONS MENU
 #define	NUM_REFRESHRATE	5
 #define NUM_SHADOWS 3
 #define NUM_RAILGUN 2
-#define	NUM_SUPERSAMPLING	6
+#define	NUM_SUPERSAMPLING	13
 #define NUM_MSAA		4
 
 typedef struct {
@@ -357,6 +357,10 @@ static void GraphicsOptions_UpdateMenuItems( void )
 		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
 	if ( s_ivo.msaa != s_graphicsoptions.msaa.curvalue )
+	{
+		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
+	}
+	if ( s_ivo.supersampling != s_graphicsoptions.supersampling.curvalue )
 	{
 		s_graphicsoptions.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
@@ -484,24 +488,45 @@ static void GraphicsOptions_Event( void* ptr, int event ) {
 			float supersampling;
 			switch (s_graphicsoptions.supersampling.curvalue) {
 				case 0:
-					supersampling = 0.8;
+					supersampling = 0.5;
 					break;
 				case 1:
-					supersampling = 0.9;
+					supersampling = 0.6;
 					break;
 				case 2:
-					supersampling = 1.0;
+					supersampling = 0.7;
 					break;
 				case 3:
-					supersampling = 1.1;
+					supersampling = 0.8;
 					break;
 				case 4:
-					supersampling = 1.2;
+					supersampling = 0.9;
 					break;
 				case 5:
+					supersampling = 1.0;
+					break;
+				case 6:
+					supersampling = 1.1;
+					break;
+				case 7:
+					supersampling = 1.2;
+					break;
+				case 8:
 					supersampling = 1.3;
 					break;
-				}
+				case 9:
+					supersampling = 1.4;
+					break;
+				case 10:
+					supersampling = 1.5;
+					break;
+				case 11:
+					supersampling = 1.75;
+					break;
+				case 12:
+					supersampling = 2.0;
+					break;
+			}
 			trap_Cvar_SetValue("vr_superSampling", supersampling);
 		}
 		break;
@@ -702,20 +727,35 @@ static void GraphicsOptions_SetMenuItems( void )
 	}
 
 	float superSampling = trap_Cvar_VariableValue( "vr_superSampling" );
-	if (superSampling == 0.8f) {
+	if (superSampling <= 0.5f) {
 		s_graphicsoptions.supersampling.curvalue = 0;
-	} else if (superSampling == 0.9f) {
+	} else if (superSampling == 0.6f) {
 		s_graphicsoptions.supersampling.curvalue = 1;
-	} else if (superSampling == 1.0f) {
+	} else if (superSampling == 0.7f) {
 		s_graphicsoptions.supersampling.curvalue = 2;
-	} else if (superSampling == 1.1f) {
+	} else if (superSampling == 0.8f) {
 		s_graphicsoptions.supersampling.curvalue = 3;
-	} else if (superSampling == 1.2f) {
+	} else if (superSampling == 0.9f) {
 		s_graphicsoptions.supersampling.curvalue = 4;
-	} else if (superSampling == 1.3f) {
+	} else if (superSampling == 1.0f) {
 		s_graphicsoptions.supersampling.curvalue = 5;
+	} else if (superSampling == 1.1f) {
+		s_graphicsoptions.supersampling.curvalue = 6;
+	} else if (superSampling == 1.2f) {
+		s_graphicsoptions.supersampling.curvalue = 7;
+	} else if (superSampling == 1.3f) {
+		s_graphicsoptions.supersampling.curvalue = 8;
+	} else if (superSampling == 1.4f) {
+		s_graphicsoptions.supersampling.curvalue = 9;
+	} else if (superSampling == 1.5f) {
+		s_graphicsoptions.supersampling.curvalue = 1;
+	} else if (superSampling == 1.75f) {
+		s_graphicsoptions.supersampling.curvalue = 11;
+	} else if (superSampling >= 2.0f) {
+		s_graphicsoptions.supersampling.curvalue = 12;
 	} else {
-		s_graphicsoptions.supersampling.curvalue = 3;
+		// Reset to 1.0f
+		s_graphicsoptions.supersampling.curvalue = 5;
 	}
 
 	s_graphicsoptions.lighting.curvalue = trap_Cvar_VariableValue( "r_vertexLight" ) != 0;
@@ -793,12 +833,19 @@ void GraphicsOptions_MenuInit( void )
 
 	static const char *s_supersampling[] =
 	{
+		"0.5",
+		"0.6",
+		"0.7",
 		"0.8",
 		"0.9",
 		"1.0",
 		"1.1",
 		"1.2",
 		"1.3",
+		"1.4",
+		"1.5",
+		"1.75",
+		"2.0",
 		NULL
 	};
 
@@ -1063,8 +1110,7 @@ void GraphicsOptions_MenuInit( void )
 #if 0
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.refreshrate );
 #endif
-  // TODO(ripper37): temporarily disable supersampling option, need to rething it for PCVR
-	// Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.supersampling );
+	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.supersampling );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.railgun );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.gamma );
 	Menu_AddItem( &s_graphicsoptions.menu, ( void * ) &s_graphicsoptions.msaa );

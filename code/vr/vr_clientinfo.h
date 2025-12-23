@@ -100,7 +100,6 @@ typedef struct {
 	qboolean menuLeftHanded;
 
 	float recenterYaw;
-	float superSampling;
 
 	// SP intermission overlay anchoring (world-fixed UI during podium view)
 	qboolean sp_intermission_active;

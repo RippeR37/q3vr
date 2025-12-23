@@ -18,8 +18,6 @@
 #include "vr_types.h"
 #include "vr_virtual_screen.h"
 
-#define DEFAULT_SUPER_SAMPLING  1.1f
-
 extern vr_clientinfo_t vr;
 extern cvar_t *vr_heightAdjust;
 extern cvar_t *vr_refreshrate;
@@ -51,29 +49,7 @@ XrDesktopViewConfiguration VR_GetDesktopViewConfiguration( void );
 
 void VR_GetResolution(VR_Engine* engine, int *pWidth, int *pHeight)
 {
-	float superSampling = 0.0f;
-
-	float configuredSuperSampling = Cvar_VariableValue("vr_superSampling");
-	if (vr.superSampling == 0.0f || configuredSuperSampling != vr.superSampling)
-	{
-		vr.superSampling = configuredSuperSampling;
-		if (vr.superSampling != 0.0f)
-		{
-			// Cbuf_AddText( "vid_restart\n" );
-		}
-	}
-
-	if (vr.superSampling == 0.0f)
-	{
-		superSampling = DEFAULT_SUPER_SAMPLING;
-	}
-	else
-	{
-		superSampling = vr.superSampling;
-	}
-
-	VR_GetRecommendedResolution(engine->appState.Instance, engine->appState.SystemId, pWidth, pHeight);
-	// TODO(ripper37): apply supersampling
+	VR_GetSupersampledResolution(engine->appState.Instance, engine->appState.SystemId, pWidth, pHeight);
 }
 
 void VR_InitRenderer( VR_Engine* engine )
