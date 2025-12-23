@@ -377,18 +377,18 @@ static void GraphicsOptions_ApplyChanges( void *unused, int notification )
 
 	if ( s_graphicsoptions.geometry.curvalue == 2 )
 	{
-		trap_Cvar_SetValue( "r_lodBias", -1 );
-		trap_Cvar_SetValue( "r_subdivisions", 4 );
+		trap_Cvar_SetValue( "r_lodBias", -2 );
+		trap_Cvar_SetValue( "r_subdivisions", 1 );
 	}
 	else if ( s_graphicsoptions.geometry.curvalue == 1 )
 	{
-		trap_Cvar_SetValue( "r_lodBias", 1 );
-		trap_Cvar_SetValue( "r_subdivisions", 12 );
+		trap_Cvar_SetValue( "r_lodBias", -1 );
+		trap_Cvar_SetValue( "r_subdivisions", 2 );
 	}
 	else
 	{
-		trap_Cvar_SetValue( "r_lodBias", 2 );
-		trap_Cvar_SetValue( "r_subdivisions", 80 );
+		trap_Cvar_SetValue( "r_lodBias", 0 );
+		trap_Cvar_SetValue( "r_subdivisions", 4 );
 	}
 
 	trap_Cmd_ExecuteText( EXEC_APPEND, "vid_restart\n" );

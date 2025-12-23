@@ -3236,22 +3236,22 @@ static void UI_Update(const char *name) {
 	} else if (Q_stricmp(name, "r_lodbias") == 0) {
 		switch (val) {
 			case 0:
-				trap_Cvar_SetValue( "r_subdivisions", 4 );
+				trap_Cvar_SetValue( "r_subdivisions", 1 );
 			break;
 			case 1:
-				trap_Cvar_SetValue( "r_subdivisions", 12 );
+				trap_Cvar_SetValue( "r_subdivisions", 2 );
 			break;
 			case 2:
-				trap_Cvar_SetValue( "r_subdivisions", 20 );
+				trap_Cvar_SetValue( "r_subdivisions", 4 );
 			break;
 		}
 	} else if (Q_stricmp(name, "ui_glCustom") == 0) {
 		switch (val) {
 			case 0:	// high quality
 				trap_Cvar_SetValue( "r_fullScreen", 1 );
-				trap_Cvar_SetValue( "r_subdivisions", 4 );
+				trap_Cvar_SetValue( "r_subdivisions", 1 );
 				trap_Cvar_SetValue( "r_vertexlight", 0 );
-				trap_Cvar_SetValue( "r_lodbias", 0 );
+				trap_Cvar_SetValue( "r_lodbias", -2 );
 				trap_Cvar_SetValue( "r_colorbits", 32 );
 				trap_Cvar_SetValue( "r_depthbits", 24 );
 				trap_Cvar_SetValue( "r_stencilbits", 8 );
@@ -3267,9 +3267,9 @@ static void UI_Update(const char *name) {
 			break;
 			case 1: // normal 
 				trap_Cvar_SetValue( "r_fullScreen", 1 );
-				trap_Cvar_SetValue( "r_subdivisions", 12 );
+				trap_Cvar_SetValue( "r_subdivisions", 2 );
 				trap_Cvar_SetValue( "r_vertexlight", 0 );
-				trap_Cvar_SetValue( "r_lodbias", 0 );
+				trap_Cvar_SetValue( "r_lodbias", -1 );
 				trap_Cvar_SetValue( "r_colorbits", 0 );
 				trap_Cvar_SetValue( "r_depthbits", 0 );
 				trap_Cvar_Reset( "r_stencilbits" );
@@ -3285,9 +3285,9 @@ static void UI_Update(const char *name) {
 			break;
 			case 2: // fast
 				trap_Cvar_SetValue( "r_fullScreen", 1 );
-				trap_Cvar_SetValue( "r_subdivisions", 8 );
+				trap_Cvar_SetValue( "r_subdivisions", 4 );
 				trap_Cvar_SetValue( "r_vertexlight", 0 );
-				trap_Cvar_SetValue( "r_lodbias", 1 );
+				trap_Cvar_SetValue( "r_lodbias", 0 );
 				trap_Cvar_SetValue( "r_colorbits", 0 );
 				trap_Cvar_SetValue( "r_depthbits", 0 );
 				trap_Cvar_Reset( "r_stencilbits" );
@@ -3303,9 +3303,9 @@ static void UI_Update(const char *name) {
 			break;
 			case 3: // fastest
 				trap_Cvar_SetValue( "r_fullScreen", 1 );
-				trap_Cvar_SetValue( "r_subdivisions", 20 );
+				trap_Cvar_SetValue( "r_subdivisions", 12 );
 				trap_Cvar_SetValue( "r_vertexlight", 1 );
-				trap_Cvar_SetValue( "r_lodbias", 2 );
+				trap_Cvar_SetValue( "r_lodbias", 1 );
 				trap_Cvar_SetValue( "r_colorbits", 16 );
 				trap_Cvar_SetValue( "r_depthbits", 16 );
 				trap_Cvar_SetValue( "r_stencilbits", 0 );
