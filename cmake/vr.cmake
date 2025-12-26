@@ -7,6 +7,7 @@ set(VR_SOURCES
     ${SOURCE_DIR}/vr/vr_events.c
     ${SOURCE_DIR}/vr/vr_gameplay.c
     ${SOURCE_DIR}/vr/vr_haptics.c
+    ${SOURCE_DIR}/vr/vr_bhaptics.c
     ${SOURCE_DIR}/vr/vr_input.c
     ${SOURCE_DIR}/vr/vr_instance.c
     ${SOURCE_DIR}/vr/vr_math.c
