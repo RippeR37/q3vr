@@ -479,7 +479,7 @@ void VR_HapticEvent(const char* event, int position, int flags, int intensity, f
 	}
 	else if (strcmp(event, "menu_move") == 0)
 	{
-					VR_Vibrate(30, (vr.menuLeftHanded ? 1 : 2), 0.3);
+		VR_Vibrate(30, (vr.menuLeftHanded ? 1 : 2), 0.3);
 	}
 
 #ifdef USE_BHAPTICS
