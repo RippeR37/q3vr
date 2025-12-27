@@ -53,8 +53,6 @@ COMFORT OPTIONS MENU
 
 #define ID_BACK					136
 
-
-
 typedef struct {
 	menuframework_s		menu;
 
