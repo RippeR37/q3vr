@@ -49,7 +49,7 @@ COMFORT OPTIONS MENU
 #define ID_HUDYOFFSET		    134
 #define ID_HUDSCALE			    135
 
-#define NUM_HUDDEPTH		        6
+#define NUM_HUDDEPTH		        15
 
 #define ID_BACK					136
 

@@ -477,13 +477,13 @@ void VR_HapticEvent(const char* event, int position, int flags, int intensity, f
 	{
 		VR_Vibrate(50, (vr_righthanded->integer ? 2 : 1), 0.6);
 	}
-        else if (strcmp(event, "menu_move") == 0)
-        {
-                VR_Vibrate(30, (vr.menuLeftHanded ? 1 : 2), 0.3);
-        }
+	else if (strcmp(event, "menu_move") == 0)
+	{
+					VR_Vibrate(30, (vr.menuLeftHanded ? 1 : 2), 0.3);
+	}
 
 #ifdef USE_BHAPTICS
-        VR_Bhaptics_HandleEvent(event, position, intensity, angle, yHeight);
+	VR_Bhaptics_HandleEvent(event, position, intensity, angle, yHeight);
 #endif
 }
 
@@ -1632,16 +1632,12 @@ static void IN_VRButtons( qboolean isRightController, uint32_t buttons )
 
 void VR_ProcessInputActions( void )
 {
-        vr.virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen();
-        vr.first_person_following = VR_IsFollowingInFirstPerson();
-        vr.in_menu = VR_IsInMenu();
-        vr.right_handed = vr_righthanded->integer != 0;
+	vr.virtual_screen = VR_Gameplay_ShouldRenderInVirtualScreen();
+	vr.first_person_following = VR_IsFollowingInFirstPerson();
+	vr.in_menu = VR_IsInMenu();
+	vr.right_handed = vr_righthanded->integer != 0;
 
-#ifdef USE_BHAPTICS
-        VR_Bhaptics_UpdateEnabled();
-#endif
-
-        VR_ProcessHaptics();
+	VR_ProcessHaptics();
 
 	//button mapping
 	uint32_t lButtons = 0;

@@ -6,7 +6,6 @@
 #include "vr_debug.h"
 
 #include "vr_bhaptics.h"
-
 #include "vr_debug.h"
 #include "vr_instance.h"
 #include "vr_macros.h"
@@ -109,6 +108,10 @@ VR_Engine* VR_Init( void )
 	vr_initialized = qtrue;
 	VR_InitInstanceInput(&vr_engine);
 
+#ifdef USE_BHAPTICS
+  VR_Bhaptics_Init();
+#endif
+
 	return &vr_engine;
 }
 
@@ -119,16 +122,16 @@ VR_Engine* VR_GetEngine( void )
 
 void VR_Destroy( VR_Engine* engine )
 {
-        if (engine == &vr_engine)
-        {
+	if (engine == &vr_engine)
+	{
 #ifdef USE_BHAPTICS
-                VR_Bhaptics_Shutdown();
+		VR_Bhaptics_Shutdown();
 #endif
-                VR_DestroyDebugUtilsMessenger(engine->appState.Instance, &engine->appState.DebugUtilsMessenger);
-                xrDestroyInstance(engine->appState.Instance);
-                memset(&vr_engine, 0, sizeof(vr_engine));
-        }
-        vr_initialized = qfalse;
+		VR_DestroyDebugUtilsMessenger(engine->appState.Instance, &engine->appState.DebugUtilsMessenger);
+		xrDestroyInstance(engine->appState.Instance);
+		memset(&vr_engine, 0, sizeof(vr_engine));
+	}
+	vr_initialized = qfalse;
 }
 
 void VR_PrepareForShutdown( void )
