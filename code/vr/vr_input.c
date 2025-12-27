@@ -7,6 +7,7 @@
 #include "vr_base.h"
 #include "vr_clientinfo.h"
 #include "vr_gameplay.h"
+#include "vr_bhaptics.h"
 #include "vr_haptics.h"
 #include "vr_macros.h"
 #include "vr_math.h"
@@ -476,10 +477,14 @@ void VR_HapticEvent(const char* event, int position, int flags, int intensity, f
 	{
 		VR_Vibrate(50, (vr_righthanded->integer ? 2 : 1), 0.6);
 	}
-	else if (strcmp(event, "menu_move") == 0) 
+	else if (strcmp(event, "menu_move") == 0)
 	{
 		VR_Vibrate(30, (vr.menuLeftHanded ? 1 : 2), 0.3);
 	}
+
+#ifdef USE_BHAPTICS
+	VR_Bhaptics_HandleEvent(event, position, intensity, angle, yHeight);
+#endif
 }
 
 XrSpace CreateActionSpace(XrAction poseAction, XrPath subactionPath)
