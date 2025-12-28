@@ -75,6 +75,13 @@ static qboolean cURLSymbolLoadFailed = qfalse;
 static CURL *downloadCURL = NULL;
 static CURLM *downloadCURLM = NULL;
 
+static CURL *inMemoryDownloadCURL = NULL;
+static CURLM *inMemoryDownloadCURLM = NULL;
+static unsigned char* hInMemoryBuffer = NULL;
+static size_t hInMemoryBufferSize = 0;
+static size_t hInMemoryBufferCursor = 0;
+static CL_HTTP_InMemoryDownloadCallback hInMemoryCallback = NULL;
+
 /*
 =================
 GPA
@@ -189,6 +196,31 @@ static void CL_cURL_Cleanup(void)
 	}
 }
 
+static void CL_cURL_InMemoryCleanup(void)
+{
+	if(inMemoryDownloadCURLM) {
+		CURLMcode result;
+
+		if(inMemoryDownloadCURL) {
+			result = qcurl_multi_remove_handle(inMemoryDownloadCURLM, inMemoryDownloadCURL);
+			if(result != CURLM_OK) {
+				Com_DPrintf("qcurl_multi_remove_handle failed: %s\n", qcurl_multi_strerror(result));
+			}
+			qcurl_easy_cleanup(inMemoryDownloadCURL);
+		}
+		result = qcurl_multi_cleanup(inMemoryDownloadCURLM);
+		if(result != CURLM_OK) {
+			Com_DPrintf("CL_cURL_Cleanup: qcurl_multi_cleanup failed: %s\n", qcurl_multi_strerror(result));
+		}
+		inMemoryDownloadCURLM = NULL;
+		inMemoryDownloadCURL = NULL;
+	}
+	else if(inMemoryDownloadCURL) {
+		qcurl_easy_cleanup(inMemoryDownloadCURL);
+		inMemoryDownloadCURL = NULL;
+	}
+}
+
 /*
 =================
 CL_HTTP_Shutdown
@@ -235,6 +267,15 @@ static size_t CL_cURL_CallbackWrite(void *buffer, size_t size, size_t nmemb,
 	void *stream)
 {
 	FS_Write( buffer, size*nmemb, ((fileHandle_t*)stream)[0] );
+	return size*nmemb;
+}
+
+static size_t CL_cURL_InMemoryCallbackWrite(void *buffer, size_t size, size_t nmemb,
+	void *stream)
+{
+	memcpy_s(hInMemoryBuffer + hInMemoryBufferCursor, hInMemoryBufferSize, buffer, size*nmemb);
+	hInMemoryBufferCursor += size*nmemb;
+	hInMemoryBufferSize -= size*nmemb;
 	return size*nmemb;
 }
 
@@ -345,6 +386,97 @@ qboolean CL_HTTP_PerformDownload(void)
 			qcurl_easy_strerror(msg->data.result),
 			code, clc.downloadURL);
 	}
+
+	return qtrue;
+}
+
+void CL_HTTP_BeginInMemoryDownload( const char *remoteURL, CL_HTTP_InMemoryDownloadCallback callback, unsigned char* buffer, size_t bufferSize )
+{
+	CURLMcode result;
+
+	CL_cURL_InMemoryCleanup();
+
+	inMemoryDownloadCURL = qcurl_easy_init();
+	if(!inMemoryDownloadCURL) {
+		Com_Error(ERR_DROP, "CL_HTTP_BeginDownload: qcurl_easy_init() "
+			"failed");
+		return;
+	}
+
+	if(com_developer->integer)
+		qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_VERBOSE, 1);
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_URL, remoteURL);
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_TRANSFERTEXT, 0);
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_USERAGENT, va("%s %s",
+		Q3_VERSION, qcurl_version()));
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_WRITEFUNCTION,
+		CL_cURL_CallbackWrite);
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_WRITEDATA, &clc.download);
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_NOPROGRESS, 1);
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_FAILONERROR, 1);
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_FOLLOWLOCATION, 1);
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_MAXREDIRS, 5);
+#if CURL_AT_LEAST_VERSION(7,85,0)
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_PROTOCOLS_STR, "http,https");
+#else
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+#endif
+	qcurl_easy_setopt_warn(inMemoryDownloadCURL, CURLOPT_BUFFERSIZE, CURL_MAX_READ_SIZE);
+	
+	inMemoryDownloadCURLM = qcurl_multi_init();
+	if(!inMemoryDownloadCURLM) {
+		qcurl_easy_cleanup(inMemoryDownloadCURL);
+		inMemoryDownloadCURL = NULL;
+		fprintf(stderr, "CL_HTTP_BeginInMemoryDownload: qcurl_multi_init() failed");
+		return;
+	}
+
+	result = qcurl_multi_add_handle(inMemoryDownloadCURLM, inMemoryDownloadCURL);
+	if(result != CURLM_OK) {
+		qcurl_easy_cleanup(inMemoryDownloadCURL);
+		inMemoryDownloadCURL = NULL;
+		fprintf(stderr, "CL_HTTP_BeginDownload: qcurl_multi_add_handle() failed: %s", qcurl_multi_strerror(result));
+		return;
+	}
+
+	hInMemoryBuffer = buffer;
+	hInMemoryBufferSize = bufferSize;
+	hInMemoryBufferCursor = 0;
+	hInMemoryCallback = callback;
+}
+
+qboolean CL_HTTP_PerformInMemoryDownload(void)
+{
+	CURLMcode res;
+	CURLMsg *msg;
+	int c;
+	int i = 0;
+
+	res = qcurl_multi_perform(inMemoryDownloadCURLM, &c);
+	while(res == CURLM_CALL_MULTI_PERFORM && i < 100) {
+		res = qcurl_multi_perform(inMemoryDownloadCURLM, &c);
+		i++;
+	}
+	if(res == CURLM_CALL_MULTI_PERFORM)
+		return qfalse;
+	msg = qcurl_multi_info_read(inMemoryDownloadCURLM, &c);
+	if(msg == NULL) {
+		return qfalse;
+	}
+	if(msg->msg != CURLMSG_DONE || msg->data.result != CURLE_OK) {
+		long code;
+
+		qcurl_easy_getinfo(msg->easy_handle, CURLINFO_RESPONSE_CODE,
+			&code);	
+		fprintf(stderr, "Download Error: %s Code: %ld URL: %s",
+			qcurl_easy_strerror(msg->data.result),
+			code, clc.downloadURL);
+	}
+
+	hInMemoryCallback = NULL;
+	hInMemoryBuffer = NULL;
+	hInMemoryBufferSize = 0;
+	hInMemoryBufferCursor = 0;
 
 	return qtrue;
 }

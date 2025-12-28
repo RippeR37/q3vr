@@ -798,6 +798,8 @@ int main( int argc, char **argv )
 #		error A more recent version of SDL is required
 #	endif
 
+	fprintf(stderr, "Game version: %d.%d.%d\n", Q3VR_VERSION_MAJOR, Q3VR_VERSION_MINOR, Q3VR_VERSION_PATCH);
+
 	// Run time
 	SDL_version ver;
 	SDL_GetVersion( &ver );

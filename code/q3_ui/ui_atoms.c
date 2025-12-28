@@ -1115,6 +1115,7 @@ void UI_Cache_f( void ) {
 #if 0
 	UI_CDKeyMenu_Cache();
 #endif
+	UI_UpdateMenu_Cache();
 	UI_ModsMenu_Cache();
 
 }

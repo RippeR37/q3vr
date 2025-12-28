@@ -84,6 +84,8 @@ static void MainMenu_ExitAction( qboolean result ) {
 }
 
 
+void UI_UpdateMenu(void);
+
 
 /*
 =================
@@ -91,6 +93,12 @@ Main_MenuEvent
 =================
 */
 void Main_MenuEvent (void* ptr, int event) {
+	if (trap_Cvar_VariableValue("q3vr_update_version_check") == 1.0f) {
+		// Ensure its shown only once
+		trap_Cvar_SetValue("q3vr_update_version_check", 0.0f);
+		UI_UpdateMenu();
+	}
+
 	if( event != QM_ACTIVATED ) {
 		return;
 	}
@@ -303,6 +311,8 @@ void UI_MainMenu( void ) {
 			return;
 		}
 	}
+
+	trap_CheckUpdates();
 	
 	memset( &s_main, 0 ,sizeof(mainmenu_t) );
 	memset( &s_errorMessage, 0 ,sizeof(errorMessage_t) );

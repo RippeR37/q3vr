@@ -31,4 +31,9 @@ void CL_HTTP_Shutdown( void );
 void CL_HTTP_BeginDownload( const char *remoteURL );
 qboolean CL_HTTP_PerformDownload( void );
 
+typedef void ( *CL_HTTP_InMemoryDownloadCallback )( int );
+void CL_HTTP_BeginInMemoryDownload( const char *remoteURL, CL_HTTP_InMemoryDownloadCallback callback, unsigned char* buffer, size_t bufferSize );
+
+qboolean CL_HTTP_PerformInMemoryDownload( void );
+
 #endif	// __CL_HTTP_H__

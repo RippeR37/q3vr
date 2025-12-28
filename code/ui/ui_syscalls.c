@@ -407,6 +407,10 @@ int trap_HapticEvent( char *description, int position, int channel, int intensit
 	return syscall( UI_HAPTICEVENT, description, position, channel, intensity, PASSFLOAT(yaw), PASSFLOAT(height));
 }
 
+void trap_CheckUpdates( void ) {
+	syscall( UI_CHECKUPDATES );
+}
+
 // Virtual keyboard traps
 void trap_VKeyboard_Show( void ) {
 	syscall( UI_VKEYBOARD_SHOW );

@@ -15,6 +15,7 @@ set(VR_SOURCES
     ${SOURCE_DIR}/vr/vr_session.c
     ${SOURCE_DIR}/vr/vr_spaces.c
     ${SOURCE_DIR}/vr/vr_swapchains.c
+		${SOURCE_DIR}/vr/vr_updates.c
     ${SOURCE_DIR}/vr/vr_virtual_screen.c
 )
 

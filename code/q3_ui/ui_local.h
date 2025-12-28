@@ -427,6 +427,12 @@ extern void UI_VRMenu( void );
 extern void VR_Cache( void );
 
 //
+// ui_update.c
+//
+extern void UI_UpdateMenu( void );
+extern void UI_UpdateMenu_Cache( void );
+
+//
 // ui_comfort.c
 //
 extern void UI_ComfortMenu( void );
@@ -715,6 +721,8 @@ void			trap_SetCDKey( char *buf );
 qboolean               trap_VerifyCDKey( const char *key, const char *chksum);
 
 void			trap_SetPbClStatus( int status );
+
+void			trap_CheckUpdates( void );
 
 //Haptics
 int			trap_HapticEvent( char *description, int position, int channel, int intensity, float yaw, float height);
