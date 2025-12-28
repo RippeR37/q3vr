@@ -333,8 +333,8 @@ static void UI_SetupMenu_Init( void ) {
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.setupcontrols );
   Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.vr );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.comfort );
-	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.setupsystem );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.game );
+	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.setupsystem );
 #if 0
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.cdkey );
 #endif

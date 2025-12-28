@@ -127,6 +127,8 @@ typedef enum {
 
   UI_HAPTICEVENT,
 
+	UI_CHECKUPDATES,
+
 	// Virtual keyboard
 	UI_VKEYBOARD_SHOW,
 	UI_VKEYBOARD_HIDE,

@@ -2998,6 +2998,8 @@ void CL_Frame ( int msec ) {
 			return;
 		}
 	}
+
+	CL_HTTP_PerformInMemoryDownload();
 #endif
 
 	if ( cls.cddialog ) {

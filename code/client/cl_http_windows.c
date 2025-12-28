@@ -30,6 +30,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 static HINTERNET hInternet = NULL;
 static HINTERNET hUrl = NULL;
 
+static HINTERNET hInMemoryUrl = NULL;
+static unsigned char* hInMemoryBuffer = NULL;
+static size_t hInMemoryBufferSize = 0;
+static size_t hInMemoryBufferCursor = 0;
+static CL_HTTP_InMemoryDownloadCallback hInMemoryCallback = NULL;
+
 static Q_PRINTF_FUNC(2, 3) void DropIf(qboolean condition, const char *fmt, ...)
 {
     char buffer[1024];
@@ -128,6 +134,9 @@ void CL_HTTP_BeginDownload(const char *remoteURL)
     Cvar_SetValue("cl_downloadSize", clc.downloadSize);
 }
 
+
+qboolean CL_HTTP_PerformInMemoryDownload(void);
+
 /*
 =================
 CL_HTTP_PerformDownload
@@ -156,6 +165,102 @@ qboolean CL_HTTP_PerformDownload(void)
     }
 
     InternetCloseHandle(hUrl);
+    return qtrue;
+}
+
+void CL_HTTP_BeginInMemoryDownload( const char *remoteURL, CL_HTTP_InMemoryDownloadCallback callback, unsigned char* buffer, size_t bufferSize)
+{
+    DWORD httpCode = 0;
+    DWORD contentLength = 0;
+    DWORD len = sizeof(httpCode);
+    DWORD zero = 0;
+    BOOL success;
+
+    hInMemoryUrl = InternetOpenUrlA(
+        hInternet, 
+        remoteURL,
+        NULL, 
+        (DWORD)-1,
+        INTERNET_FLAG_HYPERLINK |
+            INTERNET_FLAG_NO_CACHE_WRITE |
+            INTERNET_FLAG_NO_COOKIES |
+            INTERNET_FLAG_NO_UI |
+            INTERNET_FLAG_RESYNCHRONIZE |
+            INTERNET_FLAG_RELOAD,
+        0);
+
+    if (hInMemoryUrl == NULL)
+    {
+    	fprintf(stderr, "InternetOpenUrlA failed %lu", GetLastError());
+    	return;
+    }
+
+    success = HttpQueryInfo(hInMemoryUrl, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &httpCode, &len, &zero);
+    if (!success)
+    {
+    	fprintf(stderr, "Get HTTP_QUERY_STATUS_CODE failed %lu", GetLastError());
+    	return;
+    }
+    if (httpCode >= 400)
+    {
+    	fprintf(stderr, "HTTP code %lu", httpCode);
+    	return;
+    }
+    if (httpCode != 200)
+    {
+    	fprintf(stderr, "Unhandled HTTP code %lu", httpCode);
+    	return;
+    }
+
+    success = HttpQueryInfo(hInMemoryUrl, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER, &contentLength, &len, &zero);
+    if (!success)
+    {
+    	fprintf(stderr, "Get HTTP_QUERY_CONTENT_LENGTH failed %lu", GetLastError());
+    	return;
+    }
+
+    hInMemoryBuffer = buffer;
+    hInMemoryBufferSize = bufferSize;
+    hInMemoryBufferCursor = 0;
+    hInMemoryCallback = callback;
+}
+
+qboolean CL_HTTP_PerformInMemoryDownload(void)
+{
+    static BYTE readBuffer[256 * 1024];
+    DWORD bytesRead = 0;
+    BOOL success;
+
+    if (hInMemoryUrl == NULL)
+    {
+        return qtrue;
+    }
+   
+    success = InternetReadFile(hInMemoryUrl, readBuffer, sizeof(readBuffer), &bytesRead);
+    if (!success)
+    {
+    	  hInMemoryCallback(-1);
+        goto clear;
+    }
+
+    if (bytesRead > 0)
+    {
+        memcpy_s(hInMemoryBuffer + hInMemoryBufferCursor, hInMemoryBufferSize, readBuffer, bytesRead);
+        hInMemoryBufferCursor += bytesRead;
+        hInMemoryBufferSize -= bytesRead;
+        return qfalse;
+    }
+
+    InternetCloseHandle(hInMemoryUrl);
+    hInMemoryCallback(hInMemoryBufferCursor);
+
+clear:
+    hInMemoryUrl = NULL;
+    hInMemoryCallback = NULL;
+    hInMemoryBuffer = NULL;
+    hInMemoryBufferSize = 0;
+    hInMemoryBufferCursor = 0;
+
     return qtrue;
 }
 

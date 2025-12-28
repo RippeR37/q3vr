@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "../vr/vr_clientinfo.h"
 #include "../vr/vr_input.h"
+#include "../vr/vr_updates.h"
 
 extern	botlib_export_t	*botlib_export;
 extern vr_clientinfo_t vr;
@@ -1078,6 +1079,12 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 
 	case UI_HAPTICEVENT:
 		VR_HapticEvent( VMA(1), args[2], args[3], args[4], VMF(5), VMF(6) );
+		return 0;
+
+	case UI_CHECKUPDATES:
+#if USE_HTTP
+		VR_CheckUpdates();
+#endif
 		return 0;
 
 	// Virtual keyboard traps

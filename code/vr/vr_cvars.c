@@ -40,6 +40,11 @@ cvar_t *vr_virtualScreenShape = NULL;
 cvar_t *vr_thumbstickDeadzone = NULL;
 cvar_t *vr_thumbstickFullDeflection = NULL;
 
+cvar_t *q3vr_update_version_major = NULL;
+cvar_t *q3vr_update_version_minor = NULL;
+cvar_t *q3vr_update_version_patch = NULL;
+cvar_t *q3vr_update_version_check = NULL;
+
 void VR_InitCvars( void )
 {
 	Cvar_Get ("skip_ioq3_credits", "0.0", CVAR_ARCHIVE);
@@ -206,4 +211,10 @@ void VR_InitCvars( void )
 	Cvar_Get ("vr_button_map_PRIMARYTHUMBREST_ALT", "", CVAR_ARCHIVE); // unmapped
 	Cvar_Get ("vr_button_map_SECONDARYTHUMBREST", "+alt", CVAR_ARCHIVE); // Alt modifier
 	Cvar_Get ("vr_button_map_SECONDARYTHUMBREST_ALT", "", CVAR_ARCHIVE); // unmapped
+
+	// Update versions, don't archive
+	Cvar_Get ("q3vr_update_version_major", "", 0);
+	Cvar_Get ("q3vr_update_version_minor", "", 0);
+	Cvar_Get ("q3vr_update_version_patch", "", 0);
+	Cvar_Get ("q3vr_update_version_check", "", 0);
 }
