@@ -145,11 +145,11 @@ static void UI_UpdateMenu_Init( void ) {
 
 	static char current_version_buffer[20] = { 0 };
 	static char latest_version_buffer[20] = { 0 };
-	sprintf_s(current_version_buffer, 20, "%d.%d.%d",
+	Com_sprintf(current_version_buffer, 20, "%d.%d.%d",
 			Q3VR_VERSION_MAJOR,
 			Q3VR_VERSION_MINOR,
 			Q3VR_VERSION_PATCH);
-	sprintf_s(latest_version_buffer, 20, "%d.%d.%d",
+	Com_sprintf(latest_version_buffer, 20, "%d.%d.%d",
 			(int)trap_Cvar_VariableValue("q3vr_update_version_major"),
 			(int)trap_Cvar_VariableValue("q3vr_update_version_minor"),
 			(int)trap_Cvar_VariableValue("q3vr_update_version_patch"));
