@@ -278,7 +278,7 @@ static size_t CL_cURL_InMemoryCallbackWrite(void *buffer, size_t size, size_t nm
 		return 0;
 	}
 
-	memcpy(hInMemoryBuffer + hInMemoryBufferCursor, hInMemoryBufferSize, buffer, size*nmemb);
+	memcpy(hInMemoryBuffer + hInMemoryBufferCursor, buffer, size*nmemb);
 	hInMemoryBufferCursor += size*nmemb;
 	hInMemoryBufferSize -= size*nmemb;
 	return size*nmemb;
