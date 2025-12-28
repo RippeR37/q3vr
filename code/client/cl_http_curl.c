@@ -273,7 +273,12 @@ static size_t CL_cURL_CallbackWrite(void *buffer, size_t size, size_t nmemb,
 static size_t CL_cURL_InMemoryCallbackWrite(void *buffer, size_t size, size_t nmemb,
 	void *stream)
 {
-	memcpy_s(hInMemoryBuffer + hInMemoryBufferCursor, hInMemoryBufferSize, buffer, size*nmemb);
+	if (hInMemoryBufferSize < size*nmemb)
+	{
+		return 0;
+	}
+
+	memcpy(hInMemoryBuffer + hInMemoryBufferCursor, hInMemoryBufferSize, buffer, size*nmemb);
 	hInMemoryBufferCursor += size*nmemb;
 	hInMemoryBufferSize -= size*nmemb;
 	return size*nmemb;
