@@ -811,6 +811,7 @@ void CG_DrawString( float x, float y, const char *string, const vec4_t setColor,
 
 		// calculate shadow offsets
 		scale = charWidth * 0.075f; // charWidth/15
+		scale *= 0.5f; // [VR] since we've increased HUD resolution 2x
 		xx_add = scale * cgs.screenXScale;
 		yy_add = scale * cgs.screenYScale;
 
