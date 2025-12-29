@@ -50,7 +50,7 @@ void VR_InitCvars( void )
 	Cvar_Get ("skip_ioq3_credits", "0.0", CVAR_ARCHIVE);
 	vr_worldscale = Cvar_Get ("vr_worldscale", "32.0", CVAR_ARCHIVE);
 	vr_worldscaleScaler = Cvar_Get ("vr_worldscaleScaler", "1.0", CVAR_ARCHIVE);
-	vr_hudDepth = Cvar_Get ("vr_hudDepth", "10", CVAR_ARCHIVE);
+	vr_hudDepth = Cvar_Get ("vr_hudDepth", "15", CVAR_ARCHIVE);
 	vr_righthanded = Cvar_Get ("vr_righthanded", "1", CVAR_ARCHIVE);
 	vr_switchThumbsticks = Cvar_Get ("vr_switchThumbsticks", "0", CVAR_ARCHIVE);
 	vr_snapturn = Cvar_Get ("vr_snapturn", "45", CVAR_ARCHIVE);

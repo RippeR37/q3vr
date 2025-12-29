@@ -50,7 +50,7 @@ COMFORT OPTIONS MENU
 
 #define ID_BACK					135
 
-#define	NUM_HUDDEPTH			15
+#define	NUM_HUDDEPTH			21
 
 
 typedef struct {
@@ -224,7 +224,7 @@ static void Comfort_MenuInit( void ) {
 	s_comfort.huddepth.generic.callback	= Comfort_MenuEvent;
 	s_comfort.huddepth.generic.id		= ID_HUDDEPTH;
 	s_comfort.huddepth.minvalue		     = 0;
-	s_comfort.huddepth.maxvalue		     = 15;
+	s_comfort.huddepth.maxvalue		     = 20;
 
 	y += BIGCHAR_HEIGHT+2;
 	s_comfort.hudyoffset.generic.type	     = MTYPE_SLIDER;
