@@ -510,7 +510,7 @@ void _VR_GetVirtualScreenModelMatrix(XrMatrix4x4f* model, XrPosef* leftEyePose)
 	lastKnownVirtualScreenOrientation = rotation;
 	
 	// Fixup to lower slightly, do it after all computations so it won't affect recomputations
-	translation.y -= 0.2;
+	translation.y -= 0.5;
 
 	XrMatrix4x4f_CreateTranslationRotationScale(model, &translation, &rotation, &scale);
 }
