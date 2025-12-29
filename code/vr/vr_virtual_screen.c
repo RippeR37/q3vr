@@ -417,6 +417,7 @@ int positionsInitialized = 0;
 int updateTarget = 1;
 XrVector3f currentPosition;
 XrVector3f targetPosition;
+XrQuaternionf currentRotation;
 const float targetDistance = 2.5f;
 
 void EnsureNewPositionInExpectedDistance(XrVector3f* hmdPosition, XrVector3f* vsPosition)
@@ -435,7 +436,10 @@ void EnsureNewPositionInExpectedDistance(XrVector3f* hmdPosition, XrVector3f* vs
 	}
 }
 
-XrVector3f GetCurrentVirtualScreenPosition(XrPosef* leftEyePose)
+void GetCurrentVirtualScreenPositionAndRotation(
+	XrPosef* leftEyePose,
+	XrVector3f* translation,
+	XrQuaternionf* rotation)
 {
 	XrVector3f positionInFront = GetPositionInFront(leftEyePose, targetDistance);
 
@@ -443,6 +447,8 @@ XrVector3f GetCurrentVirtualScreenPosition(XrPosef* leftEyePose)
 	{
 		currentPosition = positionInFront;
 		targetPosition = positionInFront;
+		currentRotation = YawFacingQuaternion(&currentPosition, &leftEyePose->position);
+		positionsInitialized = 1;
 	}
 	else if (vr_virtualScreenMode->integer == 1)
 	{
@@ -470,10 +476,11 @@ XrVector3f GetCurrentVirtualScreenPosition(XrPosef* leftEyePose)
 		XrVector3f_Lerp(&lerped, &currentPosition, &targetPosition, 0.01);
 		EnsureNewPositionInExpectedDistance(&leftEyePose->position, &lerped);
 		currentPosition = lerped;
+		currentRotation = YawFacingQuaternion(&currentPosition, &leftEyePose->position);
 	}
-	
-	positionsInitialized = 1;
-	return currentPosition;
+
+	*translation = currentPosition;
+	*rotation = currentRotation;
 }
 
 XrQuaternionf lastKnownVirtualScreenOrientation = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -495,8 +502,9 @@ void _VR_GetVirtualScreenModelMatrix(XrMatrix4x4f* model, XrPosef* leftEyePose)
 		aspectRatioCoeff *= framebufferAspect;
 	}
 
-	XrVector3f translation = GetCurrentVirtualScreenPosition(leftEyePose);
-	XrQuaternionf rotation = YawFacingQuaternion(&translation, &leftEyePose->position);
+	XrVector3f translation;
+	XrQuaternionf rotation;
+	GetCurrentVirtualScreenPositionAndRotation(leftEyePose, &translation, &rotation);
 	XrVector3f scale = {3.0f, 3.0f * aspectRatioCoeff, 3.0f};
 
 	lastKnownVirtualScreenOrientation = rotation;
