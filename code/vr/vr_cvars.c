@@ -69,7 +69,7 @@ void VR_InitCvars( void )
 	vr_sendRollToServer = Cvar_Get ("vr_sendRollToServer", "1", CVAR_ARCHIVE);
 	vr_lasersight = Cvar_Get ("vr_lasersight", "0", CVAR_ARCHIVE);
 	vr_hapticIntensity = Cvar_Get ("vr_hapticIntensity", "0.5", CVAR_ARCHIVE);
-	vr_bhaptics = Cvar_Get ("vr_bhaptics", "1", CVAR_ARCHIVE);
+	vr_bhaptics = Cvar_Get ("vr_bhaptics", "0", CVAR_ARCHIVE);
 	vr_comfortVignette = Cvar_Get ("vr_comfortVignette", "0.0", CVAR_ARCHIVE);
 	vr_weaponSelectorMode = Cvar_Get ("vr_weaponSelectorMode", "0", CVAR_ARCHIVE);
 	vr_weaponSelectorWithHud = Cvar_Get ("vr_weaponSelectorWithHud", "0", CVAR_ARCHIVE);
