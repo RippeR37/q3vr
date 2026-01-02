@@ -59,7 +59,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define	MAX_STEP_CHANGE		32
 
 #define	MAX_VERTS_ON_POLY	10
-#define	MAX_MARK_POLYS		256
+#define	MAX_MARK_POLYS		512
 
 #define STAT_MINUS			10	// num frame for '-' stats digit
 
@@ -230,6 +230,7 @@ typedef enum {
 	LE_SCALE_FADE,
 	LE_SCOREPLUM,
 	LE_DAMAGEPLUM,
+	LE_BLOOD_PARTICLE,
 #ifdef MISSIONPACK
 	LE_KAMIKAZE,
 	LE_INVULIMPACT,
@@ -1237,6 +1238,7 @@ extern	vmCvar_t 		cg_forceModel;
 extern	vmCvar_t 		cg_buildScript;
 extern	vmCvar_t		cg_paused;
 extern	vmCvar_t		cg_blood;
+extern	vmCvar_t		cg_bloodParticles;
 extern	vmCvar_t		cg_damageEffect;
 extern	vmCvar_t		cg_predictItems;
 extern	vmCvar_t		cg_deferPlayers;
@@ -1550,7 +1552,7 @@ void CG_DamagePlum( vec3_t org, int damage );
 void CG_GibPlayer( vec3_t playerOrigin );
 void CG_BigExplode( vec3_t playerOrigin );
 
-void CG_Bleed( vec3_t origin, int entityNum );
+void CG_Bleed( vec3_t origin, vec3_t dir, int entityNum, int weapon );
 
 localEntity_t *CG_MakeExplosion( vec3_t origin, vec3_t dir,
 								qhandle_t hModel, qhandle_t shader, int msec,

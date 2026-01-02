@@ -538,32 +538,199 @@ localEntity_t *CG_MakeExplosion( vec3_t origin, vec3_t dir,
 =================
 CG_Bleed
 
-This is the spurt of blood when a character gets hit
+This is the spurt of blood when a character gets hit.
+Spawns multiple blood droplet particles that spray along the impact direction.
+dir = direction the projectile was traveling (NULL for omnidirectional spray)
+weapon = weapon type for determining particle count
 =================
 */
-void CG_Bleed( vec3_t origin, int entityNum ) {
-	localEntity_t	*ex;
+#define BLOOD_PARTICLE_SPEED_EXIT	600
+#define BLOOD_PARTICLE_SPEED_ENTRY	50
+
+static int CG_BloodParticleCount( int weapon ) {
+	// Returns droplet count (reduced by 1 since we also spawn a puff)
+	switch ( weapon ) {
+		case WP_PLASMAGUN:
+			return 4;
+		case WP_BFG:
+			return 7;
+		case WP_ROCKET_LAUNCHER:
+		case WP_GRENADE_LAUNCHER:
+			return 9;
+		// Weapons that trigger CG_Bleed via EV_MISSILE_HIT or EV_BULLET_HIT_FLESH:
+		// Gauntlet, machine gun, shotgun, lightning gun, or even grappling hook
+		// Railgun doesn't trigger a blood event.
+		default:
+			return 2;
+	}
+}
+
+void CG_Bleed( vec3_t origin, vec3_t dir, int entityNum, int weapon ) {
+	localEntity_t	*le;
+	refEntity_t		*re;
+	int				i;
+	int				particleCount;
+	vec3_t			velocity;
+	vec3_t			baseDir;
+	vec3_t			perpA, perpB;
+	float			spread, forwardBias;
+	float			speed;
+	qboolean		isPlayer;
 
 	if ( !cg_blood.integer ) {
 		return;
 	}
 
-	ex = CG_AllocLocalEntity();
-	ex->leType = LE_EXPLOSION;
+	isPlayer = ( entityNum == cg.snap->ps.clientNum );
 
-	ex->startTime = cg.time;
-	ex->endTime = ex->startTime + 500;
-	
-	VectorCopy ( origin, ex->refEntity.origin);
-	ex->refEntity.reType = RT_SPRITE;
-	ex->refEntity.rotation = rand() % 360;
-	ex->refEntity.radius = 24;
+	// If particles disabled, use original sprite-based blood effect
+	if ( !cg_bloodParticles.integer ) {
+		le = CG_AllocLocalEntity();
+		le->leType = LE_EXPLOSION;
+		le->startTime = cg.time;
+		le->endTime = le->startTime + 500;
 
-	ex->refEntity.customShader = cgs.media.bloodExplosionShader;
+		VectorCopy( origin, le->refEntity.origin );
+		le->refEntity.reType = RT_SPRITE;
+		le->refEntity.rotation = rand() % 360;
+		le->refEntity.radius = 24;
+		le->refEntity.customShader = cgs.media.bloodExplosionShader;
 
-	// don't show player's own blood in view
-	if ( entityNum == cg.snap->ps.clientNum ) {
-		ex->refEntity.renderfx |= RF_THIRD_PERSON;
+		// don't show player's own blood in view
+		if ( isPlayer ) {
+			le->refEntity.renderfx |= RF_THIRD_PERSON;
+		}
+		return;
+	}
+
+	qboolean inLiquid = ( CG_PointContents( origin, -1 ) & MASK_WATER ) != 0;
+
+	if ( inLiquid ) {
+		// Single puff underwater
+		float puffRadius = 2 + random() * 3;  // 2-5 units
+		int puffDuration = 300 + random() * 200;  // 300-500ms
+
+		le = CG_SmokePuff( origin, vec3_origin,
+			puffRadius,
+			1, 1, 1, 1,
+			puffDuration,
+			cg.time, 0, 0,
+			cgs.media.bloodTrailShader );
+		le->leType = LE_FALL_SCALE_FADE;
+		le->pos.trDelta[2] = -2;  // Slow rise
+
+		if ( isPlayer ) {
+			le->refEntity.renderfx |= RF_THIRD_PERSON;
+		}
+		return;
+	}
+
+	particleCount = CG_BloodParticleCount( weapon );
+
+	// Set up directional basis if we have a direction
+	if ( dir && ( dir[0] != 0 || dir[1] != 0 || dir[2] != 0 ) ) {
+		VectorNormalize2( dir, baseDir );
+		// Create perpendicular vectors for spray spread
+		PerpendicularVector( perpA, baseDir );
+		CrossProduct( baseDir, perpA, perpB );
+	} else {
+		// No direction - use upward as default
+		VectorSet( baseDir, 0, 0, 1 );
+		VectorSet( perpA, 1, 0, 0 );
+		VectorSet( perpB, 0, 1, 0 );
+	}
+
+	// Spawn the blood droplet particles
+	for ( i = 0; i < particleCount; i++ ) {
+		le = CG_AllocLocalEntity();
+		re = &le->refEntity;
+
+		le->leFlags = LEF_PUFF_DONT_SCALE;
+		le->leType = LE_BLOOD_PARTICLE;
+		le->startTime = cg.time;
+		le->endTime = cg.time + 800 + random() * 400;
+		le->lifeRate = 1.0f / ( le->endTime - le->startTime );
+
+		// Directional spray along bullet path
+		// 80% exit wound (away from shooter), 20% entry (random horizontal splash)
+		qboolean isExitWound = ( random() < 0.8f );
+		if ( isExitWound ) {
+			speed = BLOOD_PARTICLE_SPEED_EXIT * (0.4f + random() * 0.6f);
+			forwardBias = 0.8f + random() * 0.4f;
+			spread = (random() - 0.5f) * 0.4f;      // Tight perpendicular spread
+
+			velocity[0] = baseDir[0] * speed * forwardBias
+						+ perpA[0] * speed * spread
+						+ perpB[0] * speed * (random() - 0.5f) * 0.6f;
+			velocity[1] = baseDir[1] * speed * forwardBias
+						+ perpA[1] * speed * spread
+						+ perpB[1] * speed * (random() - 0.5f) * 0.6f;
+			velocity[2] = baseDir[2] * speed * forwardBias
+						+ perpA[2] * speed * spread
+						+ perpB[2] * speed * (random() - 0.5f) * 0.6f
+						+ speed * 0.2f;  // Slight upward bias
+		} else {
+			// Entry wound - spray in the plane perpendicular to projectile direction
+			float angle = random() * M_PI * 2;
+			float perpSpeed;
+			speed = BLOOD_PARTICLE_SPEED_ENTRY * (0.4f + random() * 0.6f);
+			perpSpeed = speed * (0.8f + random() * 0.4f);
+
+			velocity[0] = perpA[0] * cos( angle ) * perpSpeed + perpB[0] * sin( angle ) * perpSpeed;
+			velocity[1] = perpA[1] * cos( angle ) * perpSpeed + perpB[1] * sin( angle ) * perpSpeed;
+			velocity[2] = perpA[2] * cos( angle ) * perpSpeed + perpB[2] * sin( angle ) * perpSpeed;
+		}
+
+		le->pos.trType = TR_GRAVITY;
+		le->pos.trTime = cg.time;
+		VectorCopy( origin, le->pos.trBase );
+		VectorCopy( velocity, le->pos.trDelta );
+
+		// Use bloodTrail shader for particles
+		re->reType = RT_SPRITE;
+		re->rotation = rand() % 360;
+		re->radius = 3 + random() * 5;  // Varied sizes 3-8
+		re->customShader = cgs.media.bloodTrailShader;
+		re->shaderTime = cg.time / 1000.0f;
+
+		VectorCopy( le->pos.trBase, re->origin );
+
+		// Set color (shader handles actual blood color)
+		le->color[0] = 1.0f;
+		le->color[1] = 1.0f;
+		le->color[2] = 1.0f;
+		le->color[3] = 1.0f;
+
+		re->shaderRGBA.rgba[0] = 0xff;
+		re->shaderRGBA.rgba[1] = 0xff;
+		re->shaderRGBA.rgba[2] = 0xff;
+		re->shaderRGBA.rgba[3] = 0xff;
+
+		le->radius = re->radius;
+
+		// don't show player's own blood in view
+		if ( isPlayer ) {
+			re->renderfx |= RF_THIRD_PERSON;
+		}
+	}
+
+	// Add a blood mist at entry or exit wound
+	{
+		float puffRadius = 2 + random() * 3;  // 2-5 units
+		int puffDuration = 300 + random() * 200;  // 300-500ms
+
+		le = CG_SmokePuff( origin, vec3_origin,
+			puffRadius,
+			1, 1, 1, 1,
+			puffDuration,
+			cg.time, 0, 0,
+			cgs.media.bloodTrailShader );
+		le->leType = LE_FALL_SCALE_FADE;
+		le->pos.trDelta[2] = 4;  // Slow fall
+
+		if ( isPlayer ) {
+			le->refEntity.renderfx |= RF_THIRD_PERSON;
+		}
 	}
 }
 

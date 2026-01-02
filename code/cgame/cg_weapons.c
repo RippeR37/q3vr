@@ -2790,7 +2790,11 @@ CG_MissileHitPlayer
 =================
 */
 void CG_MissileHitPlayer( int weapon, vec3_t origin, vec3_t dir, int entityNum ) {
-	CG_Bleed( origin, entityNum );
+	vec3_t bleedDir;
+	// The dir from EV_MISSILE_HIT is the surface normal (pointing outward from player
+	// toward shooter). Negate it to get the projectile travel direction for blood spray.
+	VectorNegate( dir, bleedDir );
+	CG_Bleed( origin, bleedDir, entityNum, weapon );
 
 	if ( entityNum == vr->clientNum )
 	{
@@ -2862,7 +2866,13 @@ static void CG_ShotgunPellet( vec3_t start, vec3_t end, int skipNum ) {
 	}
 
 	if ( cg_entities[tr.entityNum].currentState.eType == ET_PLAYER ) {
-		CG_MissileHitPlayer( WP_SHOTGUN, tr.endpos, tr.plane.normal, tr.entityNum );
+		vec3_t	pelletDir;
+		// Calculate direction from impact back toward shooter, matching the convention
+		// used by EV_MISSILE_HIT (surface normal pointing toward shooter). This gets
+		// negated in CG_MissileHitPlayer to produce the correct blood spray direction.
+		VectorSubtract( start, end, pelletDir );
+		VectorNormalize( pelletDir );
+		CG_MissileHitPlayer( WP_SHOTGUN, tr.endpos, pelletDir, tr.entityNum );
 	} else {
 		if ( tr.surfaceFlags & SURF_NOIMPACT ) {
 			// SURF_NOIMPACT will not make a flame puff or a mark
@@ -3073,11 +3083,14 @@ void CG_Bullet( vec3_t end, int sourceEntityNum, vec3_t normal, qboolean flesh, 
 	trace_t trace;
 	int sourceContentType, destContentType;
 	vec3_t		start;
+	qboolean	hasStart = qfalse;
 
 	// if the shooter is currently valid, calc a source point and possibly
 	// do trail effects
-	if ( sourceEntityNum >= 0 && cg_tracerChance.value > 0 ) {
-		if ( CG_CalcMuzzlePoint( sourceEntityNum, start ) ) {
+	if ( sourceEntityNum >= 0 && CG_CalcMuzzlePoint( sourceEntityNum, start ) ) {
+		hasStart = qtrue;
+
+		if ( cg_tracerChance.value > 0 ) {
 			sourceContentType = CG_PointContents( start, 0 );
 			destContentType = CG_PointContents( end, 0 );
 
@@ -3105,7 +3118,16 @@ void CG_Bullet( vec3_t end, int sourceEntityNum, vec3_t normal, qboolean flesh, 
 
 	// impact splash and mark
 	if ( flesh ) {
-		CG_Bleed( end, fleshEntityNum );
+		vec3_t	dir;
+		if ( hasStart ) {
+			// Calculate direction from shooter to impact point
+			VectorSubtract( end, start, dir );
+			VectorNormalize( dir );
+		} else {
+			// No valid shooter position, use zero vector for omnidirectional spray
+			VectorClear( dir );
+		}
+		CG_Bleed( end, dir, fleshEntityNum, WP_MACHINEGUN );
 	} else {
 		CG_MissileHitWall( WP_MACHINEGUN, 0, end, normal, IMPACTSOUND_DEFAULT );
 	}
