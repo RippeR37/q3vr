@@ -406,8 +406,10 @@ static void CrosshairColor_Draw( void *self ) {
 	UI_DrawString( x - SMALLCHAR_WIDTH, y, s->generic.name, style|UI_RIGHT, color );
 
 	// Draw color picker
+	int markerX = x + SMALLCHAR_WIDTH + (s->curvalue * 112 / 6);
+
 	UI_DrawHandlePic( x + SMALLCHAR_WIDTH, y + 4, 128, 8, s_preferences.fxBasePic );
-	UI_DrawHandlePic( x + SMALLCHAR_WIDTH + s->curvalue * 16 + 8, y + 2, 16, 12, s_preferences.fxPic[s->curvalue] );
+	UI_DrawHandlePic( markerX, y + 2, 16, 12, s_preferences.fxPic[s->curvalue] );
 }
 
 

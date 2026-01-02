@@ -115,8 +115,8 @@ static char* netnames[] = {
 static char quake3worldMessage[] = "Visit www.quake3world.com - News, Community, Events, Files";
 #endif
 
-static int gamecodetoui[] = {0,1,2,3,4,5,6};
-static int uitogamecode[] = {1,2,3,4,5,6,7};
+static int gamecodetoui[] = {0,2,1,4,5,3,6};
+static int uitogamecode[] = {1,3,2,6,4,5,7};
 
 
 static void UI_StartServerRefresh(qboolean full, qboolean force);
@@ -1296,9 +1296,10 @@ static void UI_DrawEffects(rectDef_t *rect, float scale, vec4_t color) {
 	static int gamecodetofxpic[] = {0,2,1,4,5,3,6};
 	int gameColorCode = uitogamecode[uiInfo.effectsColor];
 	int fxPicIndex = gamecodetofxpic[gameColorCode - 1];
+	int markerX = rect->x + (uiInfo.effectsColor * 112 / 6);
 
 	UI_DrawHandlePic( rect->x, rect->y - 14, 128, 8, uiInfo.uiDC.Assets.fxBasePic );
-	UI_DrawHandlePic( rect->x + uiInfo.effectsColor * 16 + 8, rect->y - 16, 16, 12, uiInfo.uiDC.Assets.fxPic[fxPicIndex] );
+	UI_DrawHandlePic( markerX, rect->y - 16, 16, 12, uiInfo.uiDC.Assets.fxPic[fxPicIndex] );
 }
 
 static void UI_DrawMapPreview(rectDef_t *rect, float scale, vec4_t color, qboolean net) {
@@ -1911,9 +1912,10 @@ static void UI_DrawCrosshairColor(rectDef_t *rect, float scale, vec4_t color) {
 	}
 	int uiColorIndex = gamecodetoui[gameColorCode - 1];
 	int fxPicIndex = gamecodetofxpic[gameColorCode - 1];
+	int markerX = rect->x + (uiColorIndex * 112 / 6);
 
 	UI_DrawHandlePic( rect->x, rect->y - 10, 128, 8, uiInfo.uiDC.Assets.fxBasePic );
-	UI_DrawHandlePic( rect->x + uiColorIndex * 16 + 8, rect->y - 12, 16, 12, uiInfo.uiDC.Assets.fxPic[fxPicIndex] );
+	UI_DrawHandlePic( markerX, rect->y - 12, 16, 12, uiInfo.uiDC.Assets.fxPic[fxPicIndex] );
 }
 
 /*
@@ -2744,13 +2746,15 @@ static qboolean UI_CrosshairColor_HandleKey(int flags, float *special, int key) 
 	int select = UI_SelectForKey(key);
 	if (select != 0) {
 		int currentColor = (int)trap_Cvar_VariableValue("cg_crosshairColor");
-		currentColor += select;
+		int uiIndex = gamecodetoui[currentColor - 1];
+		uiIndex += select;
 
-		if (currentColor > 7) {
-			currentColor = 1;
-		} else if (currentColor < 1) {
-			currentColor = 7;
+		if (uiIndex > 6) {
+			uiIndex = 0;
+		} else if (uiIndex < 0) {
+			uiIndex = 6;
 		}
+		currentColor = uitogamecode[uiIndex];
 		trap_Cvar_SetValue("cg_crosshairColor", currentColor);
 		// Enable health-based coloring for white, disable for custom colors
 		if (currentColor == 7) {
