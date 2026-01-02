@@ -84,27 +84,34 @@ sfxHandle_t	CG_CustomSound( int clientNum, const char *soundName ) {
 
 /*
 ====================
-CG_ColorFromChar
+CG_ColorFromString
 ====================
 */
-static void CG_ColorFromChar( char v, vec3_t color ) {
+static void CG_ColorFromString( const char *v, vec3_t color ) {
 	int val;
 
-	val = v - '0';
+	VectorClear( color );
+
+	if ( !v || !v[0] ) {
+		VectorSet( color, 1, 1, 1 );
+		return;
+	}
+
+	val = v[0] - '0';
 
 	if ( val < 1 || val > 7 ) {
-		VectorSet( color, 1.0f, 1.0f, 1.0f );
-	} else {
-		VectorClear( color );
-		if ( val & 1 ) {
-			color[0] = 1.0f;
-		}
-		if ( val & 2 ) {
-			color[1] = 1.0f;
-		}
-		if ( val & 4 ) {
-			color[2] = 1.0f;
-		}
+		VectorSet( color, 1, 1, 1 );
+		return;
+	}
+
+	if ( val & 1 ) {
+		color[2] = 1.0f;
+	}
+	if ( val & 2 ) {
+		color[1] = 1.0f;
+	}
+	if ( val & 4 ) {
+		color[0] = 1.0f;
 	}
 }
 
@@ -122,24 +129,24 @@ static void CG_SetColorInfo( const char *color, clientInfo_t *info )
 
 	if ( !color[0] )
 		return;
-	CG_ColorFromChar( color[0], info->headColor );
+	CG_ColorFromString( color, info->headColor );
 
 	if ( !color[1] )
 		return;
-	CG_ColorFromChar( color[1], info->bodyColor );
+	CG_ColorFromString( &color[1], info->bodyColor );
 
 	if ( !color[2] )
 		return;
-	CG_ColorFromChar( color[2], info->legsColor );
+	CG_ColorFromString( &color[2], info->legsColor );
 
 	// override color1/color2 if specified
 	if ( !color[3] )
 		return;
-	CG_ColorFromChar( color[3], info->color1 );
+	CG_ColorFromString( &color[3], info->color1 );
 
 	if ( !color[4] )
 		return;
-	CG_ColorFromChar( color[4], info->color2 );
+	CG_ColorFromString( &color[4], info->color2 );
 }
 
 
@@ -1224,7 +1231,7 @@ void CG_NewClientInfo( int clientNum ) {
 
 	// colors
 	v = Info_ValueForKey( configstring, "c1" );
-	CG_ColorFromChar( v[0], newInfo.color1 );
+	CG_ColorFromString( v, newInfo.color1 );
 
 	newInfo.c1RGBA[0] = 255 * newInfo.color1[0];
 	newInfo.c1RGBA[1] = 255 * newInfo.color1[1];
@@ -1232,7 +1239,7 @@ void CG_NewClientInfo( int clientNum ) {
 	newInfo.c1RGBA[3] = 255;
 
 	v = Info_ValueForKey( configstring, "c2" );
-	CG_ColorFromChar( v[0], newInfo.color2 );
+	CG_ColorFromString( v, newInfo.color2 );
 
 	newInfo.c2RGBA[0] = 255 * newInfo.color2[0];
 	newInfo.c2RGBA[1] = 255 * newInfo.color2[1];
@@ -1323,9 +1330,9 @@ void CG_NewClientInfo( int clientNum ) {
 				colors = CG_GetTeamColors( cg_teamColors.string, newInfo.team );
 				len = strlen( colors );
 				if ( len >= 4 )
-					CG_ColorFromChar( colors[3], newInfo.color1 );
+					CG_ColorFromString( &colors[3], newInfo.color1 );
 				if ( len >= 5 )
-					CG_ColorFromChar( colors[4], newInfo.color2 );
+					CG_ColorFromString( &colors[4], newInfo.color2 );
 			}
 		}
 	}

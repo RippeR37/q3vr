@@ -134,8 +134,8 @@ static const char *s_damageeffect[] =
 	NULL
 };
 
-static int gamecodetoui[] = {0,2,1,4,5,3,6};
-static int uitogamecode[] = {1,3,2,6,4,5,7};
+static int gamecodetoui[] = {4,2,3,0,5,1,6};
+static int uitogamecode[] = {4,6,2,3,1,5,7};
 
 static void Preferences_SetMenuItems( void ) {
 	int c;
@@ -348,9 +348,9 @@ static void Crosshair_Draw( void *self ) {
 			crosshairColor[1] = 1.0f;
 			crosshairColor[2] = 1.0f;
 		} else {
-			crosshairColor[0] = (colorCode & 1) ? 1.0f : 0.0f;
+			crosshairColor[0] = (colorCode & 4) ? 1.0f : 0.0f;
 			crosshairColor[1] = (colorCode & 2) ? 1.0f : 0.0f;
-			crosshairColor[2] = (colorCode & 4) ? 1.0f : 0.0f;
+			crosshairColor[2] = (colorCode & 1) ? 1.0f : 0.0f;
 		}
 		crosshairColor[3] = 1.0f;
 
@@ -406,8 +406,10 @@ static void CrosshairColor_Draw( void *self ) {
 	UI_DrawString( x - SMALLCHAR_WIDTH, y, s->generic.name, style|UI_RIGHT, color );
 
 	// Draw color picker
+	int markerX = x + SMALLCHAR_WIDTH + (s->curvalue * 112 / 6);
+
 	UI_DrawHandlePic( x + SMALLCHAR_WIDTH, y + 4, 128, 8, s_preferences.fxBasePic );
-	UI_DrawHandlePic( x + SMALLCHAR_WIDTH + s->curvalue * 16 + 8, y + 2, 16, 12, s_preferences.fxPic[s->curvalue] );
+	UI_DrawHandlePic( markerX, y + 2, 16, 12, s_preferences.fxPic[s->curvalue] );
 }
 
 
