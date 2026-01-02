@@ -391,6 +391,62 @@ static void CG_AddMoveScaleFade( localEntity_t *le ) {
 
 /*
 ===================
+CG_AddBloodParticle
+
+Blood droplet that moves with gravity, traces for collision,
+leaves a blood mark on impact, then fades out on the surface.
+===================
+*/
+static void CG_AddBloodParticle( localEntity_t *le ) {
+	refEntity_t	*re;
+	vec3_t		newOrigin;
+	trace_t		trace;
+	float		c;
+
+	re = &le->refEntity;
+
+	// Calculate fade
+	c = ( le->endTime - cg.time ) * le->lifeRate;
+	if ( c < 0 ) c = 0;
+	re->shaderRGBA[3] = 0xff * c * le->color[3];
+
+	// Calculate new position
+	BG_EvaluateTrajectory( &le->pos, cg.time, newOrigin );
+
+	// Particle entered water - spawn sinking blood cloud
+	if ( CG_PointContents( newOrigin, -1 ) & MASK_WATER ) {
+		localEntity_t *cloud;
+
+		cloud = CG_SmokePuff( newOrigin, vec3_origin,
+			1 + random() * 2, 1, 1, 1, 0.4f,
+			300 + random() * 200, cg.time, 0, 0,
+			cgs.media.bloodTrailShader );
+		cloud->leType = LE_FALL_SCALE_FADE;
+		cloud->pos.trDelta[2] = 5 + random() * 10;
+		CG_FreeLocalEntity( le );
+		return;
+	}
+
+	// Trace for collision
+	CG_Trace( &trace, re->origin, NULL, NULL, newOrigin, -1, CONTENTS_SOLID );
+
+	if ( trace.fraction < 1.0f ) {
+		// Hit a surface - leave a matching mark
+		CG_ImpactMark( cgs.media.bloodMarkShader, trace.endpos, trace.plane.normal,
+			random() * 360, 1, 1, 1, 1, qtrue, le->radius, qfalse );
+		CG_FreeLocalEntity( le );
+		return;
+	} else {
+		// Still in flight
+		VectorCopy( newOrigin, re->origin );
+	}
+
+	trap_R_AddRefEntityToScene( re );
+}
+
+
+/*
+===================
 CG_AddScaleFade
 
 For rocket smokes that hang in place, fade out, and are
@@ -961,6 +1017,10 @@ void CG_AddLocalEntities( void ) {
 
 		case LE_DAMAGEPLUM:
 			CG_AddDamagePlum( le );
+			break;
+
+		case LE_BLOOD_PARTICLE:
+			CG_AddBloodParticle( le );
 			break;
 
 #ifdef MISSIONPACK
