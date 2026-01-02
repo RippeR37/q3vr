@@ -73,8 +73,8 @@ typedef struct {
 
 static playersettings_t	s_playersettings;
 
-static int gamecodetoui[] = {4,2,3,0,5,1,6};
-static int uitogamecode[] = {4,6,2,3,1,5,7};
+static int gamecodetoui[] = {0,2,1,4,5,3,6};
+static int uitogamecode[] = {1,3,2,6,4,5,7};
 
 static const char *handicap_items[] = {
 	"None",
@@ -236,8 +236,10 @@ static void PlayerSettings_DrawEffects( void *self ) {
 
 	UI_DrawProportionalString( item->generic.x, item->generic.y, "Effects", style, color );
 
+	int markerX = item->generic.x + 64 + (item->curvalue * 112 / 6);
+
 	UI_DrawHandlePic( item->generic.x + 64, item->generic.y + PROP_HEIGHT + 8, 128, 8, s_playersettings.fxBasePic );
-	UI_DrawHandlePic( item->generic.x + 64 + item->curvalue * 16 + 8, item->generic.y + PROP_HEIGHT + 6, 16, 12, s_playersettings.fxPic[item->curvalue] );
+	UI_DrawHandlePic( markerX, item->generic.y + PROP_HEIGHT + 6, 16, 12, s_playersettings.fxPic[item->curvalue] );
 }
 
 
