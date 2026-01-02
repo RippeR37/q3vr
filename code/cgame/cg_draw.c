@@ -2061,9 +2061,9 @@ static void CG_CrosshairColorFromInt( int val, byte *color ) {
 		color[1] = 255;
 		color[2] = 255;
 	} else {
-		color[0] = (val & 1) ? 255 : 0;
+		color[0] = (val & 4) ? 255 : 0;
 		color[1] = (val & 2) ? 255 : 0;
-		color[2] = (val & 4) ? 255 : 0;
+		color[2] = (val & 1) ? 255 : 0;
 	}
 	color[3] = 255;
 }

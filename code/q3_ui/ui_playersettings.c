@@ -236,8 +236,10 @@ static void PlayerSettings_DrawEffects( void *self ) {
 
 	UI_DrawProportionalString( item->generic.x, item->generic.y, "Effects", style, color );
 
+	int markerX = item->generic.x + 64 + (item->curvalue * 112 / 6);
+
 	UI_DrawHandlePic( item->generic.x + 64, item->generic.y + PROP_HEIGHT + 8, 128, 8, s_playersettings.fxBasePic );
-	UI_DrawHandlePic( item->generic.x + 64 + item->curvalue * 16 + 8, item->generic.y + PROP_HEIGHT + 6, 16, 12, s_playersettings.fxPic[item->curvalue] );
+	UI_DrawHandlePic( markerX, item->generic.y + PROP_HEIGHT + 6, 16, 12, s_playersettings.fxPic[item->curvalue] );
 }
 
 
