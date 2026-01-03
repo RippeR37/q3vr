@@ -2475,6 +2475,11 @@ void CG_FireWeapon( centity_t *cent ) {
 	}
 	weap = &cg_weapons[ ent->weapon ];
 
+	if ( ent->number >= 0 && ent->number < MAX_CLIENTS && cent != &cg.predictedPlayerEntity ) {
+		// point from external event to client entity
+		cent = &cg_entities[ ent->number ];
+	}
+
 	// mark the entity as muzzle flashing, so when it is added it will
 	// append the flash to the weapon model
 	cent->muzzleFlashTime = cg.time;
