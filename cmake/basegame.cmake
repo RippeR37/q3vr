@@ -100,6 +100,7 @@ set(UI_SOURCES
     ${SOURCE_DIR}/q3_ui/ui_controls3.c
     ${SOURCE_DIR}/q3_ui/ui_credits.c
     ${SOURCE_DIR}/q3_ui/ui_demo2.c
+    ${SOURCE_DIR}/q3_ui/ui_desktopmirror.c
     ${SOURCE_DIR}/q3_ui/ui_display.c
     ${SOURCE_DIR}/q3_ui/ui_gameinfo.c
     ${SOURCE_DIR}/q3_ui/ui_ingame.c

@@ -427,6 +427,12 @@ extern void UI_VRMenu( void );
 extern void VR_Cache( void );
 
 //
+// ui_desktopmirror.c
+//
+extern void UI_DesktopMirrorMenu( void );
+extern void DesktopMirror_Cache( void );
+
+//
 // ui_update.c
 //
 extern void UI_UpdateMenu( void );

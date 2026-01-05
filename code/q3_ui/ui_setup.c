@@ -42,14 +42,15 @@ SETUP MENU
 #define ID_CUSTOMIZEPLAYER		10
 #define ID_CUSTOMIZECONTROLS	11
 #define ID_VR                   12
-#define ID_COMFORT              13
-#define ID_GAME					14
-#define ID_SYSTEMCONFIG			15
-#define ID_CDKEY				16
-#define ID_LOAD					17
-#define ID_SAVE					18
-#define ID_DEFAULTS				19
-#define ID_BACK					20
+#define ID_DESKTOPMIRROR        13
+#define ID_COMFORT              14
+#define ID_GAME					15
+#define ID_SYSTEMCONFIG			16
+#define ID_CDKEY				17
+#define ID_LOAD					18
+#define ID_SAVE					19
+#define ID_DEFAULTS				20
+#define ID_BACK					21
 
 
 typedef struct {
@@ -61,6 +62,7 @@ typedef struct {
 	menutext_s		setupplayer;
 	menutext_s		setupcontrols;
   menutext_s		vr;
+	menutext_s		desktopmirror;
 	menutext_s		comfort;
 	menutext_s		setupsystem;
 	menutext_s		game;
@@ -123,6 +125,10 @@ static void UI_SetupMenu_Event( void *ptr, int event ) {
 
 	case ID_VR:
 		UI_VRMenu();
+		break;
+
+	case ID_DESKTOPMIRROR:
+		UI_DesktopMirrorMenu();
 		break;
 
 	case ID_COMFORT:
@@ -199,7 +205,7 @@ static void UI_SetupMenu_Init( void ) {
 	setupMenuInfo.framer.width  					= 256;
 	setupMenuInfo.framer.height  					= 334;
 
-	y = 134;
+	y = 116;
 	setupMenuInfo.setupplayer.generic.type			= MTYPE_PTEXT;
 	setupMenuInfo.setupplayer.generic.flags			= QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
 	setupMenuInfo.setupplayer.generic.x				= 320;
@@ -231,6 +237,17 @@ static void UI_SetupMenu_Init( void ) {
 	setupMenuInfo.vr.string				          = "VR OPTIONS";
 	setupMenuInfo.vr.color				          = color_red;
 	setupMenuInfo.vr.style				          = UI_CENTER;
+
+	y += SETUP_MENU_VERTICAL_SPACING;
+	setupMenuInfo.desktopmirror.generic.type		      = MTYPE_PTEXT;
+	setupMenuInfo.desktopmirror.generic.flags		      = QMF_CENTER_JUSTIFY|QMF_PULSEIFFOCUS;
+	setupMenuInfo.desktopmirror.generic.x			        = 320;
+	setupMenuInfo.desktopmirror.generic.y			        = y;
+	setupMenuInfo.desktopmirror.generic.id			      = ID_DESKTOPMIRROR;
+	setupMenuInfo.desktopmirror.generic.callback	    = UI_SetupMenu_Event;
+	setupMenuInfo.desktopmirror.string				        = "DESKTOP MIRROR";
+	setupMenuInfo.desktopmirror.color				          = color_red;
+	setupMenuInfo.desktopmirror.style				          = UI_CENTER;
 
 	y += SETUP_MENU_VERTICAL_SPACING;
 	setupMenuInfo.comfort.generic.type		        = MTYPE_PTEXT;
@@ -332,6 +349,7 @@ static void UI_SetupMenu_Init( void ) {
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.setupplayer );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.setupcontrols );
   Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.vr );
+	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.desktopmirror );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.comfort );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.game );
 	Menu_AddItem( &setupMenuInfo.menu, &setupMenuInfo.setupsystem );
