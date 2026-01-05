@@ -5,9 +5,9 @@
 #include "vr_base.h"
 #include "vr_macros.h"
 
-extern cvar_t *vr_desktopContent;
-extern cvar_t *vr_desktopMenuMode;
-extern cvar_t *vr_desktopMirror;
+extern cvar_t *vr_desktopContentFit;
+extern cvar_t *vr_desktopMenuStyle;
+extern cvar_t *vr_desktopMode;
 
 //
 // Helpers
@@ -561,13 +561,13 @@ void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swap
 void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrDesktopViewConfiguration viewConfig, qboolean useVirtualScreen)
 {
 	// Skip desktop mirroring if disabled
-	if (vr_desktopMirror && vr_desktopMirror->integer == 0)
+	if (vr_desktopMode && vr_desktopMode->integer == 0)
 	{
 		return;
 	}
 
 	// If using virtual screen, blit it directly instead of the VR eye views
-	if (useVirtualScreen && (!vr_desktopMenuMode || vr_desktopMenuMode->integer == 0))
+	if (useVirtualScreen && (!vr_desktopMenuStyle || vr_desktopMenuStyle->integer == 0))
 	{
 		const VR_Engine* engine = VR_GetEngine();
 		const GLuint defaultFBO = 0;
@@ -627,7 +627,7 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 
 	// This fills the window/screen with one or both eyes possibly cropping sides
 	// or top/bottom of the source image to preserve aspect ratio.
-	if (!vr_desktopContent || vr_desktopContent->integer == 1)
+	if (!vr_desktopContentFit || vr_desktopContentFit->integer == 1)
 	{
 		for (uint32_t part = 0; part < maxParts; ++part)
 		{

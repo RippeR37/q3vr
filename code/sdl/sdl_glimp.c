@@ -885,7 +885,7 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 	GLimp_DetectAvailableModes();
 
 	// Hide window if desktop mirroring is disabled
-	if (ri.Cvar_VariableIntegerValue("vr_desktopMirror") == 0)
+	if (ri.Cvar_VariableIntegerValue("vr_desktopMode") == 0)
 	{
 		SDL_HideWindow(SDL_window);
 	}

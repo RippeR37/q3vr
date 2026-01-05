@@ -41,11 +41,11 @@ DESKTOP MIRROR OPTIONS MENU
 
 #define VR_X_POS		360
 
-#define ID_DESKTOPMIRROR         150
+#define ID_DESKTOPMODE           150
 #define ID_DESKTOPRESOLUTION     151
-#define ID_DESKTOPCONTENT        152
-#define ID_DESKTOPMODE           153
-#define ID_DESKTOPMENUMODE       154
+#define ID_DESKTOPCONTENTTYPE    152
+#define ID_DESKTOPCONTENTFIT     153
+#define ID_DESKTOPMENUSTYLE      154
 #define ID_APPLY                 155
 #define ID_BACK                  156
 
@@ -57,11 +57,11 @@ typedef struct {
 	menubitmap_s framel;
 	menubitmap_s framer;
 
-	menulist_s desktopmirror;
-	menulist_s desktopresolution;
-	menulist_s desktopcontent;
-	menulist_s desktopmode;
-	menulist_s desktopmenumode;
+	menulist_s mode;
+	menulist_s resolution;
+	menulist_s contenttype;
+	menulist_s contentfit;
+	menulist_s menustyle;
 
 	menubitmap_s apply;
 	menubitmap_s back;
@@ -69,7 +69,7 @@ typedef struct {
 
 static desktopmirror_t s_desktopmirror;
 
-static int s_ivo_desktopmirror;
+static int s_ivo_desktopmode;
 static int s_ivo_desktopresolution;
 
 /*
@@ -90,7 +90,7 @@ static qboolean resolutionsDetected = qfalse;
 
 static void GraphicsOptions_SetPreviousResolutionOption( void )
 {
-	s_desktopmirror.desktopresolution.curvalue = s_ivo_desktopresolution = 0;
+	s_desktopmirror.resolution.curvalue = s_ivo_desktopresolution = 0;
 	resolutions = allResolutions;
 
 	if (!resolutions)
@@ -115,7 +115,7 @@ static void GraphicsOptions_SetPreviousResolutionOption( void )
 		Q_strncpyz( h, strchr( listedResolutions[idx], 'x' ) + 1, sizeof( h ) );
 		const int width = atoi(w), height = atoi(h);
 		if (currentWidth == width && currentHeight == height) {
-			s_desktopmirror.desktopresolution.curvalue = s_ivo_desktopresolution = idx;
+			s_desktopmirror.resolution.curvalue = s_ivo_desktopresolution = idx;
 			resolutions = listedResolutions;
 			return;
 		}
@@ -187,34 +187,34 @@ static void GraphicsOptions_GetResolutions( void )
 }
 
 static void DesktopMirror_SetMenuItems( void ) {
+	// s_desktopmirror.resolution and s_ivo_resolution are handled elsewhere
 	// Desktop mirror UI: 0=off, 1=windowed, 2=fullscreen
-	// Reads vr_desktopMirror (0=off, 1=on) and r_fullscreen (0=windowed, 1=fullscreen)
-	int mirror = trap_Cvar_VariableValue( "vr_desktopMirror" );
+	// Reads vr_desktopMode (0=off, 1=on) and r_fullscreen (0=windowed, 1=fullscreen)
+	int mirror = trap_Cvar_VariableValue( "vr_desktopMode" );
 	int fullscreen = trap_Cvar_VariableValue( "r_fullscreen" );
 	if (mirror == 0) {
-		s_desktopmirror.desktopmirror.curvalue = 0; // Off
+		s_desktopmirror.mode.curvalue = 0; // Off
 	} else if (fullscreen == 0) {
-		s_desktopmirror.desktopmirror.curvalue = 1; // Windowed (mirror=1, fullscreen=0)
+		s_desktopmirror.mode.curvalue = 1; // Windowed (mirror=1, fullscreen=0)
 	} else {
-		s_desktopmirror.desktopmirror.curvalue = 2; // Fullscreen (mirror=1, fullscreen=1)
+		s_desktopmirror.mode.curvalue = 2; // Fullscreen (mirror=1, fullscreen=1)
 	}
-	s_ivo_desktopmirror = s_desktopmirror.desktopmirror.curvalue;
-	// s_desktopmirror.desktopresolution and s_ivo_desktopresolution are handled elsewhere
-	s_desktopmirror.desktopcontent.curvalue = trap_Cvar_VariableValue( "vr_desktopContent" );
-	s_desktopmirror.desktopmode.curvalue = trap_Cvar_VariableValue( "vr_desktopMode" );
-	s_desktopmirror.desktopmenumode.curvalue = trap_Cvar_VariableValue( "vr_desktopMenuMode" );
+	s_ivo_desktopmode = s_desktopmirror.mode.curvalue;
+	s_desktopmirror.contenttype.curvalue = trap_Cvar_VariableValue( "vr_desktopContentType" );
+	s_desktopmirror.contentfit.curvalue = trap_Cvar_VariableValue( "vr_desktopContentFit" );
+	s_desktopmirror.menustyle.curvalue = trap_Cvar_VariableValue( "vr_desktopMenuStyle" );
 }
 
 static void DesktopMirror_UpdateMenuItems( void )
 {
 	s_desktopmirror.apply.generic.flags |= QMF_HIDDEN|QMF_INACTIVE;
 
-	if ( s_ivo_desktopmirror != s_desktopmirror.desktopmirror.curvalue )
+	if ( s_ivo_desktopmode != s_desktopmirror.mode.curvalue )
 	{
 		s_desktopmirror.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
 
-	if ( s_ivo_desktopresolution != s_desktopmirror.desktopresolution.curvalue )
+	if ( s_ivo_desktopresolution != s_desktopmirror.resolution.curvalue )
 	{
 		s_desktopmirror.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
@@ -225,35 +225,32 @@ static void DesktopMirror_ApplyChanges( void *unused, int notification )
 	if (notification != QM_ACTIVATED)
 		return;
 
-	if (s_ivo_desktopmirror != s_desktopmirror.desktopmirror.curvalue)
+	if (s_ivo_desktopmode != s_desktopmirror.mode.curvalue)
 	{
 		// UI curvalue: 0=off, 1=windowed, 2=fullscreen
-		// Set vr_desktopMirror (0=off, 1=on) and r_fullscreen (0=windowed, 1=fullscreen)
-		if (s_desktopmirror.desktopmirror.curvalue == 0) {
+		// Set vr_desktopMode (0=off, 1=on) and r_fullscreen (0=windowed, 1=fullscreen)
+		if (s_desktopmirror.mode.curvalue == 0) {
 			// Off
-			trap_Cvar_SetValue( "vr_desktopMirror", 0 );
-		} else if (s_desktopmirror.desktopmirror.curvalue == 1) {
+			trap_Cvar_SetValue( "vr_desktopMode", 0 );
+		} else if (s_desktopmirror.mode.curvalue == 1) {
 			// Windowed
-			trap_Cvar_SetValue( "vr_desktopMirror", 1 );
+			trap_Cvar_SetValue( "vr_desktopMode", 1 );
 			trap_Cvar_SetValue( "r_fullscreen", 0 );
 		} else {
 			// Fullscreen
-			trap_Cvar_SetValue( "vr_desktopMirror", 1 );
+			trap_Cvar_SetValue( "vr_desktopMode", 1 );
 			trap_Cvar_SetValue( "r_fullscreen", 1 );
 		}
 	}
 
-	if ( s_ivo_desktopresolution != s_desktopmirror.desktopresolution.curvalue )
+	if ( s_ivo_desktopresolution != s_desktopmirror.resolution.curvalue && resolutions )
 	{
-		if (resolutions)
-		{
-			char w[ 16 ], h[ 16 ];
-			Q_strncpyz( w, resolutions[ s_desktopmirror.desktopresolution.curvalue ], sizeof( w ) );
-			*strchr( w, 'x' ) = 0;
-			Q_strncpyz( h, strchr( resolutions[ s_desktopmirror.desktopresolution.curvalue ], 'x' ) + 1, sizeof( h ) );
-			trap_Cvar_Set( "r_customdesktopwidth", w );
-			trap_Cvar_Set( "r_customdesktopheight", h );
-		}
+		char w[ 16 ], h[ 16 ];
+		Q_strncpyz( w, resolutions[ s_desktopmirror.resolution.curvalue ], sizeof( w ) );
+		*strchr( w, 'x' ) = 0;
+		Q_strncpyz( h, strchr( resolutions[ s_desktopmirror.resolution.curvalue ], 'x' ) + 1, sizeof( h ) );
+		trap_Cvar_Set( "r_customdesktopwidth", w );
+		trap_Cvar_Set( "r_customdesktopheight", h );
 	}
 
 	trap_Cmd_ExecuteText( EXEC_APPEND, "vid_restart\n" );
@@ -265,7 +262,7 @@ static void DesktopMirror_MenuEvent( void* ptr, int notification ) {
 	}
 
 	switch( ((menucommon_s*)ptr)->id ) {
-		case ID_DESKTOPMIRROR:
+		case ID_DESKTOPMODE:
 			// Will be applied in DesktopMirror_ApplyChanges
 			break;
 
@@ -273,16 +270,16 @@ static void DesktopMirror_MenuEvent( void* ptr, int notification ) {
 			// Will be applied in DesktopMirror_ApplyChanges
 			break;
 
-		case ID_DESKTOPCONTENT:
-			trap_Cvar_SetValue( "vr_desktopContent", s_desktopmirror.desktopcontent.curvalue );
+		case ID_DESKTOPCONTENTTYPE:
+			trap_Cvar_SetValue( "vr_desktopContentType", s_desktopmirror.contenttype.curvalue );
 			break;
 
-		case ID_DESKTOPMODE:
-			trap_Cvar_SetValue( "vr_desktopMode", s_desktopmirror.desktopmode.curvalue );
+		case ID_DESKTOPCONTENTFIT:
+			trap_Cvar_SetValue( "vr_desktopContentFit", s_desktopmirror.contentfit.curvalue );
 			break;
 
-		case ID_DESKTOPMENUMODE:
-			trap_Cvar_SetValue( "vr_desktopMenuMode", s_desktopmirror.desktopmenumode.curvalue );
+		case ID_DESKTOPMENUSTYLE:
+			trap_Cvar_SetValue( "vr_desktopMenuStyle", s_desktopmirror.menustyle.curvalue );
 			break;
 
 		case ID_APPLY:
@@ -300,7 +297,7 @@ static void DesktopMirror_MenuEvent( void* ptr, int notification ) {
 static void DesktopMirror_MenuInit( void ) {
 	int y;
 
-	static const char *s_desktopMirrorModes[] =
+	static const char *s_desktopModes[] =
 	{
 		"Off",
 		"Windowed",
@@ -308,13 +305,7 @@ static void DesktopMirror_MenuInit( void ) {
 		NULL,
 	};
 
-	static const char *s_desktopContents[] =
-	{
-		"Fit",
-		"Fill",
-	};
-
-	static const char *s_desktopModes[] =
+	static const char *s_desktopContentTypes[] =
 	{
 		"Left eye",
 		"Right eye",
@@ -322,14 +313,20 @@ static void DesktopMirror_MenuInit( void ) {
 		NULL,
 	};
 
-	static const char *s_desktopMenuModes[] =
+	static const char *s_desktopContentFits[] =
+	{
+		"Fit / Contain",
+		"Fill / Crop",
+	};
+
+	static const char *s_desktopMenuStyles[] =
 	{
 		"Desktop view",
 		"VR view",
 		NULL,
 	};
 
-	memset( &s_desktopmirror, 0 ,sizeof(desktopmirror_t) );
+	memset( &s_desktopmirror, 0, sizeof(desktopmirror_t) );
 
 	GraphicsOptions_GetResolutions();
 	DesktopMirror_Cache();
@@ -361,62 +358,58 @@ static void DesktopMirror_MenuInit( void ) {
 	s_desktopmirror.framer.height        = 334;
 
 	y = 198;
-	s_desktopmirror.desktopmirror.generic.type     = MTYPE_SPINCONTROL;
-	s_desktopmirror.desktopmirror.generic.x        = VR_X_POS;
-	s_desktopmirror.desktopmirror.generic.y        = y;
-	s_desktopmirror.desktopmirror.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
-	s_desktopmirror.desktopmirror.generic.name     = "Desktop mirror:";
-	s_desktopmirror.desktopmirror.generic.id       = ID_DESKTOPMIRROR;
-	s_desktopmirror.desktopmirror.generic.callback = DesktopMirror_MenuEvent;
-	s_desktopmirror.desktopmirror.itemnames        = s_desktopMirrorModes;
-	s_desktopmirror.desktopmirror.numitems         = 3;
+	s_desktopmirror.mode.generic.type     = MTYPE_SPINCONTROL;
+	s_desktopmirror.mode.generic.x        = VR_X_POS;
+	s_desktopmirror.mode.generic.y        = y;
+	s_desktopmirror.mode.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_desktopmirror.mode.generic.name     = "Mode:";
+	s_desktopmirror.mode.generic.id       = ID_DESKTOPMODE;
+	s_desktopmirror.mode.generic.callback = DesktopMirror_MenuEvent;
+	s_desktopmirror.mode.itemnames        = s_desktopModes;
+	s_desktopmirror.mode.numitems         = 3;
 
 	y += BIGCHAR_HEIGHT+2;
-	s_desktopmirror.desktopresolution.generic.type     = MTYPE_SPINCONTROL;
-	s_desktopmirror.desktopresolution.generic.name     = "Desktop resolution:";
-	s_desktopmirror.desktopresolution.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
-	s_desktopmirror.desktopresolution.generic.x        = VR_X_POS;
-	s_desktopmirror.desktopresolution.generic.y        = y;
-	s_desktopmirror.desktopresolution.itemnames        = resolutions;
-	s_desktopmirror.desktopresolution.generic.callback = DesktopMirror_MenuEvent;
-	s_desktopmirror.desktopresolution.generic.id       = ID_DESKTOPRESOLUTION;
+	s_desktopmirror.resolution.generic.type     = MTYPE_SPINCONTROL;
+	s_desktopmirror.resolution.generic.name     = "Resolution:";
+	s_desktopmirror.resolution.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_desktopmirror.resolution.generic.x        = VR_X_POS;
+	s_desktopmirror.resolution.generic.y        = y;
+	s_desktopmirror.resolution.itemnames        = resolutions;
+	s_desktopmirror.resolution.generic.callback = DesktopMirror_MenuEvent;
+	s_desktopmirror.resolution.generic.id       = ID_DESKTOPRESOLUTION;
 
 	y += BIGCHAR_HEIGHT+2;
-	s_desktopmirror.desktopcontent.generic.type      = MTYPE_SPINCONTROL;
-	s_desktopmirror.desktopcontent.generic.x         = VR_X_POS;
-	s_desktopmirror.desktopcontent.generic.y         = y;
-	s_desktopmirror.desktopcontent.generic.flags     = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
-	s_desktopmirror.desktopcontent.generic.name      = "Desktop content:";
-	s_desktopmirror.desktopcontent.generic.id        = ID_DESKTOPCONTENT;
-	s_desktopmirror.desktopcontent.generic.callback  = DesktopMirror_MenuEvent;
-	s_desktopmirror.desktopcontent.itemnames         = s_desktopContents;
-	s_desktopmirror.desktopcontent.numitems          = 2;
-
-
-
-
+	s_desktopmirror.contenttype.generic.type     = MTYPE_SPINCONTROL;
+	s_desktopmirror.contenttype.generic.x        = VR_X_POS;
+	s_desktopmirror.contenttype.generic.y        = y;
+	s_desktopmirror.contenttype.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_desktopmirror.contenttype.generic.name     = "Content type:";
+	s_desktopmirror.contenttype.generic.id       = ID_DESKTOPCONTENTTYPE;
+	s_desktopmirror.contenttype.generic.callback = DesktopMirror_MenuEvent;
+	s_desktopmirror.contenttype.itemnames        = s_desktopContentTypes;
+	s_desktopmirror.contenttype.numitems         = 3;
 
 	y += BIGCHAR_HEIGHT+2;
-	s_desktopmirror.desktopmode.generic.type     = MTYPE_SPINCONTROL;
-	s_desktopmirror.desktopmode.generic.x        = VR_X_POS;
-	s_desktopmirror.desktopmode.generic.y        = y;
-	s_desktopmirror.desktopmode.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
-	s_desktopmirror.desktopmode.generic.name     = "Desktop mode:";
-	s_desktopmirror.desktopmode.generic.id       = ID_DESKTOPMODE;
-	s_desktopmirror.desktopmode.generic.callback = DesktopMirror_MenuEvent;
-	s_desktopmirror.desktopmode.itemnames        = s_desktopModes;
-	s_desktopmirror.desktopmode.numitems         = 3;
+	s_desktopmirror.contentfit.generic.type      = MTYPE_SPINCONTROL;
+	s_desktopmirror.contentfit.generic.x         = VR_X_POS;
+	s_desktopmirror.contentfit.generic.y         = y;
+	s_desktopmirror.contentfit.generic.flags     = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_desktopmirror.contentfit.generic.name      = "Content fit:";
+	s_desktopmirror.contentfit.generic.id        = ID_DESKTOPCONTENTFIT;
+	s_desktopmirror.contentfit.generic.callback  = DesktopMirror_MenuEvent;
+	s_desktopmirror.contentfit.itemnames         = s_desktopContentFits;
+	s_desktopmirror.contentfit.numitems          = 2;
 
 	y += BIGCHAR_HEIGHT+2;
-	s_desktopmirror.desktopmenumode.generic.type     = MTYPE_SPINCONTROL;
-	s_desktopmirror.desktopmenumode.generic.x        = VR_X_POS;
-	s_desktopmirror.desktopmenumode.generic.y        = y;
-	s_desktopmirror.desktopmenumode.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
-	s_desktopmirror.desktopmenumode.generic.name     = "Desktop menu mode:";
-	s_desktopmirror.desktopmenumode.generic.id       = ID_DESKTOPMENUMODE;
-	s_desktopmirror.desktopmenumode.generic.callback = DesktopMirror_MenuEvent;
-	s_desktopmirror.desktopmenumode.itemnames        = s_desktopMenuModes;
-	s_desktopmirror.desktopmenumode.numitems         = 2;
+	s_desktopmirror.menustyle.generic.type     = MTYPE_SPINCONTROL;
+	s_desktopmirror.menustyle.generic.x        = VR_X_POS;
+	s_desktopmirror.menustyle.generic.y        = y;
+	s_desktopmirror.menustyle.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_desktopmirror.menustyle.generic.name     = "Menu style:";
+	s_desktopmirror.menustyle.generic.id       = ID_DESKTOPMENUSTYLE;
+	s_desktopmirror.menustyle.generic.callback = DesktopMirror_MenuEvent;
+	s_desktopmirror.menustyle.itemnames        = s_desktopMenuStyles;
+	s_desktopmirror.menustyle.numitems         = 2;
 
 	s_desktopmirror.apply.generic.type     = MTYPE_BITMAP;
 	s_desktopmirror.apply.generic.name     = ART_ACCEPT0;
@@ -444,11 +437,11 @@ static void DesktopMirror_MenuInit( void ) {
 	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.framel );
 	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.framer );
 
-	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.desktopmirror );
-	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.desktopresolution );
-	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.desktopcontent );
-	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.desktopmode );
-	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.desktopmenumode );
+	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.mode  );
+	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.resolution );
+	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.contenttype );
+	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.contentfit );
+	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.menustyle );
 
 	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.apply );
 	Menu_AddItem( &s_desktopmirror.menu, &s_desktopmirror.back );

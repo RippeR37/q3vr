@@ -21,8 +21,7 @@
 extern vr_clientinfo_t vr;
 extern cvar_t *vr_heightAdjust;
 extern cvar_t *vr_refreshrate;
-extern cvar_t *vr_desktopMode;
-extern cvar_t *vr_desktopMirror;
+extern cvar_t *vr_desktopContentType;
 
 const float hudScale = M_PI * 15.0f / 180.0f;
 
@@ -438,14 +437,17 @@ void VR_DrawVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImage
 
 XrDesktopViewConfiguration VR_GetDesktopViewConfiguration( void )
 {
-	switch (vr_desktopMode->integer)
+	if (vr_desktopContentType)
 	{
-		case 0:
-			return LEFT_EYE;
-		case 1:
-			return RIGHT_EYE;
-		case 2:
-			return BOTH_EYES;
+		switch (vr_desktopContentType->integer)
+		{
+			case 0:
+				return LEFT_EYE;
+			case 1:
+				return RIGHT_EYE;
+			case 2:
+				return BOTH_EYES;
+		}
 	}
 	return LEFT_EYE;
 }
