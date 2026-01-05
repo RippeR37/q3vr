@@ -91,6 +91,8 @@ static const char* detectedResolutions[ MAX_RESOLUTIONS ];
 static const char** allResolutions = NULL;
 static const char** listedResolutions = NULL;
 static char currentResolution[ 20 ];
+static char vrResolution[ 20 ];
+static char vrHalvedResolution[ 20 ];
 static const char** resolutions = NULL;
 static qboolean resolutionsDetected = qfalse;
 
@@ -110,6 +112,8 @@ static void GraphicsOptions_SetPreviousResolutionOption( void )
 	{
 		return;
 	}
+
+	Com_sprintf(currentResolution, sizeof(currentResolution), "custom (%dx%d)", currentWidth, currentHeight);
 
 	for (int idx = 0; listedResolutions[idx] != NULL; ++idx)
 	{
@@ -141,7 +145,9 @@ static void GraphicsOptions_GetResolutions( void )
 
 		// Set first resolution as `custom`, this option will be visible if the user
 		// sets something outside of this list via cvars manually
-		detectedResolutions[i++] = "custom";
+		// exact values will be added in SetPreviousResolutionOption()
+		Com_sprintf(currentResolution, sizeof(currentResolution), "custom");
+		detectedResolutions[i++] = currentResolution;
 		detectedResolutions[i] = NULL;
 
 		while( s && i < ARRAY_LEN(detectedResolutions)-1 )
@@ -153,21 +159,28 @@ static void GraphicsOptions_GetResolutions( void )
 		}
 		detectedResolutions[ i ] = NULL;
 
-		// add custom resolution if not in mode list
+		// add custom swapchain resolution and halved if not in mode list
 		if ( i < ARRAY_LEN(detectedResolutions)-2 )
 		{
-			Com_sprintf( currentResolution, sizeof ( currentResolution ), "%dx%d", uis.glconfig.vidWidth, uis.glconfig.vidHeight );
+			Com_sprintf( vrResolution, sizeof ( vrResolution ), "%dx%d", uis.glconfig.vidWidth, uis.glconfig.vidHeight );
 
 			for( i = 0; detectedResolutions[ i ]; i++ )
 			{
-				if ( strcmp( detectedResolutions[ i ], currentResolution ) == 0 )
+				if ( strcmp( detectedResolutions[ i ], vrResolution ) == 0 )
 					break;
 			}
 
 			if ( detectedResolutions[ i ] == NULL )
 			{
-				detectedResolutions[ i++ ] = currentResolution;
+				detectedResolutions[ i++ ] = vrResolution;
 				detectedResolutions[ i ] = NULL;
+
+				if ( i < ARRAY_LEN(detectedResolutions)-2 )
+				{
+					Com_sprintf( vrHalvedResolution, sizeof ( vrHalvedResolution ), "%dx%d", uis.glconfig.vidWidth / 2, uis.glconfig.vidHeight / 2 );
+					detectedResolutions[ i++ ] = vrHalvedResolution;
+					detectedResolutions[ i ] = NULL;
+				}
 			}
 		}
 
