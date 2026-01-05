@@ -79,7 +79,6 @@ static vr_t s_vr;
 
 static int s_ivo_desktopmirror;
 static int s_ivo_desktopresolution;
-static int s_ivo_desktopmode;
 
 /*
 =================
@@ -198,7 +197,6 @@ static void VR_SetMenuItems( void ) {
 	// s_vr.desktopresolution and s_ivo_desktopresolution are handled elsewhere
 	s_vr.desktopmode.curvalue = trap_Cvar_VariableValue( "vr_desktopMode" );
 	s_vr.desktopmenumode.curvalue = trap_Cvar_VariableValue( "vr_desktopMenuMode" );
-	s_ivo_desktopmode = s_vr.desktopmode.curvalue;
 	s_vr.virtualscreenmode.curvalue = trap_Cvar_VariableValue( "vr_virtualScreenMode" );
   s_vr.virtualscreenshape.curvalue = trap_Cvar_VariableValue( "vr_virtualScreenShape" );
   s_vr.showoffhand.curvalue = trap_Cvar_VariableValue( "vr_showOffhand" ) != 0;
@@ -219,21 +217,30 @@ static void VR_UpdateMenuItems( void )
 	{
 		s_vr.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
-
-	// Show apply button if switching between one eye and both eyes in windowed mirror mode
-	// (switching between left and right eye doesn't need restart)
-	qboolean wasBothEyes = (s_ivo_desktopmode == 2);
-	qboolean isBothEyes = (s_vr.desktopmode.curvalue == 2);
-	if ( wasBothEyes != isBothEyes && trap_Cvar_VariableValue( "vr_desktopMirror" ) != 0 && trap_Cvar_VariableValue( "r_fullscreen" ) == 0 )
-	{
-		s_vr.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
-	}
 }
 
 static void VR_ApplyChanges( void *unused, int notification )
 {
 	if (notification != QM_ACTIVATED)
 		return;
+
+	if (s_ivo_desktopmirror != s_vr.desktopmirror.curvalue)
+	{
+		// UI curvalue: 0=off, 1=windowed, 2=fullscreen
+		// Set vr_desktopMirror (0=off, 1=on) and r_fullscreen (0=windowed, 1=fullscreen)
+		if (s_vr.desktopmirror.curvalue == 0) {
+			// Off
+			trap_Cvar_SetValue( "vr_desktopMirror", 0 );
+		} else if (s_vr.desktopmirror.curvalue == 1) {
+			// Windowed
+			trap_Cvar_SetValue( "vr_desktopMirror", 1 );
+			trap_Cvar_SetValue( "r_fullscreen", 0 );
+		} else {
+			// Fullscreen
+			trap_Cvar_SetValue( "vr_desktopMirror", 1 );
+			trap_Cvar_SetValue( "r_fullscreen", 1 );
+		}
+	}
 
 	if ( s_ivo_desktopresolution != s_vr.desktopresolution.curvalue )
 	{
@@ -258,20 +265,7 @@ static void VR_MenuEvent( void* ptr, int notification ) {
 
 	switch( ((menucommon_s*)ptr)->id ) {
 		case ID_DESKTOPMIRROR:
-			// UI curvalue: 0=off, 1=windowed, 2=fullscreen
-			// Set vr_desktopMirror (0=off, 1=on) and r_fullscreen (0=windowed, 1=fullscreen)
-			if (s_vr.desktopmirror.curvalue == 0) {
-				// Off
-				trap_Cvar_SetValue( "vr_desktopMirror", 0 );
-			} else if (s_vr.desktopmirror.curvalue == 1) {
-				// Windowed
-				trap_Cvar_SetValue( "vr_desktopMirror", 1 );
-				trap_Cvar_SetValue( "r_fullscreen", 0 );
-			} else {
-				// Fullscreen
-				trap_Cvar_SetValue( "vr_desktopMirror", 1 );
-				trap_Cvar_SetValue( "r_fullscreen", 1 );
-			}
+			// Will be applied in VR_ApplyChanges
 			break;
 
 		case ID_DESKTOPMODE:
