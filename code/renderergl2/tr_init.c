@@ -215,6 +215,9 @@ cvar_t	*r_customwidth;
 cvar_t	*r_customheight;
 cvar_t	*r_customPixelAspect;
 
+cvar_t	*r_customdesktopwidth;
+cvar_t	*r_customdesktopheight;
+
 cvar_t	*r_overBrightBits;
 cvar_t	*r_mapOverBrightBits;
 
@@ -1275,6 +1278,8 @@ void R_Register( void )
 	r_noborder = ri.Cvar_Get("r_noborder", "0", CVAR_ARCHIVE | CVAR_LATCH);
 	r_customwidth = ri.Cvar_Get( "r_customwidth", "1600", CVAR_ARCHIVE | CVAR_LATCH );
 	r_customheight = ri.Cvar_Get( "r_customheight", "1024", CVAR_ARCHIVE | CVAR_LATCH );
+	r_customdesktopwidth = ri.Cvar_Get( "r_customdesktopwidth", "0", CVAR_ARCHIVE | CVAR_LATCH );
+	r_customdesktopheight = ri.Cvar_Get( "r_customdesktopheight", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_customPixelAspect = ri.Cvar_Get( "r_customPixelAspect", "1", CVAR_ARCHIVE | CVAR_LATCH );
 	r_simpleMipMaps = ri.Cvar_Get( "r_simpleMipMaps", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_vertexLight = ri.Cvar_Get( "r_vertexLight", "0", CVAR_ARCHIVE | CVAR_LATCH );

@@ -497,39 +497,18 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
   VR_Engine* engine = VR_GetEngine();
 	VR_GetResolution(engine, &glConfig.vidWidth, &glConfig.vidHeight);
 
-  engine->window.width = glConfig.vidWidth;
-  engine->window.height = glConfig.vidHeight;
-  if (engine->window.width > desktopMode.w)
-    engine->window.width = desktopMode.w;
-  if (engine->window.height > desktopMode.h)
-    engine->window.height = desktopMode.h;
-
-  // For windowed mode, calculate window size to match VR aspect ratio
-  if (!fullscreen && ri.Cvar_VariableIntegerValue("vr_desktopMirror") != 0)
-  {
-    int desktopModeValue = ri.Cvar_VariableIntegerValue("vr_desktopMode");
-    float vrAspectRatio = (float)glConfig.vidWidth / (float)glConfig.vidHeight;
-
-    // When showing both eyes, double the width
-    if (desktopModeValue == 2) // BOTH_EYES
-    {
-      vrAspectRatio *= 2.0f;
-    }
-
-    // Start with 80% of desktop height and calculate width from aspect ratio
-    int targetHeight = (int)(desktopMode.h * 0.8f);
-    int targetWidth = (int)(targetHeight * vrAspectRatio);
-
-    // If resulting width is too wide, constrain by width instead
-    if (targetWidth > desktopMode.w * 0.8f)
-    {
-      targetWidth = (int)(desktopMode.w * 0.8f);
-      targetHeight = (int)(targetWidth / vrAspectRatio);
-    }
-
-    engine->window.width = targetWidth;
-    engine->window.height = targetHeight;
-  }
+	const int desktopWidth = ri.Cvar_VariableIntegerValue("r_customdesktopwidth");
+	const int desktopHeight = ri.Cvar_VariableIntegerValue("r_customdesktopheight");
+	if (desktopWidth <= 0 || desktopHeight <= 0)
+	{
+		ri.Cvar_SetValue("r_customdesktopwidth", desktopMode.w);
+		ri.Cvar_SetValue("r_customdesktopheight", desktopMode.h);
+	} else {
+		desktopMode.w = desktopWidth;
+		desktopMode.h = desktopHeight;
+	}
+	engine->window.width = desktopMode.w;
+  engine->window.height = desktopMode.h;
 #if 0
 	if (mode == -2)
 	{

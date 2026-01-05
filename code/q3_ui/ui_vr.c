@@ -42,15 +42,16 @@ VR OPTIONS MENU
 #define VR_X_POS		360
 
 #define ID_DESKTOPMIRROR         150
-#define ID_DESKTOPMODE           151
-#define ID_DESKTOPMENUMODE       152
-#define ID_VIRTUALSCREENMODE     153
-#define ID_VIRTUALSCREENSHAPE    154
-#define ID_SHOWOFFHAND           155
-#define ID_DRAWHUD               156
-#define ID_SELECTORWITHHUD       157
-#define ID_APPLY                 158
-#define ID_BACK                  159
+#define ID_DESKTOPRESOLUTION     151
+#define ID_DESKTOPMODE           152
+#define ID_DESKTOPMENUMODE       153
+#define ID_VIRTUALSCREENMODE     154
+#define ID_VIRTUALSCREENSHAPE    155
+#define ID_SHOWOFFHAND           156
+#define ID_DRAWHUD               157
+#define ID_SELECTORWITHHUD       158
+#define ID_APPLY                 159
+#define ID_BACK                  160
 
 
 typedef struct {
@@ -61,6 +62,7 @@ typedef struct {
 	menubitmap_s framer;
 
 	menulist_s desktopmirror;
+	menulist_s desktopresolution;
 	menulist_s desktopmode;
 	menulist_s desktopmenumode;
   menulist_s virtualscreenmode;
@@ -76,7 +78,109 @@ typedef struct {
 static vr_t s_vr;
 
 static int s_ivo_desktopmirror;
+static int s_ivo_desktopresolution;
 static int s_ivo_desktopmode;
+
+/*
+=================
+Resolutions
+=================
+*/
+#define MAX_RESOLUTIONS	33
+static char resbuf[ MAX_STRING_CHARS ];
+static const char* detectedResolutions[ MAX_RESOLUTIONS ];
+static const char** allResolutions = NULL;
+static const char** listedResolutions = NULL;
+static char currentResolution[ 20 ];
+static const char** resolutions = NULL;
+static qboolean resolutionsDetected = qfalse;
+
+static void GraphicsOptions_SetPreviousResolutionOption( void )
+{
+	s_vr.desktopresolution.curvalue = s_ivo_desktopresolution = 0;
+	resolutions = allResolutions;
+
+	if (!resolutions)
+	{
+		return;
+	}
+
+	const int currentWidth = trap_Cvar_VariableValue("r_customdesktopwidth");
+	const int currentHeight = trap_Cvar_VariableValue("r_customdesktopheight");
+  if (currentWidth <= 0 || currentHeight <= 0)
+	{
+		return;
+	}
+
+	for (int idx = 0; listedResolutions[idx] != NULL; ++idx)
+	{
+		char w[ 16 ], h[ 16 ];
+		Q_strncpyz( w, listedResolutions[idx], sizeof( w ) );
+		*strchr( w, 'x' ) = 0;
+		Q_strncpyz( h, strchr( listedResolutions[idx], 'x' ) + 1, sizeof( h ) );
+		const int width = atoi(w), height = atoi(h);
+		if (currentWidth == width && currentHeight == height) {
+			s_vr.desktopresolution.curvalue = s_ivo_desktopresolution = idx;
+			resolutions = listedResolutions;
+			return;
+		}
+	}
+}
+
+/*
+=================
+GraphicsOptions_GetResolutions
+=================
+*/
+static void GraphicsOptions_GetResolutions( void )
+{
+	trap_Cvar_VariableStringBuffer("r_availableModes", resbuf, sizeof(resbuf));
+	if(*resbuf)
+	{
+		char* s = resbuf;
+		unsigned int i = 0;
+
+		// Set first resolution as `custom`, this option will be visible if the user
+		// sets something outside of this list via cvars manually
+		detectedResolutions[i++] = "custom";
+		detectedResolutions[i] = NULL;
+
+		while( s && i < ARRAY_LEN(detectedResolutions)-1 )
+		{
+			detectedResolutions[i++] = s;
+			s = strchr(s, ' ');
+			if( s )
+				*s++ = '\0';
+		}
+		detectedResolutions[ i ] = NULL;
+
+		// add custom resolution if not in mode list
+		if ( i < ARRAY_LEN(detectedResolutions)-2 )
+		{
+			Com_sprintf( currentResolution, sizeof ( currentResolution ), "%dx%d", uis.glconfig.vidWidth, uis.glconfig.vidHeight );
+
+			for( i = 0; detectedResolutions[ i ]; i++ )
+			{
+				if ( strcmp( detectedResolutions[ i ], currentResolution ) == 0 )
+					break;
+			}
+
+			if ( detectedResolutions[ i ] == NULL )
+			{
+				detectedResolutions[ i++ ] = currentResolution;
+				detectedResolutions[ i ] = NULL;
+			}
+		}
+
+		allResolutions = detectedResolutions;
+		listedResolutions = detectedResolutions + 1;
+
+		resolutions = allResolutions;
+		resolutionsDetected = qtrue;
+	}
+
+	GraphicsOptions_SetPreviousResolutionOption();
+}
 
 static void VR_SetMenuItems( void ) {
 	// Desktop mirror UI: 0=off, 1=windowed, 2=fullscreen
@@ -91,6 +195,7 @@ static void VR_SetMenuItems( void ) {
 		s_vr.desktopmirror.curvalue = 2; // Fullscreen (mirror=1, fullscreen=1)
 	}
 	s_ivo_desktopmirror = s_vr.desktopmirror.curvalue;
+	// s_vr.desktopresolution and s_ivo_desktopresolution are handled elsewhere
 	s_vr.desktopmode.curvalue = trap_Cvar_VariableValue( "vr_desktopMode" );
 	s_vr.desktopmenumode.curvalue = trap_Cvar_VariableValue( "vr_desktopMenuMode" );
 	s_ivo_desktopmode = s_vr.desktopmode.curvalue;
@@ -110,6 +215,11 @@ static void VR_UpdateMenuItems( void )
 		s_vr.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
 	}
 
+	if ( s_ivo_desktopresolution != s_vr.desktopresolution.curvalue )
+	{
+		s_vr.apply.generic.flags &= ~(QMF_HIDDEN|QMF_INACTIVE);
+	}
+
 	// Show apply button if switching between one eye and both eyes in windowed mirror mode
 	// (switching between left and right eye doesn't need restart)
 	qboolean wasBothEyes = (s_ivo_desktopmode == 2);
@@ -124,6 +234,19 @@ static void VR_ApplyChanges( void *unused, int notification )
 {
 	if (notification != QM_ACTIVATED)
 		return;
+
+	if ( s_ivo_desktopresolution != s_vr.desktopresolution.curvalue )
+	{
+		if (resolutions)
+		{
+			char w[ 16 ], h[ 16 ];
+			Q_strncpyz( w, resolutions[ s_vr.desktopresolution.curvalue ], sizeof( w ) );
+			*strchr( w, 'x' ) = 0;
+			Q_strncpyz( h, strchr( resolutions[ s_vr.desktopresolution.curvalue ], 'x' ) + 1, sizeof( h ) );
+			trap_Cvar_Set( "r_customdesktopwidth", w );
+			trap_Cvar_Set( "r_customdesktopheight", h );
+		}
+	}
 
 	trap_Cmd_ExecuteText( EXEC_APPEND, "vid_restart\n" );
 }
@@ -153,6 +276,10 @@ static void VR_MenuEvent( void* ptr, int notification ) {
 
 		case ID_DESKTOPMODE:
 			trap_Cvar_SetValue( "vr_desktopMode", s_vr.desktopmode.curvalue );
+			break;
+
+		case ID_DESKTOPRESOLUTION:
+			// Will be applied in VR_ApplyChanges
 			break;
 
 		case ID_DESKTOPMENUMODE:
@@ -242,6 +369,7 @@ static void VR_MenuInit( void ) {
 
 	memset( &s_vr, 0 ,sizeof(vr_t) );
 
+	GraphicsOptions_GetResolutions();
 	VR_Cache();
 
 	s_vr.menu.wrapAround = qtrue;
@@ -280,6 +408,16 @@ static void VR_MenuInit( void ) {
 	s_vr.desktopmirror.generic.callback  = VR_MenuEvent;
 	s_vr.desktopmirror.itemnames		     = s_desktopMirrorModes;
 	s_vr.desktopmirror.numitems		       = 3;
+
+	y += BIGCHAR_HEIGHT+2;
+	s_vr.desktopresolution.generic.type     = MTYPE_SPINCONTROL;
+	s_vr.desktopresolution.generic.name     = "Desktop resolution:";
+	s_vr.desktopresolution.generic.flags    = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_vr.desktopresolution.generic.x        = VR_X_POS;
+	s_vr.desktopresolution.generic.y        = y;
+	s_vr.desktopresolution.itemnames        = resolutions;
+	s_vr.desktopresolution.generic.callback = VR_MenuEvent;
+	s_vr.desktopresolution.generic.id       = ID_DESKTOPRESOLUTION;
 
 	y += BIGCHAR_HEIGHT+2;
 	s_vr.desktopmode.generic.type	     = MTYPE_SPINCONTROL;
@@ -380,6 +518,7 @@ static void VR_MenuInit( void ) {
 	Menu_AddItem( &s_vr.menu, &s_vr.framer );
 
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmirror );
+	Menu_AddItem( &s_vr.menu, &s_vr.desktopresolution );
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmode );
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmenumode );
 	Menu_AddItem( &s_vr.menu, &s_vr.virtualscreenmode );
