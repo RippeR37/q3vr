@@ -43,13 +43,14 @@ VR OPTIONS MENU
 
 #define ID_DESKTOPMIRROR         150
 #define ID_DESKTOPMODE           151
-#define ID_VIRTUALSCREENMODE     152
-#define ID_VIRTUALSCREENSHAPE    153
-#define ID_SHOWOFFHAND           154
-#define ID_DRAWHUD			         155
-#define ID_SELECTORWITHHUD		   139
-#define ID_APPLY				         157
-#define ID_BACK					         156
+#define ID_DESKTOPMENUMODE       152
+#define ID_VIRTUALSCREENMODE     153
+#define ID_VIRTUALSCREENSHAPE    154
+#define ID_SHOWOFFHAND           155
+#define ID_DRAWHUD               156
+#define ID_SELECTORWITHHUD       157
+#define ID_APPLY                 158
+#define ID_BACK                  159
 
 
 typedef struct {
@@ -61,6 +62,7 @@ typedef struct {
 
 	menulist_s desktopmirror;
 	menulist_s desktopmode;
+	menulist_s desktopmenumode;
   menulist_s virtualscreenmode;
   menulist_s virtualscreenshape;
   menuradiobutton_s showoffhand;
@@ -90,6 +92,7 @@ static void VR_SetMenuItems( void ) {
 	}
 	s_ivo_desktopmirror = s_vr.desktopmirror.curvalue;
 	s_vr.desktopmode.curvalue = trap_Cvar_VariableValue( "vr_desktopMode" );
+	s_vr.desktopmenumode.curvalue = trap_Cvar_VariableValue( "vr_desktopMenuMode" );
 	s_ivo_desktopmode = s_vr.desktopmode.curvalue;
 	s_vr.virtualscreenmode.curvalue = trap_Cvar_VariableValue( "vr_virtualScreenMode" );
   s_vr.virtualscreenshape.curvalue = trap_Cvar_VariableValue( "vr_virtualScreenShape" );
@@ -152,6 +155,10 @@ static void VR_MenuEvent( void* ptr, int notification ) {
 			trap_Cvar_SetValue( "vr_desktopMode", s_vr.desktopmode.curvalue );
 			break;
 
+		case ID_DESKTOPMENUMODE:
+			trap_Cvar_SetValue( "vr_desktopMenuMode", s_vr.desktopmenumode.curvalue );
+			break;
+
 		case ID_VIRTUALSCREENMODE:
 			trap_Cvar_SetValue( "vr_virtualScreenMode", s_vr.virtualscreenmode.curvalue );
 			break;
@@ -201,6 +208,13 @@ static void VR_MenuInit( void ) {
 		"Left eye",
 		"Right eye",
 		"Both eyes",
+		NULL,
+	};
+
+	static const char *s_desktopMenuModes[] =
+	{
+		"Desktop view",
+		"VR view",
 		NULL,
 	};
 
@@ -277,6 +291,17 @@ static void VR_MenuInit( void ) {
 	s_vr.desktopmode.generic.callback  = VR_MenuEvent;
 	s_vr.desktopmode.itemnames		     = s_desktopModes;
 	s_vr.desktopmode.numitems		       = 3;
+
+	y += BIGCHAR_HEIGHT+2;
+	s_vr.desktopmenumode.generic.type	     = MTYPE_SPINCONTROL;
+	s_vr.desktopmenumode.generic.x			   = VR_X_POS;
+	s_vr.desktopmenumode.generic.y			   = y;
+	s_vr.desktopmenumode.generic.flags	 	 = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_vr.desktopmenumode.generic.name	     = "Desktop menu mode:";
+	s_vr.desktopmenumode.generic.id 	     = ID_DESKTOPMENUMODE;
+	s_vr.desktopmenumode.generic.callback  = VR_MenuEvent;
+	s_vr.desktopmenumode.itemnames		     = s_desktopMenuModes;
+	s_vr.desktopmenumode.numitems		       = 2;
 
 	y += BIGCHAR_HEIGHT+2;
 	s_vr.virtualscreenmode.generic.type	     = MTYPE_SPINCONTROL;
@@ -356,6 +381,7 @@ static void VR_MenuInit( void ) {
 
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmirror );
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmode );
+	Menu_AddItem( &s_vr.menu, &s_vr.desktopmenumode );
 	Menu_AddItem( &s_vr.menu, &s_vr.virtualscreenmode );
 	Menu_AddItem( &s_vr.menu, &s_vr.virtualscreenshape );
 	Menu_AddItem( &s_vr.menu, &s_vr.showoffhand );

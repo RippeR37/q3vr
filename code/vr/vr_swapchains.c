@@ -5,6 +5,7 @@
 #include "vr_base.h"
 #include "vr_macros.h"
 
+extern cvar_t *vr_desktopMenuMode;
 extern cvar_t *vr_desktopMirror;
 
 //
@@ -565,7 +566,7 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 	}
 
 	// If using virtual screen, blit it directly instead of the VR eye views
-	if (useVirtualScreen)
+	if (useVirtualScreen && (!vr_desktopMenuMode || vr_desktopMenuMode->integer == 0))
 	{
 		const VR_Engine* engine = VR_GetEngine();
 		const GLuint defaultFBO = 0;
