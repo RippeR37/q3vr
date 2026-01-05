@@ -5,6 +5,7 @@
 #include "vr_base.h"
 #include "vr_macros.h"
 
+extern cvar_t *vr_desktopContent;
 extern cvar_t *vr_desktopMenuMode;
 extern cvar_t *vr_desktopMirror;
 
@@ -624,6 +625,55 @@ void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapc
 	qglClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	qglClear(GL_COLOR_BUFFER_BIT);
 
+	// This fills the window/screen with one or both eyes possibly cropping sides
+	// or top/bottom of the source image to preserve aspect ratio.
+	if (!vr_desktopContent || vr_desktopContent->integer == 1)
+	{
+		for (uint32_t part = 0; part < maxParts; ++part)
+		{
+			if (!(viewConfig & (part + 1)))
+			{
+				continue;
+			}
+			const float tX = swapchains->color.width;
+			const float tY = swapchains->color.height;
+			const float wX = engine->window.width / parts;
+			const float wY = engine->window.height;
+
+			const float ratioT = tX / tY;
+			const float ratioW = wX / wY;
+
+			const int leftOffset = (parts == 2) ? part * wX : 0;
+
+			int cutX = 0, cutY = 0, offsetX = 0, offsetY = 0;
+			if (ratioT > ratioW)
+			{
+				// texture is wider, crop sides
+				cutY = tY;
+				cutX = cutY * ratioW;
+				offsetX = (tX - cutX) / 2;
+			}
+			else
+			{
+				// texture is taller, crop top/bottom
+				cutX = tX;
+				cutY = cutX / ratioW;
+				offsetY = (tY - cutY) / 2;
+			}
+
+			qglBlitNamedFramebuffer(
+				swapchains->eyeFramebuffers[part][swapchainImageIndex],
+				defaultFBO, 
+				offsetX, offsetY, offsetX + cutX, offsetY + cutY,
+				leftOffset, 0, leftOffset+ engine->window.width / parts, engine->window.height,
+				GL_COLOR_BUFFER_BIT,
+				GL_NEAREST);
+		}
+		return;
+	}
+
+	// This fits entire source image inside the window/screen preserving aspect
+	// ratio, which may result in black bars on sides or top/bottom area.
 	for (uint32_t part = 0; part < maxParts; ++part)
 	{
 		if (!(viewConfig & (part + 1)))

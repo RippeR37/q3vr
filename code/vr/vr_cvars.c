@@ -34,6 +34,7 @@ cvar_t *vr_goreLevel = NULL;
 cvar_t *vr_hudDrawStatus = NULL;
 cvar_t *vr_currentHudDrawStatus = NULL;
 cvar_t *vr_showConsoleMessages = NULL;
+cvar_t *vr_desktopContent = NULL;
 cvar_t *vr_desktopMode = NULL;
 cvar_t *vr_desktopMenuMode = NULL;
 cvar_t *vr_desktopMirror = NULL;
@@ -79,6 +80,7 @@ void VR_InitCvars( void )
 	vr_currentHudDrawStatus = Cvar_Get ("vr_currentHudDrawStatus", "1", CVAR_ARCHIVE); // 0 - no hud, 1 - in-world hud, 2 - performance (static HUD)
 	vr_currentHudDepth = Cvar_Get ("vr_currentHudDepth", "10", CVAR_ARCHIVE);
 	vr_showConsoleMessages = Cvar_Get ("vr_showConsoleMessages", "1", CVAR_ARCHIVE);
+	vr_desktopContent = Cvar_Get ("vr_desktopContent", "1", CVAR_ARCHIVE); // 0 - fit, 1 - fill
 	vr_desktopMode = Cvar_Get ("vr_desktopMode", "0", CVAR_ARCHIVE); // 0 - left eye, 1 - right eye, 2 - both eyes
 	vr_desktopMenuMode = Cvar_Get ("vr_desktopMenuMode", "0", CVAR_ARCHIVE); // 0 - desktop view, 1 - VR view
 	vr_desktopMirror = Cvar_Get ("vr_desktopMirror", "1", CVAR_ARCHIVE | CVAR_LATCH); // 0 - off, 1 - on

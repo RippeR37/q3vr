@@ -43,15 +43,16 @@ VR OPTIONS MENU
 
 #define ID_DESKTOPMIRROR         150
 #define ID_DESKTOPRESOLUTION     151
-#define ID_DESKTOPMODE           152
-#define ID_DESKTOPMENUMODE       153
-#define ID_VIRTUALSCREENMODE     154
-#define ID_VIRTUALSCREENSHAPE    155
-#define ID_SHOWOFFHAND           156
-#define ID_DRAWHUD               157
-#define ID_SELECTORWITHHUD       158
-#define ID_APPLY                 159
-#define ID_BACK                  160
+#define ID_DESKTOPCONTENT        152
+#define ID_DESKTOPMODE           153
+#define ID_DESKTOPMENUMODE       154
+#define ID_VIRTUALSCREENMODE     155
+#define ID_VIRTUALSCREENSHAPE    156
+#define ID_SHOWOFFHAND           157
+#define ID_DRAWHUD               158
+#define ID_SELECTORWITHHUD       159
+#define ID_APPLY                 160
+#define ID_BACK                  161
 
 
 typedef struct {
@@ -63,6 +64,7 @@ typedef struct {
 
 	menulist_s desktopmirror;
 	menulist_s desktopresolution;
+	menulist_s desktopcontent;
 	menulist_s desktopmode;
 	menulist_s desktopmenumode;
   menulist_s virtualscreenmode;
@@ -208,6 +210,7 @@ static void VR_SetMenuItems( void ) {
 	}
 	s_ivo_desktopmirror = s_vr.desktopmirror.curvalue;
 	// s_vr.desktopresolution and s_ivo_desktopresolution are handled elsewhere
+	s_vr.desktopcontent.curvalue = trap_Cvar_VariableValue( "vr_desktopContent" );
 	s_vr.desktopmode.curvalue = trap_Cvar_VariableValue( "vr_desktopMode" );
 	s_vr.desktopmenumode.curvalue = trap_Cvar_VariableValue( "vr_desktopMenuMode" );
 	s_vr.virtualscreenmode.curvalue = trap_Cvar_VariableValue( "vr_virtualScreenMode" );
@@ -281,13 +284,18 @@ static void VR_MenuEvent( void* ptr, int notification ) {
 			// Will be applied in VR_ApplyChanges
 			break;
 
+		case ID_DESKTOPRESOLUTION:
+			// Will be applied in VR_ApplyChanges
+			break;
+
+		case ID_DESKTOPCONTENT:
+			trap_Cvar_SetValue( "vr_desktopContent", s_vr.desktopcontent.curvalue );
+			break;
+
 		case ID_DESKTOPMODE:
 			trap_Cvar_SetValue( "vr_desktopMode", s_vr.desktopmode.curvalue );
 			break;
 
-		case ID_DESKTOPRESOLUTION:
-			// Will be applied in VR_ApplyChanges
-			break;
 
 		case ID_DESKTOPMENUMODE:
 			trap_Cvar_SetValue( "vr_desktopMenuMode", s_vr.desktopmenumode.curvalue );
@@ -335,6 +343,12 @@ static void VR_MenuInit( void ) {
 		"Windowed",
 		"Fullscreen",
 		NULL,
+	};
+
+	static const char *s_desktopContents[] =
+	{
+		"Fit",
+		"Fill",
 	};
 
 	static const char *s_desktopModes[] =
@@ -425,6 +439,17 @@ static void VR_MenuInit( void ) {
 	s_vr.desktopresolution.itemnames        = resolutions;
 	s_vr.desktopresolution.generic.callback = VR_MenuEvent;
 	s_vr.desktopresolution.generic.id       = ID_DESKTOPRESOLUTION;
+
+	y += BIGCHAR_HEIGHT+2;
+	s_vr.desktopcontent.generic.type	   = MTYPE_SPINCONTROL;
+	s_vr.desktopcontent.generic.x			   = VR_X_POS;
+	s_vr.desktopcontent.generic.y			   = y;
+	s_vr.desktopcontent.generic.flags	 	 = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_vr.desktopcontent.generic.name	   = "Desktop content:";
+	s_vr.desktopcontent.generic.id 	     = ID_DESKTOPCONTENT;
+	s_vr.desktopcontent.generic.callback = VR_MenuEvent;
+	s_vr.desktopcontent.itemnames		     = s_desktopContents;
+	s_vr.desktopcontent.numitems		     = 2;
 
 	y += BIGCHAR_HEIGHT+2;
 	s_vr.desktopmode.generic.type	     = MTYPE_SPINCONTROL;
@@ -526,6 +551,7 @@ static void VR_MenuInit( void ) {
 
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmirror );
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopresolution );
+	Menu_AddItem( &s_vr.menu, &s_vr.desktopcontent );
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmode );
 	Menu_AddItem( &s_vr.menu, &s_vr.desktopmenumode );
 	Menu_AddItem( &s_vr.menu, &s_vr.virtualscreenmode );
