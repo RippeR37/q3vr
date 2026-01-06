@@ -670,7 +670,7 @@ void VR_InitInstanceInput( VR_Engine* engine )
 		const char* interactionProfileNames[3];
 
 		// Check for Valve Index HMD
-		if (strstr(systemName, "Index") != NULL)
+		if (strstr(systemName, "Index") != NULL || strstr(systemName, "index") != NULL || strstr(systemName, "lighthouse") != NULL)
 		{
 			printf("[OpenXR] Detected Valve Index HMD (%s), prioritizing Index controllers\n", systemName);
 			const XrPath profiles[] = { interactionProfilePathValveIndex, interactionProfilePathOculusTouch, interactionProfilePathKHRSimple };
