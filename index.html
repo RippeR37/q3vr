@@ -68,8 +68,8 @@
           <div class="info-card">
             <h5 class="mb-2">Status</h5>
             <p class="mb-1">
-              <b>Beta</b> — features include single-player, multiplayer (crossplay), 6DoF support,
-              haptics, weapon wheel and many comfort options.
+              Version <code>v1.0</code> has been <b>released</b>! Features include single-player,
+							multiplayer (with crossplay), 6DoF support, haptics, weapon wheel and many comfort options.
             </p>
             <small class="muted">See below for information how to play, controls and troubleshooting.</small>
           </div>
@@ -138,39 +138,50 @@
             <h3 class="mb-3">How to play</h3>
             <ol>
               <li>
-                Download the latest release from the GitHub
-                <a href="https://github.com/RippeR37/q3vr/releases" target="_blank" rel="noopener">Releases</a>
-                page.
+                Download the latest release from the
+                <a href="https://github.com/RippeR37/q3vr/releases" target="_blank" rel="noopener">
+									GitHub Releases
+								</a>
+                page
+								<ul>
+									<li>You can choose installable or portable version</li>
+								</ul>
               </li>
+							<li>
+								Install game or copy game files - if you've chosen portable version - to the directory of your choice
+							</li>
               <li>
-                Download required PAK files and place them in the <code>baseq3/</code> subdirectory next to
+                If you own a full version of the game, place <code>pak0.pk3</code> file in the <code>baseq3/</code> subdirectory next to
                 <code>pakQ3VR.pk3</code>:
                 <ul>
-                  <li>Get <code>pak0.pk3</code> from your copy of the game or
-                    <a href="https://github.com/Team-Beef-Studios/ioq3quest/raw/dba25f1d528253ad9ff8638931726d06bffcf0b0/android/app/src/main/assets/pak0.pk3"
-                      target="_blank" rel="noopener">download demo version</a>,
-                  </li>
                   <li>
-                    Get the rest from the
-                    <a href="https://files.ioquake3.org/quake3-latest-pk3s.zip" target="_blank" rel="noopener">
-                      latest Release Point files (v1.32)</a> (<a href="https://ioquake3.org/extras/patch-data/"
-                      target="_blank" rel="noopener">EULA</a>).
+										If you don't - no need to worry as <code>Q3VR</code> comes with the demo version of the game out of the box and you can skip this step
                   </li>
                 </ul>
               </li>
-              <li>Start your VR runtime (e.g. SteamVR) and run <code>q3vr.exe</code>.</li>
+              <li>
+								Start your VR runtime (e.g. SteamVR)
+							</li>
+							<li>
+								Run the game (<code>q3vr.exe</code>)
+							</li>
             </ol>
+						The game will notify you if there is a newer version available!
           </div>
         </div>
         <div class="col-md-6">
           <div class="info-card mb-3">
             <h3 class="mb-3">How to build yourself</h3>
-            <p>The project uses <code>CMake</code>. On Windows (<code>MSVC</code>) you can build with:</p>
+						<p>
+							Download or clone
+							<a href="https://github.com/RippeR37/q3vr" target="_blank">Q3VR repository</a>
+							from GitHub and build it with CMake:
+						</p>
             <pre class="bg-dark p-2 rounded small">
 > cmake -S . -B build
 > cmake --build build --config Release</pre>
             <p class="small muted mb-0">
-              Currently Windows is the only officially supported platform.
+              Currently supported on Windows and Linux.
             </p>
           </div>
         </div>
@@ -189,8 +200,13 @@
             <!-- Controllers screenshot here -->
             <img src="media/bindings.png" alt="Description" class="img-fluid d-block mx-auto mb-4" style="width:75%;">
             <p>
-              Some of these can be affected by changes made in the in-game <code>Setup</code> menus.
+              Some of these can be affected by changes made in the in-game <code>Setup</code> menu.
             </p>
+						<p>
+							You can also bind custom actions to each button. See
+							<a href="https://github.com/RippeR37/q3vr#changing-bindingssetting-custom-actions" target="_blank">this section</a>
+							of <code>README.md</code> file for more details.
+						</p>
           </div>
         </div>
       </div>
@@ -227,7 +243,7 @@
                 Reach out to others:
                 <ul>
                   <li>
-                    Ask in <a href="https://github.com/RippeR37/q3vr/issues" target="_blank" rel="noopener">GitHub
+                    Ask in <a href="https://github.com/RippeR37/q3vr/discussions" target="_blank" rel="noopener">GitHub
                       discussions</a>,
                   </li>
                   <li>
@@ -272,7 +288,24 @@
       </div>
     </section>
 
-    <!-- Troubleshooting and Feedback sections -->
+    <!-- Support section -->
+    <section id="troubleshooting_feedback">
+      <div class="row mt-3">
+        <div class="col-md-12">
+          <div class="info-card mb-3">
+            <h3 class="mb-3">Support</h3>
+            <p>
+              If you like my work such as this port, consider
+							<a href="https://github.com/sponsors/RippeR37" target="_blank">supporting me on GitHub</a>
+							or
+							<a href="https://buymeacoffee.com/ripper37" target="_blank">Buy Me a Coffe</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Disclaimer section -->
     <section id="troubleshooting_feedback">
       <div class="row mt-3">
         <div class="col-md-12">
