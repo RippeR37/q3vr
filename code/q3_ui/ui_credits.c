@@ -103,10 +103,15 @@ static void UI_CreditMenu_Draw_q3vr( void )
 	y += 2 * PROP_HEIGHT * PROP_SMALL_SIZE_SCALE;
 	UI_DrawString( 320, y, "by RippeR37", UI_CENTER|UI_BIGFONT, color_silver );
 
-	y = 300;
+	y = 320;
 	UI_DrawString( 320, y, "        based on ioquake3            based on Quake3Quest   ", UI_CENTER|UI_SMALLFONT, color_grey );
 	y += 1.42 * PROP_HEIGHT * PROP_SMALL_SIZE_SCALE;
 	UI_DrawString( 320, y, "      https://ioquake3.org        https://quake3.quakevr.com", UI_CENTER|UI_SMALLFONT, color_url );
+	
+	y = 400;
+	UI_DrawString( 320, y, "            port of Quake 3 Arena by id Software            ", UI_CENTER|UI_SMALLFONT, color_grey );
+	y += 1.42 * PROP_HEIGHT * PROP_SMALL_SIZE_SCALE;
+	UI_DrawString( 320, y, "                   https://idsoftware.com                   ", UI_CENTER|UI_SMALLFONT, color_url );
 }
 
 
@@ -195,35 +200,6 @@ Special Thanks to the whole discord!
 
 
 /*
-=================
-UI_CreditMenu_Key
-=================
-*/
-static sfxHandle_t UI_CreditMenu_Key( int key ) {
-	if( key & K_CHAR_FLAG ) {
-		return 0;
-	}
-
-	qboolean skipIOQ3Credits = trap_Cvar_VariableValue("skip_ioq3_credits") == 1.0f;
-
-	s_credits.frame++;
-	if (s_credits.frame == 1) {
-		s_credits.menu.draw = UI_CreditMenu_Draw_q3vr;
-	} else if (s_credits.frame == 2 && !skipIOQ3Credits) {
-		s_credits.menu.draw = UI_CreditMenu_Draw_q3q;
-	} else if (s_credits.frame == 3 && !skipIOQ3Credits) {
-		//Only show these once the first time someone plays
-		trap_Cvar_SetValue("skip_ioq3_credits", 1.0f);
-		trap_Cmd_ExecuteText( EXEC_APPEND, "writeconfig " Q3CONFIG_CFG "/n");
-		s_credits.menu.draw = UI_CreditMenu_Draw_ioq3;
-	} else {
-		trap_Cmd_ExecuteText( EXEC_APPEND, "quit\n" );
-	}
-	return 0;
-}
-
-
-/*
 ===============
 UI_CreditMenu_Draw
 ===============
@@ -284,6 +260,35 @@ static void UI_CreditMenu_Draw( void ) {
 
 
 /*
+=================
+UI_CreditMenu_Key
+=================
+*/
+static sfxHandle_t UI_CreditMenu_Key( int key ) {
+	if( key & K_CHAR_FLAG ) {
+		return 0;
+	}
+
+	const qboolean skipCredits = trap_Cvar_VariableValue("skip_full_credits") == 1.0f;
+
+	s_credits.frame++;
+	if (s_credits.frame == 1 && !skipCredits) {
+		s_credits.menu.draw = UI_CreditMenu_Draw;
+	} else if (s_credits.frame == 2 && !skipCredits) {
+		s_credits.menu.draw = UI_CreditMenu_Draw_q3q;
+	} else if (s_credits.frame == 3 && !skipCredits) {
+		//Only show these once the first time someone plays
+		trap_Cvar_SetValue("skip_full_credits", 1.0f);
+		trap_Cmd_ExecuteText( EXEC_APPEND, "writeconfig " Q3CONFIG_CFG "/n");
+		s_credits.menu.draw = UI_CreditMenu_Draw_ioq3;
+	} else {
+		trap_Cmd_ExecuteText( EXEC_APPEND, "quit\n" );
+	}
+	return 0;
+}
+
+
+/*
 ===============
 UI_CreditMenu
 ===============
@@ -291,7 +296,7 @@ UI_CreditMenu
 void UI_CreditMenu( void ) {
 	memset( &s_credits, 0 ,sizeof(s_credits) );
 
-	s_credits.menu.draw = UI_CreditMenu_Draw;
+	s_credits.menu.draw = UI_CreditMenu_Draw_q3vr;
 	s_credits.menu.key = UI_CreditMenu_Key;
 	s_credits.menu.fullscreen = qtrue;
 	UI_PushMenu ( &s_credits.menu );

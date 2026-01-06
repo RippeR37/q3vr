@@ -246,16 +246,22 @@ static void Main_MenuDraw( void ) {
 		UI_DrawString( 320, yPos, "Quake III Arena(c) 1999-2000, Id Software, Inc.  All Rights Reserved", UI_CENTER|UI_SMALLFONT, color );
 	}
 
-	vec4_t color_grey = {0.3f, 0.3f, 0.3f, 1.0f};
+	vec4_t color_grey = {0.35f, 0.35f, 0.35f, 1.0f};
+	vec4_t color_dark_grey = {0.23f, 0.23f, 0.23f, 1.0f};
 
 	yPos += SMALLCHAR_HEIGHT + 12;
 	UI_DrawString( 320, yPos, "Quake 3 VR", UI_CENTER|UI_SMALLFONT, color_white );
 	yPos += SMALLCHAR_HEIGHT + 2;
 	UI_DrawString( 320, yPos, "by RippeR37", UI_CENTER|UI_SMALLFONT, color_grey );
 
+	yPos += 2;
+	UI_DrawString( 20, yPos, "based on ioquake3", UI_LEFT|UI_TINYFONT, color_dark_grey );
+	yPos += SMALLCHAR_HEIGHT / 2 + 1;
+	UI_DrawString( 20, yPos, "based on Quake3Quest", UI_LEFT|UI_TINYFONT, color_dark_grey );
+
 	// Version
-	vec4_t color_red = {0.65f, 0.0f, 0.0f, 1.0f};
-	UI_DrawString( 610, 455, "BETA", UI_CENTER|UI_SMALLFONT|UI_PULSE|UI_LEFT, color_red );
+	vec4_t color_dark_red = {0.65f, 0.0f, 0.0f, 1.0f};
+	UI_DrawString( 610, 455, "v1.0", UI_CENTER|UI_SMALLFONT|UI_PULSE|UI_LEFT, color_dark_red );
 }
 
 

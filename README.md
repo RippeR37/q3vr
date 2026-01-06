@@ -1,9 +1,11 @@
-# Quake 3 VR
+# [Quake 3 VR](https://ripper37.github.io/q3vr)
 
 **Quake 3 VR** (a.k.a. `q3vr`) is a PCVR port of Quake 3 Arena game based on:
 
-* `ioquake3` - community maintained fork of idTech3 engine,
-* `Quake3Quest` - port of `ioquake3` to Quest 2/3 mobile headsets.
+* [ioquake3](https://github.com/ioquake/ioq3) - community maintained fork of
+  idTech3 engine,
+* [Quake3Quest](https://github.com/Team-Beef-Studios/ioq3quest) - port of
+  `ioquake3` to Quest 2/3 mobile headsets by **Team Beef**.
 
 It includes several bugfixes, improvements and QoL features built specifically
 for VR.
@@ -23,20 +25,16 @@ for VR.
   * zoom with reticle for railgun
   * comfort options like vignette, height adjustements, weapon lasers, etc.
 
-> [!CAUTION]
-> Please bear in mind that this port is currently in **beta** state, which
-> means that there may be some bugs and compatibility issues that will be fixed
-> over time.
-
 
 ## How to play
 
 To download and set up the game:
 
 * Go to [Releases](https://github.com/RippeR37/q3vr/releases) page and download
-  the most recent release and install (or extract) to directory of your choosing
+  the latest release and install (or extract, if selected portable version) to
+	directory of your choosing,
 * If you own full version of the game, place `pak0.pk3` file from original game
-  in the `baseq3/` subdirectory
+  in the `baseq3/` subdirectory.
 
 then any time you want to play simply:
 
@@ -47,17 +45,17 @@ then any time you want to play simply:
 > It's highly recommended to go through configuration options in `Setup` menu -
 > before jumping into the game - to set controls and settings to your liking.
 
+> [!NOTE]
+> The game has built-in update notifications. Whenever new version will be
+> released, you will be notified about it on game startup.
+
 
 ## Feedback / bug reporting
 
-> [!IMPORTANT]
-> This project is currently in **beta**. Feedback from users is required to make
-> any further improvements and fix bugs. If you've spotted any problems or have
-> any improvement ideas, please open GitHub issue with details and/or reach out
-> on Discord.
-
-For your convienience this repository comes with a pre-defined template for
-creating issues which should make the process easier.
+If you've spotted any problems or have any improvement ideas, please open GitHub
+issue with details and/or reach out on Discord. For your convienience this
+repository comes with a pre-defined template for creating issues which should
+make the process easier.
 
 Please remember to include any details that may help reproduce and analyze the
 problem such as logs, your computer configuration, etc.
@@ -72,8 +70,8 @@ your controlers.
 
 * `B` on left hand opens/closes menu or goes one level up (like `ESC`)
 * `B` on right hand resets position of Virtual Screen
-* `Trigger` on active hand - selects currently selected option (like `LMB`)
-* `Trigger` on inactive hand - makes this hand active
+* `Trigger` on active hand - cursor click
+* `Trigger` on inactive hand - makes this hand the active one
 
 ### Controls as spectator
 
@@ -92,10 +90,10 @@ made in the in-game `Setup` configuration menus.
 
 ### Changing bindings/setting custom actions
 
-If you wish to change bindings, you can try doing so from your
-VR runtime's input configuration screen (e.g. Steam VR input bindings) or
-manually set specific actions to given keys. To do so, you need to create
-`autoexec.cfg` file in the `baseq3/` subdirectory and set custom bindings with:
+If you wish to change bindings, you can do so from your VR runtime's input
+configuration screen (e.g. Steam VR input bindings) or manually set specific
+game actions to given keys. To do so, you need to create `autoexec.cfg` file in
+the `baseq3/` subdirectory and set custom bindings with:
 
 ```
 set vr_button_map_<key> "<action>"
@@ -124,7 +122,10 @@ These are the default mappings:
 | `B` | `"+movedown"` | Crouch |
 | `A` | `"+moveup"` | Jump |
 
-Please refer to [Quake 3 Quest website](https://quake3.quakevr.com/) for more
+Default controls for Valve Index:
+![Default controls for Valve Index](https://ripper37.github.io/q3vr/media/bindings.png)
+
+Please refer to [Q3VR website](https://ripper37.github.io/q3vr) for more
 details.
 
 
@@ -146,8 +147,6 @@ If you're having some problems consider:
 * Checking if there isn't a newer verions of `Q3VR` available which may already
   have a fix for your problem
   * You can also check older versions to see if it worked before
-* **[BETA]** During beta, the game will open a console in the background with
-  logs - they may contain something that will hint what's the problem
 
 If you're unable to find solution to your problem yourself, please reach out to
 the community (see section below) or
@@ -178,7 +177,9 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
-Check out [GitHub Actions workflow](.github/workflows/build.yml) for reference.
+Check out [GitHub Actions workflow](.github/workflows/build.yml) for reference
+and [GitHub Actions](https://github.com/RippeR37/q3vr/actions) for recent
+builds.
 
 
 ## Contributions
@@ -198,3 +199,20 @@ on VR games, ports or tools you can do so via:
 
 Please also consider supporting authors of `ioquake3` and `Quake3Quest`
 projects.
+
+
+## Credits
+
+This port is based on work of:
+
+* id Software (creators of idTech3 and Quake 3 Arena)
+* ioquake3 team (creators and maintainers of [ioquake3 fork](https://github.com/ioquake/ioq3))
+* Team Beef (creators of [Quake3Quest port](https://github.com/Team-Beef-Studios/ioq3quest))
+
+I would also like to personally thank everyone who helped working specifically
+on this port with special thanks to:
+
+* Royd0
+* @ernie
+* XQuader
+* Dteyn

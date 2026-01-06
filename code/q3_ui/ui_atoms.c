@@ -830,6 +830,11 @@ void UI_DrawString( int x, int y, const char* str, int style, vec4_t color )
 		charw =	SMALLCHAR_WIDTH;
 		charh =	SMALLCHAR_HEIGHT;
 	}
+	else if (style & UI_TINYFONT)
+	{
+		charw = SMALLCHAR_WIDTH / 2;
+		charh = SMALLCHAR_HEIGHT / 2;
+	}
 	else if (style & UI_GIANTFONT)
 	{
 		charw =	GIANTCHAR_WIDTH;

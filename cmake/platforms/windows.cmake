@@ -41,8 +41,7 @@ if(MSVC)
     list(APPEND CLIENT_LINK_OPTIONS "/MANIFEST:NO")
 endif()
 
-# Temporarily disable this to ensure logs are visible (for the beta)
-# set(CLIENT_EXECUTABLE_OPTIONS WIN32)
+set(CLIENT_EXECUTABLE_OPTIONS WIN32)
 
 # It's only necessary to set this on Windows; elsewhere
 # CMAKE_EXECUTABLE_SUFFIX will be empty anyway, or we want
