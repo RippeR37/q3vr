@@ -3234,14 +3234,14 @@ static void UI_Update(const char *name) {
 		}
 	} else if (Q_stricmp(name, "r_lodbias") == 0) {
 		switch (val) {
+			case -2:
+				trap_Cvar_SetValue( "r_subdivisions", 1 );  // High
+			break;
+			case -1:
+				trap_Cvar_SetValue( "r_subdivisions", 2 );  // Medium
+			break;
 			case 0:
-				trap_Cvar_SetValue( "r_subdivisions", 1 );
-			break;
-			case 1:
-				trap_Cvar_SetValue( "r_subdivisions", 2 );
-			break;
-			case 2:
-				trap_Cvar_SetValue( "r_subdivisions", 4 );
+				trap_Cvar_SetValue( "r_subdivisions", 4 );  // Low
 			break;
 		}
 	} else if (Q_stricmp(name, "ui_glCustom") == 0) {

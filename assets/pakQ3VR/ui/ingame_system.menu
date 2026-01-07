@@ -296,7 +296,7 @@ itemDef {
     		type ITEM_TYPE_MULTI
 		text "Geometric Detail:"
 		cvar "r_lodbias"
-		cvarFloatList { "High" -1 "Medium" 1 "Low" 2 }
+		cvarFloatList { "High" -2 "Medium" -1 "Low" 0 }
 		rect 0 190 256 20
       		textalign ITEM_ALIGN_RIGHT
       		textalignx 133
