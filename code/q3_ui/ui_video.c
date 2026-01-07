@@ -665,12 +665,12 @@ static void GraphicsOptions_SetMenuItems( void )
 	}
 
 	int lodbias = trap_Cvar_VariableValue( "r_lodBias" );
-	if (lodbias == -1) {
-		s_graphicsoptions.geometry.curvalue = 2;
-	} else if (lodbias == 1) {
-		s_graphicsoptions.geometry.curvalue = 1;
+	if (lodbias <= -2) {
+		s_graphicsoptions.geometry.curvalue = 2;  // High
+	} else if (lodbias == -1) {
+		s_graphicsoptions.geometry.curvalue = 1;  // Medium
 	} else {
-		s_graphicsoptions.geometry.curvalue = 0;
+		s_graphicsoptions.geometry.curvalue = 0;  // Low
 	}
 
 #if 0
