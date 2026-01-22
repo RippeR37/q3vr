@@ -748,7 +748,7 @@ static void GraphicsOptions_SetMenuItems( void )
 	} else if (superSampling == 1.4f) {
 		s_graphicsoptions.supersampling.curvalue = 9;
 	} else if (superSampling == 1.5f) {
-		s_graphicsoptions.supersampling.curvalue = 1;
+		s_graphicsoptions.supersampling.curvalue = 10;
 	} else if (superSampling == 1.75f) {
 		s_graphicsoptions.supersampling.curvalue = 11;
 	} else if (superSampling >= 2.0f) {
