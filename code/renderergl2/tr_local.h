@@ -56,6 +56,7 @@ QGL_ARB_vertex_array_object_PROCS;
 QGL_EXT_direct_state_access_PROCS;
 QGL_3_1_PROCS;
 QGL_3_2_PROCS;
+QGL_4_2_PROCS;
 QGL_4_3_PROCS;
 QGL_4_5_PROCS;
 QGL_OVR_multiview_PROCS;

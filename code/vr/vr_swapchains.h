@@ -18,11 +18,11 @@ void VR_GetSupersampledResolution(XrInstance instance, XrSystemId systemId, int*
 VR_SwapchainInfos VR_CreateSwapchains(XrInstance instance, XrSystemId systemId, XrSession session);
 void VR_DestroySwapchains(VR_SwapchainInfos* swapchains);
 
-void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swapchainColorIndex, uint32_t swapchainDepthIndex);
+void VR_Swapchains_BindFramebuffers(VR_SwapchainInfos* swapchains, uint32_t swapchainColorIndex);
 void VR_Swapchains_BlitXRToMainFbo(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex, XrDesktopViewConfiguration viewConfig, qboolean useVirtualScreen);
 void VR_Swapchains_BlitXRToVirtualScreen(VR_SwapchainInfos* swapchains, uint32_t swapchainImageIndex);
 
-void VR_Swapchains_Acquire(VR_SwapchainInfos* swapchains, uint32_t* colorIndex, uint32_t* depthIndex);
+void VR_Swapchains_Acquire(VR_SwapchainInfos* swapchains, uint32_t* colorIndex);
 void VR_Swapchains_Release(VR_SwapchainInfos* swapchains);
 
 // Screen overlay (quad layer) swapchain functions

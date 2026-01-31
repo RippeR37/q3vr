@@ -276,6 +276,9 @@ extern void (APIENTRYP qglUnlockArraysEXT) (void);
 #define QGL_3_2_PROCS \
 	GLE(void, FramebufferTexture, GLenum target, GLenum attachment, GLuint texture, GLint level) \
 
+#define QGL_4_2_PROCS \
+	GLE(void, TexStorage3D, GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) \
+
 #define QGL_4_3_PROCS \
 	GLE(void, DebugMessageCallback, GLDEBUGPROC callback, const void * userParam) \
 	GLE(void, InvalidateFramebuffer, GLenum target, GLsizei numAttachments, const GLenum * attachments) \
@@ -349,6 +352,7 @@ QGL_2_0_PROCS;
 QGL_3_0_PROCS;
 QGL_3_1_PROCS;
 QGL_3_2_PROCS;
+QGL_4_2_PROCS;
 QGL_4_3_PROCS;
 QGL_4_5_PROCS;
 QGL_OVR_multiview_PROCS;

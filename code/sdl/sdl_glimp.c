@@ -81,6 +81,7 @@ QGL_2_0_PROCS;
 QGL_3_0_PROCS;
 QGL_3_1_PROCS;
 QGL_3_2_PROCS;
+QGL_4_2_PROCS;
 QGL_4_3_PROCS;
 QGL_4_5_PROCS;
 QGL_OVR_multiview_PROCS;
@@ -367,6 +368,9 @@ static qboolean GLimp_GetProcAddresses( qboolean fixedFunction ) {
 	}
 	if ( QGL_VERSION_ATLEAST( 3, 2 ) ) {
 		QGL_3_2_PROCS;
+	}
+  if ( QGL_VERSION_ATLEAST( 4, 2 ) ) {
+		QGL_4_2_PROCS;
 	}
 	if ( QGL_VERSION_ATLEAST( 4, 3 ) ) {
 		QGL_4_3_PROCS;
