@@ -1303,7 +1303,7 @@ static void IN_VRJoystick( qboolean isRightController, float joystickX, float jo
 			// turning while initiating weapon selection with a sideways thumbstick push
 			if (vr_snapturn->integer <= 0 && vr_weaponSelectorMode->integer != WS_HMD)
 			{
-				Com_QueueEvent(in_vrEventTime, SE_JOYSTICK_AXIS, 2, curvedX * 32767.0f, 0, NULL);
+				Com_QueueEvent(in_vrEventTime, SE_JOYSTICK_AXIS, 2, curvedX * (cl_sensitivity->value / 100.0f) * 32767.0f, 0, NULL);
 			}
 
 			float joystickValue = length(curvedX, curvedY);
