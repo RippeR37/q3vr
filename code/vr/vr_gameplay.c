@@ -43,7 +43,7 @@ qboolean VR_Gameplay_ShouldRenderInVirtualScreen( void )
 	}
 
 	// Intermission without menu is rendered in-world
-	if ( cl.snap.ps.pm_type == PM_INTERMISSION )
+	if ( cl.snap.ps.pm_type == PM_INTERMISSION && clc.state == CA_ACTIVE )
 	{
 		return qfalse;
 	}
