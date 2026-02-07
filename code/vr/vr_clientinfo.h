@@ -50,6 +50,7 @@ typedef struct {
 	qboolean in_menu;
 	qboolean local_server;
 	qboolean single_player;
+	qboolean snappy_movement;
 	qboolean use_fake_6dof;
 	VR_FollowMode follow_mode;
 	qboolean weapon_select;

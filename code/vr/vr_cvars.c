@@ -20,6 +20,7 @@ cvar_t *vr_showItemInHand = NULL;
 cvar_t *vr_refreshrate = NULL;
 cvar_t *vr_superSampling = NULL;
 cvar_t *vr_weaponScope = NULL;
+cvar_t *vr_snappyMovement = NULL;
 cvar_t *vr_rollWhenHit = NULL;
 cvar_t *vr_hudYOffset = NULL;
 cvar_t *vr_hudScale = NULL;
@@ -65,6 +66,7 @@ void VR_InitCvars( void )
 	vr_refreshrate = Cvar_Get ("vr_refreshrate", "90", CVAR_ARCHIVE);
 	vr_superSampling = Cvar_Get ("vr_superSampling", "1.0", CVAR_ARCHIVE);
 	vr_weaponScope = Cvar_Get ("vr_weaponScope", "1", CVAR_ARCHIVE);
+	vr_snappyMovement = Cvar_Get ("vr_snappyMovement", "0", CVAR_ARCHIVE); // 0 - disabled (SP == MP), 1 - enabled (SP instant movement/no inertia)
 	vr_rollWhenHit = Cvar_Get ("vr_rollWhenHit", "0", CVAR_ARCHIVE);
 	vr_hudYOffset = Cvar_Get ("vr_hudYOffset", "0", CVAR_ARCHIVE);
 	vr_hudScale = Cvar_Get ("vr_hudScale", "1.0", CVAR_ARCHIVE);

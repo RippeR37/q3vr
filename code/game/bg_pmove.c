@@ -50,7 +50,7 @@ extern vr_clientinfo_t *vr;
 
 
 float PM_GetFrictionCoefficient( void ) {
-	if (vr != NULL && vr->clientNum == pm->ps->clientNum && !vr->use_fake_6dof) {
+	if (vr != NULL && vr->clientNum == pm->ps->clientNum && !vr->use_fake_6dof && vr->snappy_movement) {
 		return 10.0f;
 	} else {
 		return 6.0f;
@@ -58,7 +58,7 @@ float PM_GetFrictionCoefficient( void ) {
 }
 
 float PM_GetAccelerationCoefficient( void ) {
-	if (vr != NULL && vr->clientNum == pm->ps->clientNum && !vr->use_fake_6dof) {
+	if (vr != NULL && vr->clientNum == pm->ps->clientNum && !vr->use_fake_6dof && vr->snappy_movement) {
 		return 1000.0f;
 	} else {
 		return 10.0f;

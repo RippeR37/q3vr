@@ -30,6 +30,7 @@ COMFORT OPTIONS MENU
 
 
 #include "ui_local.h"
+#include "../vr/vr_clientinfo.h"
 
 
 #define ART_FRAMEL				"menu/art/frame2_l"
@@ -41,17 +42,20 @@ COMFORT OPTIONS MENU
 
 #define ID_COMFORTVIGNETTE		127
 #define ID_HEIGHTADJUST			128
-#define ID_ROLLHIT			    129
-#define ID_SMOOTHFOLLOW		    130
-#define ID_HAPTICINTENSITY	    131
-#define ID_BHAPTICS			    132
-#define ID_HUDDEPTH			    133
-#define ID_HUDYOFFSET		    134
-#define ID_HUDSCALE			    135
+#define ID_SNAPPYMOVEMENT		120
+#define ID_ROLLHIT			    130
+#define ID_SMOOTHFOLLOW		    131
+#define ID_HAPTICINTENSITY	    132
+#define ID_BHAPTICS			    133
+#define ID_HUDDEPTH			    134
+#define ID_HUDYOFFSET		    135
+#define ID_HUDSCALE			    136
 
 #define	NUM_HUDDEPTH			21
 
-#define ID_BACK					136
+#define ID_BACK					137
+
+extern vr_clientinfo_t* vr;
 
 typedef struct {
 	menuframework_s		menu;
@@ -62,6 +66,7 @@ typedef struct {
 
 	menuslider_s 		comfortvignette;
 	menuslider_s 		heightadjust;
+	menuradiobutton_s	snappymovement;
 	menuradiobutton_s	rollhit;
 	menuradiobutton_s	smoothfollow;
 	menuslider_s 		hapticintensity;
@@ -79,6 +84,7 @@ static comfort_t s_comfort;
 static void Comfort_SetMenuItems( void ) {
 	s_comfort.comfortvignette.curvalue		= trap_Cvar_VariableValue( "vr_comfortVignette" );
 	s_comfort.heightadjust.curvalue				= trap_Cvar_VariableValue( "vr_heightAdjust" );
+	s_comfort.snappymovement.curvalue     = trap_Cvar_VariableValue( "vr_snappyMovement" ) != 0;
 	s_comfort.rollhit.curvalue						= trap_Cvar_VariableValue( "vr_rollWhenHit" ) != 0;
 	s_comfort.smoothfollow.curvalue				= trap_Cvar_VariableValue( "cg_smoothFollow" ) != 0;
 	s_comfort.bhaptics.curvalue				= trap_Cvar_VariableValue( "vr_bhaptics" ) != 0;
@@ -86,6 +92,10 @@ static void Comfort_SetMenuItems( void ) {
 	s_comfort.huddepth.curvalue						= (int)trap_Cvar_VariableValue( "vr_hudDepth" ) % NUM_HUDDEPTH;
 	s_comfort.hudyoffset.curvalue					= trap_Cvar_VariableValue( "vr_hudYOffset" ) + 200;
 	s_comfort.hudscale.curvalue						= trap_Cvar_VariableValue( "vr_hudScale" );
+
+	if (vr) {
+		vr->snappy_movement = s_comfort.snappymovement.curvalue;
+	}
 }
 
 
@@ -101,6 +111,13 @@ static void Comfort_MenuEvent( void* ptr, int notification ) {
 
 		case ID_HEIGHTADJUST:
 			trap_Cvar_SetValue( "vr_heightAdjust", s_comfort.heightadjust.curvalue );
+			break;
+
+		case ID_SNAPPYMOVEMENT:
+			trap_Cvar_SetValue( "vr_snappyMovement", s_comfort.snappymovement.curvalue );
+			if (vr) {
+				vr->snappy_movement = s_comfort.snappymovement.curvalue;
+			}
 			break;
 
 		case ID_ROLLHIT:
@@ -193,6 +210,15 @@ static void Comfort_MenuInit( void ) {
 	s_comfort.heightadjust.maxvalue		     = 1.0f;
 
 	y += BIGCHAR_HEIGHT+2;
+	s_comfort.snappymovement.generic.type        = MTYPE_RADIOBUTTON;
+	s_comfort.snappymovement.generic.name	      = "Snappy movement (SP):";
+	s_comfort.snappymovement.generic.flags	      = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
+	s_comfort.snappymovement.generic.callback    = Comfort_MenuEvent;
+	s_comfort.snappymovement.generic.id          = ID_SNAPPYMOVEMENT;
+	s_comfort.snappymovement.generic.x	          = VR_X_POS;
+	s_comfort.snappymovement.generic.y	          = y;
+
+	y += BIGCHAR_HEIGHT+2;
 	s_comfort.rollhit.generic.type        = MTYPE_RADIOBUTTON;
 	s_comfort.rollhit.generic.name	      = "Roll When Hit:";
 	s_comfort.rollhit.generic.flags	      = QMF_PULSEIFFOCUS|QMF_SMALLFONT;
@@ -282,6 +308,7 @@ static void Comfort_MenuInit( void ) {
 
 	Menu_AddItem( &s_comfort.menu, &s_comfort.comfortvignette );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.heightadjust );
+	Menu_AddItem( &s_comfort.menu, &s_comfort.snappymovement );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.rollhit );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.smoothfollow );
 	Menu_AddItem( &s_comfort.menu, &s_comfort.bhaptics );
