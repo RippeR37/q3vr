@@ -133,8 +133,8 @@ endforeach()
 # Build pakQ3VR.pk3 from source (always regenerate to catch new files)
 add_custom_target(pakQ3VR ALL
 		COMMAND ${CMAKE_COMMAND} -E remove -f "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3"
-		COMMAND ${CMAKE_COMMAND} -E tar cf 
-		    ${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3 --format=zip 
+		COMMAND ${CMAKE_COMMAND} -E tar cf
+		    ${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3 --format=zip
 				.
 		WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/assets/pakQ3VR"
 		COMMENT "Building pakQ3VR.pk3 from source"
@@ -179,10 +179,10 @@ install(FILES "${CMAKE_SOURCE_DIR}/assets/pakQ3VR.pk3" DESTINATION
 		COMPONENT game_engine)
 install(FILES "${CMAKE_SOURCE_DIR}/assets/third_party/baseq3a/pak8a.pk3" DESTINATION
     $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
-		COMPONENT baseq3a_mod)
+		COMPONENT game_engine)
 install(FILES "${CMAKE_SOURCE_DIR}/assets/third_party/missionpackplus/pak3a.pk3" DESTINATION
     $<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/missionpack/,${CMAKE_BINARY_DIR}/$<CONFIG>>
-		COMPONENT missionpackplus_mod)
+		COMPONENT game_engine)
 install(
     DIRECTORY "${CMAKE_SOURCE_DIR}/assets/third_party/point_release_v1.32/" DESTINATION
 		$<PATH:RELATIVE_PATH,$<TARGET_FILE_DIR:${CLIENT_BINARY}>/baseq3/,${CMAKE_BINARY_DIR}/$<CONFIG>>
